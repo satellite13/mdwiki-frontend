@@ -1,6 +1,19 @@
 <script setup lang="ts">
+import { onMounted, onBeforeUnmount } from 'vue'
 import AppHeader from './AppHeader.vue'
 import AppSidebar from './AppSidebar.vue'
+
+function onKeydown(e: KeyboardEvent) {
+  // Ctrl+K or Cmd+K → focus search
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault()
+    const searchInput = document.querySelector('.search-form input') as HTMLInputElement
+    searchInput?.focus()
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>

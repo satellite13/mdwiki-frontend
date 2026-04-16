@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
 const props = defineProps<{
   x: number
@@ -29,9 +29,21 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') emit('close')
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', onClickOutside, true)
   document.addEventListener('keydown', onKeydown)
+  await nextTick()
+  if (menuRef.value) {
+    const rect = menuRef.value.getBoundingClientRect()
+    const viewW = window.innerWidth
+    const viewH = window.innerHeight
+    if (rect.right > viewW) {
+      menuRef.value.style.left = `${viewW - rect.width - 8}px`
+    }
+    if (rect.bottom > viewH) {
+      menuRef.value.style.top = `${viewH - rect.height - 8}px`
+    }
+  }
 })
 
 onBeforeUnmount(() => {

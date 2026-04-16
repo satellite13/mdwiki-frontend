@@ -185,6 +185,11 @@ watch(() => route.params.slug, (slug) => {
   if (slug) loadPage(slug as string)
 })
 
+watch(() => isDirty(), (dirty) => {
+  const baseTitle = title.value || 'MDWiki'
+  document.title = dirty ? `● ${baseTitle} — MDWiki` : `${baseTitle} — MDWiki`
+})
+
 onBeforeUnmount(() => {
   if (saveTimer) {
     clearSaveTimer()
@@ -203,6 +208,7 @@ onBeforeUnmount(() => {
         @input="onTitleInput"
         placeholder="Page title"
       />
+      <span v-if="isDirty()" class="unsaved-dot" title="Unsaved changes"></span>
       <span v-if="saveError" class="save-error" @click="saveError = null">{{ saveError }}</span>
       <span :class="['save-status', saveStatus]">
         <template v-if="saveStatus === 'saving'">Saving...</template>
@@ -285,6 +291,15 @@ onBeforeUnmount(() => {
 
 .save-status.saved {
   color: var(--color-primary);
+}
+
+.unsaved-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-tag);
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .save-error {
