@@ -1,4 +1,4 @@
-import { Node, mergeAttributes } from '@tiptap/core'
+import { Node, mergeAttributes, InputRule } from '@tiptap/core'
 
 export const WikilinkExtension = Node.create({
   name: 'wikilink',
@@ -25,14 +25,16 @@ export const WikilinkExtension = Node.create({
   },
 
   addInputRules() {
-    return [{
-      find: /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]$/,
-      handler: ({ state, range, match }) => {
-        const slug = match[1].trim()
-        const label = match[2]?.trim() || null
-        const { tr } = state
-        tr.replaceWith(range.from, range.to, this.type.create({ slug, label }))
-      }
-    }]
+    return [
+      new InputRule({
+        find: /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]$/,
+        handler: ({ state, range, match }) => {
+          const slug = match[1].trim()
+          const label = match[2]?.trim() || null
+          const { tr } = state
+          tr.replaceWith(range.from, range.to, this.type.create({ slug, label }))
+        }
+      })
+    ]
   }
 })

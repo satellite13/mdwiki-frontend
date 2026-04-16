@@ -1,4 +1,4 @@
-import { Node, mergeAttributes } from '@tiptap/core'
+import { Node, mergeAttributes, InputRule } from '@tiptap/core'
 
 export const TagExtension = Node.create({
   name: 'hashtag',
@@ -21,17 +21,19 @@ export const TagExtension = Node.create({
   },
 
   addInputRules() {
-    return [{
-      find: /(?:^|\s)#([\w\u0400-\u04FF-]+)\s$/u,
-      handler: ({ state, range, match }) => {
-        const tag = match[1]
-        const { tr } = state
-        const start = range.from + (match[0].startsWith(' ') ? 1 : 0)
-        tr.replaceWith(start, range.to, [
-          this.type.create({ tag }),
-          state.schema.text(' ')
-        ])
-      }
-    }]
+    return [
+      new InputRule({
+        find: /(?:^|\s)#([\w\u0400-\u04FF-]+)\s$/u,
+        handler: ({ state, range, match }) => {
+          const tag = match[1]
+          const { tr } = state
+          const start = range.from + (match[0].startsWith(' ') ? 1 : 0)
+          tr.replaceWith(start, range.to, [
+            this.type.create({ tag }),
+            state.schema.text(' ')
+          ])
+        }
+      })
+    ]
   }
 })
