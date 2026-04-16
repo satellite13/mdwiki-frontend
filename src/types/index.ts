@@ -82,3 +82,15 @@ export interface ApiKeyCreated {
   createdAt: string
   expiresAt: string | null
 }
+
+export interface Attachment {
+  id: string
+  originalName: string
+  storedName: string
+  contentType: string
+  sizeBytes: number
+  uploadedBy: string | null
+  pageId: string | null
+  url: string
+  createdAt: string
+}

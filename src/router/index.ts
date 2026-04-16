@@ -14,6 +14,7 @@ const router = createRouter({
         { path: '', name: 'workspace', component: () => import('@/components/pages/WorkspacePage.vue') },
         { path: 'page/:slug', name: 'page', component: () => import('@/components/pages/WorkspacePage.vue'), props: true },
         { path: 'search', name: 'search', component: () => import('@/components/search/SearchPage.vue') },
+        { path: 'attachments', name: 'attachments', component: () => import('@/components/attachments/AttachmentsPage.vue') },
         { path: 'profile', name: 'profile', component: () => import('@/components/profile/ProfilePage.vue') },
         { path: 'admin/users', name: 'admin-users', component: () => import('@/components/admin/AdminUsersPage.vue'), meta: { requiresAdmin: true } }
       ]

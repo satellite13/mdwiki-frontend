@@ -1,0 +1,183 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import * as attachmentsApi from '@/api/attachments'
+import type { Attachment } from '@/types'
+
+const auth = useAuthStore()
+const attachments = ref<Attachment[]>([])
+const loading = ref(true)
+const uploading = ref(false)
+const dragOver = ref(false)
+
+async function fetchAttachments() {
+  loading.value = true
+  try {
+    const { data } = await attachmentsApi.listAttachments()
+    attachments.value = data
+  } catch (e) {
+    console.error('Failed to load attachments:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleFiles(files: FileList | null) {
+  if (!files || files.length === 0) return
+  uploading.value = true
+  try {
+    for (const file of Array.from(files)) {
+      await attachmentsApi.uploadAttachment(file)
+    }
+    await fetchAttachments()
+  } catch (e) {
+    console.error('Upload failed:', e)
+    alert('Upload failed')
+  } finally {
+    uploading.value = false
+  }
+}
+
+function onFileInput(e: Event) {
+  handleFiles((e.target as HTMLInputElement).files)
+}
+
+function onDrop(e: DragEvent) {
+  e.preventDefault()
+  dragOver.value = false
+  handleFiles(e.dataTransfer?.files ?? null)
+}
+
+function onDragOver(e: DragEvent) {
+  e.preventDefault()
+  dragOver.value = true
+}
+
+function onDragLeave() {
+  dragOver.value = false
+}
+
+async function deleteAttachment(att: Attachment) {
+  if (!confirm(`Delete "${att.originalName}"?`)) return
+  try {
+    await attachmentsApi.deleteAttachment(att.id)
+    await fetchAttachments()
+  } catch (e) {
+    console.error('Delete failed:', e)
+    alert('Delete failed')
+  }
+}
+
+function copyLink(att: Attachment) {
+  const isImage = att.contentType.startsWith('image/')
+  const md = isImage ? `![${att.originalName}](${att.url})` : `[${att.originalName}](${att.url})`
+  navigator.clipboard.writeText(md)
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function isImage(contentType: string): boolean {
+  return contentType.startsWith('image/')
+}
+
+onMounted(fetchAttachments)
+</script>
+
+<template>
+  <div class="attachments-page">
+    <h1>Attachments</h1>
+
+    <div
+      v-if="auth.isEditor"
+      :class="['upload-zone', { 'drag-over': dragOver }]"
+      @drop="onDrop"
+      @dragover="onDragOver"
+      @dragleave="onDragLeave"
+    >
+      <p v-if="uploading">Uploading...</p>
+      <p v-else>Drag files here or <label class="file-label"><input type="file" multiple @change="onFileInput" hidden />browse</label></p>
+    </div>
+
+    <div v-if="loading" class="state-placeholder">Loading...</div>
+    <div v-else-if="attachments.length === 0" class="state-placeholder">No attachments yet.</div>
+    <table v-else class="data-table attachments-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Size</th>
+          <th>Uploaded by</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="att in attachments" :key="att.id">
+          <td class="preview-cell">
+            <img v-if="isImage(att.contentType)" :src="att.url" class="thumb" :alt="att.originalName" />
+            <span v-else class="file-icon">📎</span>
+          </td>
+          <td class="name-cell">
+            <a :href="att.url" target="_blank">{{ att.originalName }}</a>
+          </td>
+          <td class="type-cell">{{ att.contentType }}</td>
+          <td class="size-cell">{{ formatSize(att.sizeBytes) }}</td>
+          <td class="user-cell">{{ att.uploadedBy || '—' }}</td>
+          <td class="date-cell">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
+          <td class="actions-cell">
+            <button class="btn-secondary btn-sm" @click="copyLink(att)" title="Copy markdown link">Copy link</button>
+            <button v-if="auth.isEditor" class="btn-danger btn-sm" @click="deleteAttachment(att)">Delete</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<style scoped>
+.attachments-page h1 { margin-bottom: 20px; }
+
+.upload-zone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 32px;
+  text-align: center;
+  margin-bottom: 24px;
+  color: var(--color-text-muted);
+  transition: all 0.15s;
+}
+
+.upload-zone.drag-over {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light, rgba(13, 148, 136, 0.05));
+  color: var(--color-primary);
+}
+
+.file-label {
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.file-icon { font-size: 20px; }
+.preview-cell { width: 50px; text-align: center; }
+.name-cell a { font-weight: 500; }
+.type-cell { font-family: var(--font-mono); font-size: 12px; color: var(--color-text-muted); }
+.size-cell { font-family: var(--font-mono); font-size: 13px; }
+.user-cell { color: var(--color-text-muted); font-size: 13px; }
+.date-cell { font-family: var(--font-mono); font-size: 13px; color: var(--color-text-muted); }
+.actions-cell { display: flex; gap: 6px; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+</style>
