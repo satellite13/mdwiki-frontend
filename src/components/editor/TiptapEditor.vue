@@ -3,6 +3,8 @@ import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import { WikilinkExtension } from './WikilinkExtension'
+import { TagExtension } from './TagExtension'
 import { watch } from 'vue'
 
 const props = defineProps<{ modelValue: string }>()
@@ -13,7 +15,9 @@ const editor = useEditor({
   extensions: [
     StarterKit,
     Link.configure({ openOnClick: false }),
-    Placeholder.configure({ placeholder: 'Start writing...' })
+    Placeholder.configure({ placeholder: 'Start writing...' }),
+    WikilinkExtension,
+    TagExtension
   ],
   onUpdate: ({ editor }) => { emit('update:modelValue', editor.getHTML()) }
 })
