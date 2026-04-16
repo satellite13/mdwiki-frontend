@@ -28,9 +28,9 @@ onMounted(fetchUsers)
       <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
       <tbody>
         <tr v-for="user in users" :key="user.id">
-          <td>{{ user.username }}</td>
-          <td>{{ user.email }}</td>
-          <td>{{ user.role }}</td>
+          <td class="user-name">{{ user.username }}</td>
+          <td class="user-email">{{ user.email }}</td>
+          <td><span class="role-badge">{{ user.role }}</span></td>
           <td>
             <select :value="user.role" @change="changeRole(user, ($event.target as HTMLSelectElement).value)">
               <option value="READER">READER</option>
@@ -45,10 +45,80 @@ onMounted(fetchUsers)
 </template>
 
 <style scoped>
-.admin-users h1 { margin-bottom: 24px; }
-.users-table { width: 100%; border-collapse: collapse; }
-.users-table th, .users-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--color-border); }
-.users-table th { font-size: 13px; color: var(--color-text-muted); }
-.users-table select { padding: 4px 8px; border-radius: 4px; border: 1px solid var(--color-border); }
-.loading { color: var(--color-text-muted); padding: 40px 0; text-align: center; }
+.admin-users h1 {
+  font-family: var(--font-heading);
+  margin-bottom: 28px;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.users-table th {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+}
+
+.users-table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.users-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.user-name {
+  font-weight: 500;
+}
+
+.user-email {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.role-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--color-bg-secondary);
+  padding: 3px 8px;
+  border-radius: 3px;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.users-table select {
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-body);
+  font-size: 13px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: auto;
+}
+
+.users-table select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(26, 107, 90, 0.1);
+}
+
+.loading {
+  color: var(--color-text-muted);
+  padding: 48px 0;
+  text-align: center;
+}
 </style>

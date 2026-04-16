@@ -38,9 +38,9 @@ onMounted(fetchKeys)
 <template>
   <div class="profile-page">
     <h1>Profile</h1>
-    <div class="profile-info">
+    <div class="profile-card">
       <p><strong>Username:</strong> {{ auth.username }}</p>
-      <p><strong>Role:</strong> {{ auth.role }}</p>
+      <p><strong>Role:</strong> <span class="role-badge">{{ auth.role }}</span></p>
     </div>
 
     <h2>API Keys</h2>
@@ -65,10 +65,10 @@ onMounted(fetchKeys)
       <thead><tr><th>Name</th><th>Created</th><th>Last Used</th><th></th></tr></thead>
       <tbody>
         <tr v-for="key in keys" :key="key.id">
-          <td>{{ key.name }}</td>
-          <td>{{ new Date(key.createdAt).toLocaleDateString() }}</td>
-          <td>{{ key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never' }}</td>
-          <td><button class="btn-danger" @click="deleteKey(key.id)">Delete</button></td>
+          <td class="key-name">{{ key.name }}</td>
+          <td class="key-date">{{ new Date(key.createdAt).toLocaleDateString() }}</td>
+          <td class="key-date">{{ key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never' }}</td>
+          <td><button class="btn-danger btn-sm" @click="deleteKey(key.id)">Delete</button></td>
         </tr>
       </tbody>
     </table>
@@ -77,18 +77,132 @@ onMounted(fetchKeys)
 </template>
 
 <style scoped>
-.profile-page h1 { margin-bottom: 16px; }
-.profile-page h2 { margin-top: 32px; margin-bottom: 8px; }
-.profile-info { margin-bottom: 16px; }
-.profile-info p { margin-bottom: 4px; }
-.hint { color: var(--color-text-muted); font-size: 14px; margin-bottom: 16px; }
-.key-created { background: #f0fdf4; border: 1px solid var(--color-success); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
-.key-display { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
-.key-display code { background: var(--color-bg-secondary); padding: 6px 12px; border-radius: 4px; font-size: 13px; word-break: break-all; flex: 1; }
-.create-key { display: flex; gap: 8px; margin-bottom: 24px; }
-.create-key input { max-width: 300px; }
-.keys-table { width: 100%; border-collapse: collapse; }
-.keys-table th, .keys-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--color-border); }
-.keys-table th { font-size: 13px; color: var(--color-text-muted); }
-.loading, .empty { color: var(--color-text-muted); padding: 24px 0; }
+.profile-page h1 {
+  font-family: var(--font-heading);
+  margin-bottom: 20px;
+}
+
+.profile-page h2 {
+  font-family: var(--font-heading);
+  margin-top: 36px;
+  margin-bottom: 8px;
+  font-size: 1.3rem;
+}
+
+.profile-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 8px;
+}
+
+.profile-card p {
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+
+.profile-card p:last-child {
+  margin-bottom: 0;
+}
+
+.role-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--color-bg-secondary);
+  padding: 2px 8px;
+  border-radius: 3px;
+  color: var(--color-text-muted);
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.key-created {
+  background: rgba(39, 174, 96, 0.06);
+  border: 1px solid rgba(39, 174, 96, 0.3);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.key-created p {
+  margin-bottom: 4px;
+}
+
+.key-display {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.key-display code {
+  font-family: var(--font-mono);
+  background: var(--color-bg-secondary);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  word-break: break-all;
+  flex: 1;
+  border: 1px solid var(--color-border);
+}
+
+.create-key {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.create-key input {
+  max-width: 320px;
+}
+
+.keys-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.keys-table th,
+.keys-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.keys-table th {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+}
+
+.keys-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.key-name {
+  font-weight: 500;
+}
+
+.key-date {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.btn-sm {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.loading, .empty {
+  color: var(--color-text-muted);
+  padding: 24px 0;
+}
 </style>
