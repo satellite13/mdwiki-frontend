@@ -16,7 +16,23 @@ import AppSidebar from './AppSidebar.vue'
 </template>
 
 <style scoped>
-.app-layout { min-height: 100vh; display: flex; flex-direction: column; }
-.app-body { display: flex; flex: 1; }
-.app-main { flex: 1; padding: 24px; overflow-y: auto; height: calc(100vh - 57px); }
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+}
+
+.app-main {
+  flex: 1;
+  padding: 32px 40px;
+  overflow-y: auto;
+  height: calc(100vh - 60px);
+  background: var(--color-bg);
+}
 </style>
