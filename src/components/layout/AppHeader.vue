@@ -39,22 +39,33 @@ function logout() {
   align-items: center;
   gap: 16px;
   padding: 0 20px;
-  height: 49px;
+  height: 48px;
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
 }
 
 .logo {
-  font-size: 16px;
+  font-family: var(--font-body);
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-text);
   text-decoration: none;
+  letter-spacing: -0.3px;
+  transition: color 0.15s;
 }
 
-.logo:hover { text-decoration: none; }
+.logo:hover {
+  color: var(--color-primary);
+  text-decoration: none;
+}
 
 .search-form { flex: 1; max-width: 360px; }
-.search-form input { font-size: 13px; padding: 6px 12px; }
+.search-form input {
+  font-size: 13px;
+  padding: 6px 12px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius);
+}
 
 .header-nav {
   display: flex;
@@ -65,7 +76,8 @@ function logout() {
 
 .nav-link {
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   text-decoration: none;
 }
 

@@ -109,10 +109,11 @@ onMounted(fetchKeys)
 .role-badge {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: var(--color-bg-tertiary);
+  background: var(--color-primary-light);
   padding: 2px 8px;
-  border-radius: 3px;
-  color: var(--color-text-muted);
+  border-radius: 4px;
+  color: var(--color-primary);
+  font-weight: 500;
 }
 
 .hint {
@@ -122,8 +123,8 @@ onMounted(fetchKeys)
 }
 
 .key-created {
-  background: var(--color-success-bg, rgba(46, 204, 113, 0.1));
-  border: 1px solid var(--color-success);
+  background: rgba(13, 148, 136, 0.06);
+  border: 1px solid var(--color-primary);
   border-radius: var(--radius);
   padding: 18px 20px;
   margin-bottom: 20px;

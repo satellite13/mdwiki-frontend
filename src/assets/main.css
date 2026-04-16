@@ -1,39 +1,40 @@
 /* ============================================
-   MDWiki — Clean Light Theme
+   MDWiki — Studio Theme (IBM Plex + Teal)
    ============================================ */
 
 :root {
   /* Backgrounds */
   --color-bg: #ffffff;
-  --color-bg-secondary: #f8f9fa;
-  --color-bg-tertiary: #f0f1f3;
-  --color-bg-hover: #e9ecef;
+  --color-bg-secondary: #f6f8fa;
+  --color-bg-tertiary: #eef1f5;
+  --color-bg-hover: #e8ecf1;
 
   /* Text */
-  --color-text: #1a1a1a;
-  --color-text-muted: #6b7280;
-  --color-text-faint: #9ca3af;
+  --color-text: #24292f;
+  --color-text-muted: #656d76;
+  --color-text-faint: #8b949e;
 
   /* Accent */
-  --color-primary: #5b5fc7;
-  --color-primary-hover: #4a4eb5;
-  --color-danger: #dc3545;
-  --color-danger-hover: #c82333;
-  --color-success: #28a745;
+  --color-primary: #0d9488;
+  --color-primary-hover: #0f766e;
+  --color-primary-light: rgba(13, 148, 136, 0.08);
+  --color-danger: #cf222e;
+  --color-danger-hover: #a3111a;
+  --color-success: #1a7f37;
 
   /* Borders & Shadows */
-  --color-border: #e2e5e9;
-  --radius: 6px;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --color-border: #d1d9e0;
+  --radius: 8px;
+  --shadow: 0 1px 2px rgba(36, 41, 47, 0.06);
 
   /* Semantic */
-  --color-wikilink: #5b5fc7;
-  --color-wikilink-missing: #dc3545;
-  --color-tag: #d97706;
+  --color-wikilink: #0d9488;
+  --color-wikilink-missing: #cf222e;
+  --color-tag: #bf8700;
 
   /* Typography */
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+  --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
 }
 
 /* ---- Reset & Base ---- */
@@ -101,10 +102,12 @@ button {
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
+  box-shadow: var(--shadow);
 }
 
 .btn-primary:hover {
   background: var(--color-primary-hover);
+  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.18);
 }
 
 .btn-danger {
@@ -140,13 +143,13 @@ input, textarea, select {
   width: 100%;
   color: var(--color-text);
   background: var(--color-bg);
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(91, 95, 199, 0.15);
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.12);
 }
 
 input::placeholder, textarea::placeholder {
@@ -156,8 +159,8 @@ input::placeholder, textarea::placeholder {
 /* ---- Scrollbar ---- */
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -165,12 +168,12 @@ input::placeholder, textarea::placeholder {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: var(--color-border);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #aaa;
+  background: var(--color-text-faint);
 }
 
 /* ---- Animations ---- */
@@ -196,14 +199,16 @@ input::placeholder, textarea::placeholder {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: var(--color-bg-secondary);
+  background-color: #f6f8fa;
+  background-image: radial-gradient(circle, #d1d9e0 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .auth-card {
   background: var(--color-bg);
   padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(36, 41, 47, 0.08);
   width: 100%;
   max-width: 400px;
   animation: fadeInUp 0.4s ease both;
@@ -225,6 +230,8 @@ input::placeholder, textarea::placeholder {
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--color-border); }
 .data-table th { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-muted); background: var(--color-bg-secondary); }
+.data-table tbody tr { transition: background 0.12s; }
+.data-table tbody tr:hover { background: var(--color-bg-hover); }
 
 /* ---- State Placeholder ---- */
 

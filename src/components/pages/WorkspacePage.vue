@@ -253,13 +253,14 @@ onBeforeUnmount(() => {
 
 .title-input {
   flex: 1;
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   border: none;
   background: transparent;
   color: var(--color-text);
   padding: 4px 0;
   outline: none;
+  letter-spacing: -0.3px;
 }
 
 .title-input:focus {
@@ -273,7 +274,7 @@ onBeforeUnmount(() => {
 }
 
 .save-status.saved {
-  color: var(--color-success);
+  color: var(--color-primary);
 }
 
 .editor-area {

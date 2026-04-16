@@ -67,14 +67,6 @@ onMounted(fetchUsers)
   margin-bottom: 28px;
 }
 
-.users-table tbody tr:nth-child(even) {
-  background: var(--color-bg-secondary);
-}
-
-.users-table tbody tr:nth-child(odd) {
-  background: var(--color-bg-tertiary);
-}
-
 .users-table tbody tr:hover {
   background: var(--color-bg-hover);
 }
@@ -91,11 +83,11 @@ onMounted(fetchUsers)
 .role-badge {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: var(--color-bg-tertiary);
+  background: var(--color-primary-light);
   padding: 3px 8px;
-  border-radius: 3px;
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-primary);
+  font-weight: 500;
 }
 
 .users-table select {
@@ -113,7 +105,7 @@ onMounted(fetchUsers)
 
 .users-table select:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(91, 95, 199, 0.15);
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.12);
 }
 
 .actions-cell {
@@ -136,9 +128,9 @@ onMounted(fetchUsers)
 }
 
 .btn-delete-user:hover {
-  color: #c44;
-  border-color: rgba(204, 68, 68, 0.45);
-  background: rgba(204, 68, 68, 0.06);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  background: rgba(207, 34, 46, 0.06);
 }
 
 </style>

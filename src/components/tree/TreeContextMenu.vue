@@ -61,12 +61,14 @@ onBeforeUnmount(() => {
 .context-menu {
   position: fixed;
   z-index: 1000;
-  background: var(--color-bg);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: 10px;
   padding: 4px;
   min-width: 160px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px rgba(36, 41, 47, 0.1);
 }
 
 .menu-item {
@@ -77,13 +79,14 @@ onBeforeUnmount(() => {
   font-size: 13px;
   background: none;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--color-text);
   cursor: pointer;
+  transition: background 0.12s;
 }
 
 .menu-item:hover {
-  background: var(--color-bg-hover, #f0f0f0);
+  background: var(--color-bg-hover);
 }
 
 .menu-item.danger {

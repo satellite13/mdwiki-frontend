@@ -65,12 +65,13 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
   border-radius: var(--radius);
   padding: 18px 20px;
   transition: all 0.15s ease;
-  background: var(--color-bg-secondary);
+  background: var(--color-bg);
   animation: fadeInUpStagger 0.4s ease both;
 }
 
 .result-card:hover {
   border-color: var(--color-primary);
+  box-shadow: var(--shadow);
 }
 
 .result-card a {

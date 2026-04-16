@@ -60,30 +60,30 @@ function onContextMenu(e: MouseEvent) {
   padding: 4px 8px;
   cursor: pointer;
   font-size: 13px;
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--color-text);
   user-select: none;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .tree-page:hover {
-  background: var(--color-bg-hover, #f0f0f0);
+  background: var(--color-bg-hover);
 }
 
 .tree-page.active {
   background: var(--color-primary);
-  color: white;
+  color: #fff;
 }
 
 .page-icon {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  color: var(--color-text-muted);
+  color: var(--color-text-faint);
 }
 
 .tree-page.active .page-icon {
-  color: white;
+  color: #fff;
 }
 
 .page-name {
@@ -112,7 +112,7 @@ function onContextMenu(e: MouseEvent) {
   height: 20px;
   padding: 0;
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
@@ -125,7 +125,7 @@ function onContextMenu(e: MouseEvent) {
 }
 
 .node-action.danger:hover {
-  background: rgba(220, 53, 69, 0.1);
+  background: rgba(207, 34, 46, 0.08);
   color: var(--color-danger);
 }
 </style>

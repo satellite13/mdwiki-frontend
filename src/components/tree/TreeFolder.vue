@@ -136,28 +136,29 @@ function onContextMenu(e: MouseEvent) {
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--color-text);
   user-select: none;
   transition: background 0.15s;
 }
 
 .folder-header:hover {
-  background: var(--color-bg-hover, #f0f0f0);
+  background: var(--color-bg-hover);
 }
 
 .folder-header.drag-over {
-  background: rgba(91, 95, 199, 0.12);
+  background: var(--color-primary-light);
   outline: 2px dashed var(--color-primary);
   outline-offset: -2px;
 }
 
 .chevron {
   font-size: 8px;
-  transition: transform 0.15s;
+  transition: transform 0.2s ease;
   flex-shrink: 0;
   width: 12px;
   text-align: center;
+  color: var(--color-text-faint);
 }
 
 .chevron.expanded {
@@ -169,6 +170,11 @@ function onContextMenu(e: MouseEvent) {
   align-items: center;
   flex-shrink: 0;
   color: var(--color-text-muted);
+  transition: color 0.15s;
+}
+
+.chevron.expanded + .folder-icon {
+  color: var(--color-primary);
 }
 
 .folder-name {
@@ -176,6 +182,11 @@ function onContextMenu(e: MouseEvent) {
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+}
+
+.folder-children {
+  border-left: 1px solid var(--color-border);
+  margin-left: 18px;
 }
 
 .folder-actions {
@@ -197,7 +208,7 @@ function onContextMenu(e: MouseEvent) {
   height: 20px;
   padding: 0;
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
@@ -210,7 +221,7 @@ function onContextMenu(e: MouseEvent) {
 }
 
 .node-action.danger:hover {
-  background: rgba(220, 53, 69, 0.1);
+  background: rgba(207, 34, 46, 0.08);
   color: var(--color-danger);
 }
 </style>

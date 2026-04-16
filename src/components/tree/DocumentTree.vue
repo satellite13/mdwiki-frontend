@@ -396,7 +396,7 @@ function disconnectTreeEvents() {
 }
 
 .tree-header {
-  padding: 10px 12px;
+  padding: 12px 14px 10px;
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
@@ -404,11 +404,11 @@ function disconnectTreeEvents() {
 }
 
 .tree-title {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--color-text-muted);
+  letter-spacing: 1.2px;
+  color: var(--color-text-faint);
 }
 
 .tree-actions {
@@ -524,7 +524,7 @@ function disconnectTreeEvents() {
 
 .tag-chip.active {
   border-color: var(--color-primary);
-  background: rgba(91, 95, 199, 0.1);
+  background: var(--color-primary-light);
   color: var(--color-primary);
 }
 
@@ -541,7 +541,7 @@ function disconnectTreeEvents() {
 }
 
 .tree-content.root-drag-over {
-  background: rgba(91, 95, 199, 0.06);
+  background: var(--color-primary-light);
 }
 
 .tree-loading {
