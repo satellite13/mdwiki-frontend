@@ -34,7 +34,7 @@ function onSave() {
     @onSave="onSave"
     language="en-US"
     previewTheme="default"
-    :toolbars="['bold', 'italic', 'strikeThrough', '-', 'title', 'unorderedList', 'orderedList', 'task', '-', 'codeRow', 'code', 'link', 'table', '-', 'revoke', 'next', '=', 'preview']"
+    :toolbars="['bold', 'underline', 'italic', 'strikeThrough', '-', 'title', 'sub', 'sup', 'quote', '-', 'unorderedList', 'orderedList', 'task', '-', 'codeRow', 'code', 'link', 'image', 'table', 'mermaid', 'katex', '-', 'revoke', 'next', 'save', 'prettier', '=', 'pageFullscreen', 'fullscreen', 'preview', 'previewOnly', 'catalog']"
     style="height: 100%"
   />
 </template>
