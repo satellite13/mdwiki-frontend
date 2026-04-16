@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 import type { FolderTreeNode } from '@/types'
+import { t } from '@/utils/i18n'
 
 const props = defineProps<{
   node: FolderTreeNode
@@ -45,7 +46,7 @@ function onContextMenu(e: MouseEvent) {
     <span class="page-name">{{ node.name }}</span>
 
     <span v-if="auth.isEditor" class="page-actions" @click.stop>
-      <button class="node-action danger" title="Удалить страницу" @click="emit('delete', node)">
+      <button class="node-action danger" :title="t.tree.deletePage" @click="emit('delete', node)">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </span>

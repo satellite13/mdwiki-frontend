@@ -15,8 +15,13 @@ async function onSubmit() {
   try {
     await auth.register(username.value, email.value, password.value)
     router.push({ name: 'workspace' })
-  } catch (e: any) {
-    error.value = e.response?.data?.message || 'Registration failed'
+  } catch (e: unknown) {
+    if (e instanceof Error && 'response' in e) {
+      const axiosErr = e as { response?: { data?: { message?: string } } }
+      error.value = axiosErr.response?.data?.message || 'Registration failed'
+    } else {
+      error.value = 'Registration failed'
+    }
   }
 }
 </script>

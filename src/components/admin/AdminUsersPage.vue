@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import * as usersApi from '@/api/users'
 import type { User } from '@/types'
 import { useAuthStore } from '@/stores/auth'
+import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
 const users = ref<User[]>([])
@@ -21,7 +22,7 @@ async function changeRole(user: User, newRole: string) {
 
 async function removeUser(user: User) {
   if (user.username === auth.username) return
-  if (!confirm(`Удалить пользователя «${user.username}»?`)) return
+  if (!confirm(t.admin.confirmDeleteUser(user.username))) return
   await usersApi.deleteUser(user.id)
   fetchUsers()
 }
@@ -52,7 +53,7 @@ onMounted(fetchUsers)
               class="btn-delete-user"
               @click="removeUser(user)"
             >
-              Удалить
+              {{ t.admin.delete }}
             </button>
           </td>
         </tr>

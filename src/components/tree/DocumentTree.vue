@@ -8,6 +8,7 @@ import * as pagesApi from '@/api/pages'
 import type { FolderTreeNode } from '@/types'
 import { createTreeEventsSource } from '@/api/events'
 import { normalizePageSlug } from '@/utils/pageSlug'
+import { t } from '@/utils/i18n'
 import TreeFolder from './TreeFolder.vue'
 import TreePage from './TreePage.vue'
 import TreeContextMenu from './TreeContextMenu.vue'
@@ -38,14 +39,14 @@ const contextMenuItems = computed(() => {
   const items: { label: string; action: string; danger?: boolean }[] = []
 
   if (!contextMenu.value?.node || contextMenu.value.node.type === 'folder') {
-    items.push({ label: 'Новая страница', action: 'new-page' })
-    items.push({ label: 'Новая папка', action: 'new-folder' })
+    items.push({ label: t.tree.newPage, action: 'new-page' })
+    items.push({ label: t.tree.newFolder, action: 'new-folder' })
   }
   if (contextMenu.value?.node) {
     if (contextMenu.value.node.type === 'folder') {
-      items.push({ label: 'Переименовать', action: 'rename' })
+      items.push({ label: t.tree.rename, action: 'rename' })
     }
-    items.push({ label: 'Удалить', action: 'delete', danger: true })
+    items.push({ label: t.tree.delete, action: 'delete', danger: true })
   }
   return items
 })
@@ -135,7 +136,7 @@ function onRootContextMenu(e: MouseEvent) {
 }
 
 async function createNewPage(folderId?: string) {
-  const title = prompt('Название страницы:')
+  const title = prompt(t.tree.pageNamePrompt)
   if (!title) return
   const slug = normalizePageSlug(title)
   if (!slug) return
@@ -145,7 +146,7 @@ async function createNewPage(folderId?: string) {
 }
 
 async function createNewFolder(parentId?: string) {
-  const name = prompt('Название папки:')
+  const name = prompt(t.tree.folderNamePrompt)
   if (!name) return
   await folderStore.createFolder(name, parentId || undefined)
 }
@@ -162,7 +163,7 @@ async function onContextAction(action: string) {
       const parentId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
       await createNewFolder(parentId || undefined)
     } else if (action === 'rename' && ctx.node) {
-      const newName = prompt('Новое имя:', ctx.node.name)
+      const newName = prompt(t.tree.newNamePrompt, ctx.node.name)
       if (!newName || newName === ctx.node.name) return
       if (ctx.node.type === 'folder') {
         try {
@@ -172,7 +173,7 @@ async function onContextAction(action: string) {
         }
       }
     } else if (action === 'delete' && ctx.node) {
-      if (!confirm(`Удалить "${ctx.node.name}"?`)) return
+      if (!confirm(t.tree.confirmDelete(ctx.node.name))) return
       if (ctx.node.type === 'folder') {
         try {
           await folderStore.deleteFolder(ctx.node.id)
@@ -199,7 +200,7 @@ async function onContextAction(action: string) {
 }
 
 async function onDeleteNode(node: FolderTreeNode) {
-  if (!confirm(`Удалить "${node.name}"?`)) return
+  if (!confirm(t.tree.confirmDelete(node.name))) return
   if (node.type === 'folder') {
     await folderStore.deleteFolder(node.id)
     // Tag refresh and tree refresh handled by SSE 'tree-updated' event.
@@ -332,12 +333,12 @@ function disconnectTreeEvents() {
     @drop="onRootDrop"
   >
     <div class="tree-header">
-      <span class="tree-title">Документы</span>
+      <span class="tree-title">{{ t.tree.documents }}</span>
       <div v-if="auth.isEditor" class="tree-actions">
-        <button class="tree-action-btn" title="Новая страница" @click.stop="createNewPage()">
+        <button class="tree-action-btn" :title="t.tree.newPage" @click.stop="createNewPage()">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 1h7l3 3v11H3V1z" stroke="currentColor" stroke-width="1.3"/><path d="M5 9h6M8 6v6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         </button>
-        <button class="tree-action-btn" title="Новая папка" @click.stop="createNewFolder()">
+        <button class="tree-action-btn" :title="t.tree.newFolder" @click.stop="createNewFolder()">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 3h5l2 2h7v9H1V3z" stroke="currentColor" stroke-width="1.3"/><path d="M5 9h6M8 6.5v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         </button>
       </div>
@@ -346,7 +347,7 @@ function disconnectTreeEvents() {
     <div class="tags-panel">
       <div class="tags-panel-header">
         <button class="tags-toggle-btn" type="button" @click="toggleTagsPanel">
-          <span class="tree-title">Теги</span>
+          <span class="tree-title">{{ t.tree.tags }}</span>
           <span :class="['tags-chevron', { collapsed: tagsCollapsed }]">▾</span>
         </button>
         <button
@@ -355,7 +356,7 @@ function disconnectTreeEvents() {
           type="button"
           @click="clearTagFilter"
         >
-          Сбросить
+          {{ t.tree.clearFilter }}
         </button>
       </div>
       <div v-if="!tagsCollapsed" class="tags-panel-body">
@@ -363,11 +364,11 @@ function disconnectTreeEvents() {
           v-model="tagQuery"
           class="tags-search-input"
           type="search"
-          placeholder="Поиск тега..."
+          :placeholder="t.tree.searchTag"
         />
-        <div v-if="tagsLoading" class="tags-loading">Загрузка тегов...</div>
-        <div v-else-if="tagStore.tags.length === 0" class="tags-empty">Нет тегов</div>
-        <div v-else-if="filteredTags.length === 0" class="tags-empty">Теги не найдены</div>
+        <div v-if="tagsLoading" class="tags-loading">{{ t.tree.loadingTags }}</div>
+        <div v-else-if="tagStore.tags.length === 0" class="tags-empty">{{ t.tree.noTags }}</div>
+        <div v-else-if="filteredTags.length === 0" class="tags-empty">{{ t.tree.tagsNotFound }}</div>
         <div v-else class="tags-list">
           <button
             v-for="tag in filteredTags"
@@ -383,7 +384,7 @@ function disconnectTreeEvents() {
       </div>
     </div>
 
-    <div v-if="folderStore.loading" class="tree-loading">Загрузка...</div>
+    <div v-if="folderStore.loading" class="tree-loading">{{ t.tree.loading }}</div>
     <div v-else :class="['tree-content', { 'root-drag-over': rootDragOver }]">
       <TreeFolder
         v-for="folder in rootFolders"
@@ -409,8 +410,8 @@ function disconnectTreeEvents() {
       />
 
       <div v-if="!folderStore.loading && visibleTree.length === 0" class="tree-empty">
-        <template v-if="selectedTag">Нет документов с тегом #{{ selectedTag }}</template>
-        <template v-else>Нет документов</template>
+        <template v-if="selectedTag">{{ t.tree.noDocumentsWithTag(selectedTag) }}</template>
+        <template v-else>{{ t.tree.noDocuments }}</template>
       </div>
     </div>
 
