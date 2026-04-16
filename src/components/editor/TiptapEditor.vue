@@ -6,12 +6,13 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { WikilinkExtension } from './WikilinkExtension'
 import { TagExtension } from './TagExtension'
 import { watch } from 'vue'
+import { editorHtmlToMarkdown, markdownToEditorHtml } from '@/utils/editorMarkdown'
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const editor = useEditor({
-  content: props.modelValue,
+  content: markdownToEditorHtml(props.modelValue),
   extensions: [
     StarterKit,
     Link.configure({ openOnClick: false }),
@@ -19,13 +20,17 @@ const editor = useEditor({
     WikilinkExtension,
     TagExtension
   ],
-  onUpdate: ({ editor }) => { emit('update:modelValue', editor.getHTML()) }
+  onUpdate: ({ editor: ed }) => {
+    emit('update:modelValue', editorHtmlToMarkdown(ed.getHTML()))
+  },
 })
 
 watch(() => props.modelValue, (newVal) => {
-  if (editor.value && editor.value.getHTML() !== newVal) {
-    editor.value.commands.setContent(newVal, { emitUpdate: false })
-  }
+  const ed = editor.value
+  if (!ed) return
+  const fromEditor = editorHtmlToMarkdown(ed.getHTML())
+  if (fromEditor.trim() === (newVal ?? '').trim()) return
+  ed.commands.setContent(markdownToEditorHtml(newVal ?? ''), { emitUpdate: false })
 })
 </script>
 
