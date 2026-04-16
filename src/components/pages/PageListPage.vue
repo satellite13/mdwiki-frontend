@@ -12,7 +12,7 @@ onMounted(() => { pageStore.fetchPages() })
     <div v-if="pageStore.loading" class="loading">Loading...</div>
     <div v-else-if="pageStore.pages.length === 0" class="empty">No pages yet. Create your first page!</div>
     <ul v-else class="page-cards">
-      <li v-for="page in pageStore.pages" :key="page.id" class="page-card">
+      <li v-for="(page, index) in pageStore.pages" :key="page.id" class="page-card" :style="{ animationDelay: `${index * 0.05}s` }">
         <router-link :to="`/page/${page.slug}`">
           <h3>{{ page.title }}</h3>
           <div class="page-meta">
@@ -26,13 +26,83 @@ onMounted(() => { pageStore.fetchPages() })
 </template>
 
 <style scoped>
-.page-list-page h1 { margin-bottom: 24px; }
-.page-cards { list-style: none; display: flex; flex-direction: column; gap: 12px; }
-.page-card { border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; transition: box-shadow 0.15s; }
-.page-card:hover { box-shadow: var(--shadow); }
-.page-card a { text-decoration: none; color: inherit; }
-.page-card h3 { margin-bottom: 4px; }
-.page-meta { display: flex; gap: 8px; font-size: 13px; color: var(--color-text-muted); }
-.tag { color: var(--color-tag); }
-.loading, .empty { color: var(--color-text-muted); padding: 40px 0; text-align: center; }
+.page-list-page h1 {
+  font-family: var(--font-heading);
+  margin-bottom: 28px;
+}
+
+.page-cards {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.page-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  transition: all 0.2s ease;
+  animation: fadeInUpStagger 0.4s ease both;
+}
+
+.page-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-left-color: var(--color-primary-hover);
+}
+
+.page-card a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.page-card h3 {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+  color: var(--color-text);
+}
+
+.page-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  align-items: center;
+}
+
+.page-slug {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.tag {
+  color: var(--color-tag);
+  font-weight: 500;
+}
+
+.loading, .empty {
+  color: var(--color-text-muted);
+  padding: 48px 0;
+  text-align: center;
+  font-size: 15px;
+}
+
+@keyframes fadeInUpStagger {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 </style>

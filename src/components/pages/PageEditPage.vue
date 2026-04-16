@@ -53,11 +53,11 @@ async function remove() {
   <div class="page-edit">
     <h1>{{ isNew ? 'New Page' : 'Edit Page' }}</h1>
     <div class="field"><label>Title</label><input v-model="title" required placeholder="Page title" /></div>
-    <div class="field" v-if="isNew"><label>Slug</label><input v-model="slugInput" placeholder="auto-generated from title" /></div>
+    <div class="field" v-if="isNew"><label>Slug</label><input v-model="slugInput" placeholder="auto-generated from title" class="slug-input" /></div>
     <div class="field"><label>Content</label><TiptapEditor v-model="content" /></div>
     <p v-if="error" class="error">{{ error }}</p>
     <div class="actions">
-      <button class="btn-primary" @click="save" :disabled="saving">{{ saving ? 'Saving...' : 'Save' }}</button>
+      <button class="btn-primary save-btn" @click="save" :disabled="saving">{{ saving ? 'Saving...' : 'Save' }}</button>
       <button v-if="!isNew" class="btn-danger" @click="remove">Delete</button>
       <button class="btn-secondary" @click="router.back()">Cancel</button>
     </div>
@@ -65,9 +65,47 @@ async function remove() {
 </template>
 
 <style scoped>
-.page-edit h1 { margin-bottom: 24px; }
-.field { margin-bottom: 16px; }
-.field label { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; }
-.error { color: var(--color-danger); margin-bottom: 12px; }
-.actions { display: flex; gap: 12px; margin-top: 24px; }
+.page-edit {
+  max-width: 780px;
+}
+
+.page-edit h1 {
+  font-family: var(--font-heading);
+  margin-bottom: 28px;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+}
+
+.slug-input {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.error {
+  color: var(--color-danger);
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.save-btn {
+  padding: 10px 28px;
+}
 </style>
