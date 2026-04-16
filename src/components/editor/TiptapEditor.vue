@@ -5,7 +5,7 @@ import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { WikilinkExtension } from './WikilinkExtension'
 import { TagExtension } from './TagExtension'
-import { watch } from 'vue'
+import { watch, onBeforeUnmount } from 'vue'
 import { editorHtmlToMarkdown, markdownToEditorHtml } from '@/utils/editorMarkdown'
 
 const props = defineProps<{ modelValue: string }>()
@@ -23,6 +23,10 @@ const editor = useEditor({
   onUpdate: ({ editor: ed }) => {
     emit('update:modelValue', editorHtmlToMarkdown(ed.getHTML()))
   },
+})
+
+onBeforeUnmount(() => {
+  editor.value?.destroy()
 })
 
 watch(() => props.modelValue, (newVal) => {

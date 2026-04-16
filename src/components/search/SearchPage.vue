@@ -24,10 +24,10 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
   <div class="search-page">
     <h1>Search Results</h1>
     <p v-if="query" class="query-info">Results for "<strong>{{ query }}</strong>"</p>
-    <div v-if="loading" class="loading">Searching...</div>
-    <div v-else-if="results.length === 0" class="empty">No results found.</div>
+    <div v-if="loading" class="state-placeholder">Searching...</div>
+    <div v-else-if="results.length === 0" class="state-placeholder">No results found.</div>
     <ul v-else class="results">
-      <li v-for="(r, index) in results" :key="r.pageId" class="result-card" :style="{ animationDelay: `${index * 0.05}s` }">
+      <li v-for="(r, index) in results" :key="r.pageId" class="result-card" :style="{ animationDelay: `${Math.min(index, 15) * 0.05}s` }">
         <router-link :to="`/page/${r.slug}`">
           <h3>{{ r.title }}</h3>
           <p class="snippet">{{ r.snippet }}</p>
@@ -93,21 +93,4 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
   line-height: 1.6;
 }
 
-.loading, .empty {
-  color: var(--color-text-muted);
-  padding: 48px 0;
-  text-align: center;
-  font-size: 15px;
-}
-
-@keyframes fadeInUpStagger {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 </style>

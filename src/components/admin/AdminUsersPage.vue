@@ -23,8 +23,8 @@ onMounted(fetchUsers)
 <template>
   <div class="admin-users">
     <h1>User Management</h1>
-    <div v-if="loading" class="loading">Loading...</div>
-    <table v-else class="users-table">
+    <div v-if="loading" class="state-placeholder">Loading...</div>
+    <table v-else class="data-table users-table">
       <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
       <tbody>
         <tr v-for="user in users" :key="user.id">
@@ -48,27 +48,6 @@ onMounted(fetchUsers)
 .admin-users h1 {
   font-family: var(--font-heading);
   margin-bottom: 28px;
-}
-
-.users-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.users-table th,
-.users-table td {
-  text-align: left;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.users-table th {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-text-muted);
-  background: var(--color-bg-secondary);
 }
 
 .users-table tbody tr:nth-child(even) {
@@ -116,9 +95,4 @@ onMounted(fetchUsers)
   box-shadow: 0 0 0 2px rgba(26, 107, 90, 0.1);
 }
 
-.loading {
-  color: var(--color-text-muted);
-  padding: 48px 0;
-  text-align: center;
-}
 </style>

@@ -60,8 +60,8 @@ onMounted(fetchKeys)
       <button class="btn-primary" @click="createKey">Create Key</button>
     </div>
 
-    <div v-if="loading" class="loading">Loading...</div>
-    <table v-else-if="keys.length" class="keys-table">
+    <div v-if="loading" class="state-placeholder">Loading...</div>
+    <table v-else-if="keys.length" class="data-table keys-table">
       <thead><tr><th>Name</th><th>Created</th><th>Last Used</th><th></th></tr></thead>
       <tbody>
         <tr v-for="key in keys" :key="key.id">
@@ -72,7 +72,7 @@ onMounted(fetchKeys)
         </tr>
       </tbody>
     </table>
-    <p v-else class="empty">No API keys yet.</p>
+    <p v-else class="state-placeholder">No API keys yet.</p>
   </div>
 </template>
 
@@ -161,27 +161,6 @@ onMounted(fetchKeys)
   max-width: 320px;
 }
 
-.keys-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.keys-table th,
-.keys-table td {
-  text-align: left;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.keys-table th {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-text-muted);
-  background: var(--color-bg-secondary);
-}
-
 .keys-table tbody tr:hover {
   background: rgba(0, 0, 0, 0.015);
 }
@@ -201,8 +180,4 @@ onMounted(fetchKeys)
   font-size: 12px;
 }
 
-.loading, .empty {
-  color: var(--color-text-muted);
-  padding: 24px 0;
-}
 </style>

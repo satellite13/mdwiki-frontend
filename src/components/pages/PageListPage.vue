@@ -9,10 +9,10 @@ onMounted(() => { pageStore.fetchPages() })
 <template>
   <div class="page-list-page">
     <h1>Pages</h1>
-    <div v-if="pageStore.loading" class="loading">Loading...</div>
-    <div v-else-if="pageStore.pages.length === 0" class="empty">No pages yet. Create your first page!</div>
+    <div v-if="pageStore.loading" class="state-placeholder">Loading...</div>
+    <div v-else-if="pageStore.pages.length === 0" class="state-placeholder">No pages yet. Create your first page!</div>
     <ul v-else class="page-cards">
-      <li v-for="(page, index) in pageStore.pages" :key="page.id" class="page-card" :style="{ animationDelay: `${index * 0.05}s` }">
+      <li v-for="(page, index) in pageStore.pages" :key="page.id" class="page-card" :style="{ animationDelay: `${Math.min(index, 15) * 0.05}s` }">
         <router-link :to="`/page/${page.slug}`">
           <h3>{{ page.title }}</h3>
           <div class="page-meta">
@@ -88,21 +88,4 @@ onMounted(() => { pageStore.fetchPages() })
   font-weight: 500;
 }
 
-.loading, .empty {
-  color: var(--color-text-muted);
-  padding: 48px 0;
-  text-align: center;
-  font-size: 15px;
-}
-
-@keyframes fadeInUpStagger {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 </style>

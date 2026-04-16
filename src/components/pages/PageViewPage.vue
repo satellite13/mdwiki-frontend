@@ -50,7 +50,7 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
       <span>Created by {{ page.createdBy }} &middot; Updated {{ new Date(page.updatedAt).toLocaleDateString() }}</span>
     </div>
   </div>
-  <div v-else-if="loading" class="loading">Loading...</div>
+  <div v-else-if="loading" class="state-placeholder">Loading...</div>
 </template>
 
 <style scoped>
@@ -204,20 +204,4 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
   border-top: 1px solid var(--color-border);
 }
 
-.loading {
-  color: var(--color-text-muted);
-  padding: 48px 0;
-  text-align: center;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 </style>

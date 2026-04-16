@@ -17,8 +17,7 @@ function selectTag(tag: string | null) {
 }
 
 onMounted(() => {
-  pageStore.fetchPages()
-  tagStore.fetchTags()
+  Promise.all([pageStore.fetchPages(), tagStore.fetchTags()])
 })
 </script>
 
