@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
@@ -9,6 +9,8 @@ import type { FolderTreeNode } from '@/types'
 import { createTreeEventsSource } from '@/api/events'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { t } from '@/utils/i18n'
+import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
+import { useDialogStore } from '@/stores/dialog'
 import TreeFolder from './TreeFolder.vue'
 import TreePage from './TreePage.vue'
 import TreeContextMenu from './TreeContextMenu.vue'
@@ -18,6 +20,7 @@ const route = useRoute()
 const folderStore = useFolderStore()
 const auth = useAuthStore()
 const tagStore = useTagStore()
+const dialog = useDialogStore()
 
 const activeSlug = computed(() => (route.params.slug as string) || null)
 const TREE_EVENTS_RECONNECT_MS = 3000
@@ -136,8 +139,9 @@ function onRootContextMenu(e: MouseEvent) {
 }
 
 async function createNewPage(folderId?: string) {
-  const title = prompt(t.tree.pageNamePrompt)
-  if (!title) return
+  const titleRaw = await dialog.prompt(t.tree.pageNamePrompt)
+  if (titleRaw === null || !titleRaw.trim()) return
+  const title = titleRaw.trim()
   const slug = normalizePageSlug(title)
   if (!slug) return
   await pagesApi.createPage(slug, title, '', folderId || undefined)
@@ -146,9 +150,9 @@ async function createNewPage(folderId?: string) {
 }
 
 async function createNewFolder(parentId?: string) {
-  const name = prompt(t.tree.folderNamePrompt)
-  if (!name) return
-  await folderStore.createFolder(name, parentId || undefined)
+  const nameRaw = await dialog.prompt(t.tree.folderNamePrompt)
+  if (nameRaw === null || !nameRaw.trim()) return
+  await folderStore.createFolder(nameRaw.trim(), parentId || undefined)
 }
 
 async function onContextAction(action: string) {
@@ -163,23 +167,29 @@ async function onContextAction(action: string) {
       const parentId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
       await createNewFolder(parentId || undefined)
     } else if (action === 'rename' && ctx.node) {
-      const newName = prompt(t.tree.newNamePrompt, ctx.node.name)
+      const newNameRaw = await dialog.prompt(t.tree.newNamePrompt, ctx.node.name)
+      if (newNameRaw === null) return
+      const newName = newNameRaw.trim()
       if (!newName || newName === ctx.node.name) return
       if (ctx.node.type === 'folder') {
         try {
           await folderStore.renameFolder(ctx.node.id, newName)
         } catch (e) {
-          alert('Failed to rename folder')
+          await dialog.alert(t.errors.renameFolderFailed)
         }
       }
     } else if (action === 'delete' && ctx.node) {
-      if (!confirm(t.tree.confirmDelete(ctx.node.name))) return
+      const ok = await dialog.confirm(t.tree.confirmDelete(ctx.node.name), {
+        danger: true,
+        confirmLabel: t.tree.delete
+      })
+      if (!ok) return
       if (ctx.node.type === 'folder') {
         try {
           await folderStore.deleteFolder(ctx.node.id)
           // Tag refresh and tree refresh handled by SSE 'tree-updated' event.
         } catch (e) {
-          alert('Failed to delete folder')
+          await dialog.alert(t.errors.deleteFolderFailed)
         }
       } else if (ctx.node.slug) {
         try {
@@ -187,20 +197,24 @@ async function onContextAction(action: string) {
           // Tree refresh handled by SSE 'tree-updated' event.
           if (activeSlug.value === ctx.node.slug) router.push('/')
         } catch (e) {
-          alert('Failed to delete page')
+          await dialog.alert(t.errors.deletePageFailed)
         }
       }
     }
   } catch (e) {
     console.error('Context action failed:', e)
-    alert('Operation failed')
+    await dialog.alert(t.errors.operationFailed)
   }
 
   contextMenu.value = null
 }
 
 async function onDeleteNode(node: FolderTreeNode) {
-  if (!confirm(t.tree.confirmDelete(node.name))) return
+  const ok = await dialog.confirm(t.tree.confirmDelete(node.name), {
+    danger: true,
+    confirmLabel: t.tree.delete
+  })
+  if (!ok) return
   if (node.type === 'folder') {
     await folderStore.deleteFolder(node.id)
     // Tag refresh and tree refresh handled by SSE 'tree-updated' event.
@@ -222,28 +236,55 @@ async function onAddSubfolder(parentId: string) {
 // Drag & drop on root (move to root level)
 const rootDragOver = ref(false)
 
+watch(
+  () => folderStore.treeDragGeneration,
+  () => {
+    rootDragOver.value = false
+  }
+)
+
 function onRootDragOver(e: DragEvent) {
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
   rootDragOver.value = true
+  const t = e.target as HTMLElement | null
+  dndLogDragOverThrottled('root:document-tree', {
+    eventTarget: t?.className ?? t?.tagName,
+  })
 }
 
-function onRootDragLeave() {
+function onRootDragLeave(e: DragEvent) {
+  const cur = e.currentTarget as HTMLElement
+  const rel = e.relatedTarget as Node | null
+  if (rel && cur.contains(rel)) return
+  if (rel === null) return
+  dndLog('root dragleave (left tree)', { relatedTag: 'tagName' in rel ? (rel as HTMLElement).tagName : null })
   rootDragOver.value = false
 }
 
-function onRootDrop(e: DragEvent) {
+async function onRootDrop(e: DragEvent) {
   e.preventDefault()
   rootDragOver.value = false
+  const raw = e.dataTransfer?.getData('text/plain') ?? ''
+  dndLog('root drop (raw)', {
+    rawLength: raw.length,
+    raw: raw.slice(0, 200),
+    types: e.dataTransfer ? [...e.dataTransfer.types] : [],
+  })
   try {
-    const data = JSON.parse(e.dataTransfer!.getData('text/plain'))
-    if (data.type === 'page') {
-      folderStore.movePage(data.slug, null)
-    } else if (data.type === 'folder') {
-      folderStore.moveFolder(data.id, null)
+    const data = JSON.parse(raw || '{}') as { type?: string; slug?: string; id?: string }
+    dndLog('root drop (parsed)', { data })
+    if (data.type === 'page' && data.slug) {
+      dndLog('root drop → movePage', { slug: data.slug, toRoot: true })
+      await folderStore.movePage(data.slug, null)
+    } else if (data.type === 'folder' && data.id) {
+      dndLog('root drop → moveFolder', { folderId: data.id, toRoot: true })
+      await folderStore.moveFolder(data.id, null)
+    } else {
+      dndLog('root drop (no-op)', { data })
     }
-  } catch {
-    // ignore invalid drag data
+  } catch (err) {
+    dndLog('root drop (parse or api error)', { message: err instanceof Error ? err.message : String(err), raw })
   }
 }
 

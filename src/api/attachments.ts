@@ -9,7 +9,14 @@ export function uploadAttachment(file: File) {
   const formData = new FormData()
   formData.append('file', file)
   return client.post<Attachment>('/attachments', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    transformRequest: [
+      (data, headers) => {
+        if (data instanceof FormData) {
+          delete (headers as Record<string, unknown>)['Content-Type']
+        }
+        return data
+      }
+    ]
   })
 }
 

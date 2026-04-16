@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import axios from 'axios'
 import { MdEditor, NormalToolbar, config } from 'md-editor-v3'
+import type { ExposeParam } from 'md-editor-v3'
 import { lineNumbers, tooltips } from '@codemirror/view'
 import markdownItMark from 'markdown-it-mark'
 import 'md-editor-v3/lib/style.css'
@@ -10,12 +11,30 @@ import '@vavt/v3-extension/lib/asset/style.css'
 import { frontmatterStripPlugin, wikilinkPlugin, tagPlugin } from '@/utils/markdownPlugins'
 import { useThemeStore } from '@/stores/theme'
 import { wikilinkCompletions } from '@/utils/wikilinkAutocomplete'
-import { uploadFile } from '@/api/uploads'
+import { uploadAttachment } from '@/api/attachments'
 
 /** md-editor-v3 передаёт это в autocompletion({ override: [встроенный, ...completions] }) */
 const mdEditorCompletions = [wikilinkCompletions]
 
 let editorLineNumbersEnabled = false
+
+const PREVIEW_ONLY_LS_KEY = 'mdwiki-editor-preview-only'
+
+function readPreviewOnlyPref(): boolean {
+  try {
+    return localStorage.getItem(PREVIEW_ONLY_LS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writePreviewOnlyPref(value: boolean) {
+  try {
+    localStorage.setItem(PREVIEW_ONLY_LS_KEY, value ? '1' : '0')
+  } catch {
+    /* private mode / quota */
+  }
+}
 
 /** Подсказки CodeMirror (в т.ч. completion) — вне overflow-обёрток редактора */
 function codeMirrorTooltipRoot() {
@@ -67,8 +86,11 @@ const isPreviewOnly = ref(false)
 const themeStore = useThemeStore()
 const uploadError = ref('')
 const wrapperRef = ref<HTMLElement | null>(null)
-const editorRef = ref<any>(null)
-let modeObserver: MutationObserver | null = null
+const editorRef = ref<ExposeParam | null>(null)
+/** После смены `editorKey` у нового экземпляра MdEditor подписываемся заново (один раз на ключ). */
+let previewOnlyListenerAttachedForKey = -1
+/** Не писать в localStorage при программном восстановлении режима после монтирования. */
+let suppressPreviewOnlyPersist = false
 
 function toggleLineNumbers() {
   // md-editor-v3 does not support reactive CodeMirror extension changes, so we
@@ -96,7 +118,12 @@ function onSave() {
 async function onUploadImg(files: Array<File>, callback: (urls: string[]) => void) {
   uploadError.value = ''
   try {
-    const urls = await Promise.all(files.map((file) => uploadFile(file)))
+    const urls = await Promise.all(
+      files.map(async (file) => {
+        const { data } = await uploadAttachment(file)
+        return data.url
+      })
+    )
     callback(urls)
   } catch (error) {
     console.error('Image upload failed', error)
@@ -108,29 +135,54 @@ async function onUploadImg(files: Array<File>, callback: (urls: string[]) => voi
   }
 }
 
-function syncPreviewOnlyState() {
-  const editorEl = wrapperRef.value?.querySelector('.md-editor')
-  isPreviewOnly.value = !!editorEl?.classList.contains('md-editor-previewOnly')
+function ensurePreviewOnlyListener() {
+  const inst = editorRef.value
+  if (!inst?.on) return
+  const k = editorKey.value
+  if (previewOnlyListenerAttachedForKey === k) return
+  previewOnlyListenerAttachedForKey = k
+  inst.on('previewOnly', (status: boolean) => {
+    isPreviewOnly.value = status
+    if (!suppressPreviewOnlyPersist) writePreviewOnlyPref(status)
+  })
+}
+
+function applyPreviewOnlyFromStorage() {
+  if (!readPreviewOnlyPref()) return
+  suppressPreviewOnlyPersist = true
+  editorRef.value?.togglePreviewOnly?.(true)
+  nextTick(() => {
+    nextTick(() => {
+      suppressPreviewOnlyPersist = false
+    })
+  })
 }
 
 function exitPreviewOnly() {
+  suppressPreviewOnlyPersist = true
   editorRef.value?.togglePreviewOnly?.(false)
-  setTimeout(syncPreviewOnlyState, 0)
+  isPreviewOnly.value = false
+  writePreviewOnlyPref(false)
+  nextTick(() => {
+    suppressPreviewOnlyPersist = false
+  })
 }
 
-onMounted(() => {
-  const editorEl = wrapperRef.value?.querySelector('.md-editor')
-  if (!editorEl) return
-
-  syncPreviewOnlyState()
-  modeObserver = new MutationObserver(syncPreviewOnlyState)
-  modeObserver.observe(editorEl, { attributes: true, attributeFilter: ['class'] })
-})
-
-onBeforeUnmount(() => {
-  modeObserver?.disconnect()
-  modeObserver = null
-})
+let lastSeenEditorKey = -999
+watch(
+  [editorRef, editorKey],
+  async () => {
+    if (lastSeenEditorKey !== editorKey.value) {
+      previewOnlyListenerAttachedForKey = -1
+      lastSeenEditorKey = editorKey.value
+    }
+    await nextTick()
+    ensurePreviewOnlyListener()
+    await nextTick()
+    applyPreviewOnlyFromStorage()
+  },
+  { flush: 'post', immediate: true }
+)
 </script>
 
 <template>

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
+import { useFolderStore } from '@/stores/folders'
 import type { FolderTreeNode } from '@/types'
 import { t } from '@/utils/i18n'
+import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
 
 const props = defineProps<{
   node: FolderTreeNode
@@ -16,10 +18,33 @@ const emit = defineEmits<{
 }>()
 
 const auth = useAuthStore()
+const folderStore = useFolderStore()
 
 function onDragStart(e: DragEvent) {
-  e.dataTransfer!.setData('text/plain', JSON.stringify({ type: 'page', slug: props.node.slug }))
+  const payload = { type: 'page' as const, slug: props.node.slug }
+  e.dataTransfer!.setData('text/plain', JSON.stringify(payload))
   e.dataTransfer!.effectAllowed = 'move'
+  dndLog('page dragstart', {
+    slug: props.node.slug,
+    name: props.node.name,
+    types: e.dataTransfer ? [...e.dataTransfer.types] : [],
+  })
+}
+
+/** Только лог: смотрим, приходят ли dragover на строку страницы (без preventDefault). */
+function onDragOverPage(e: DragEvent) {
+  dndLogDragOverThrottled(`page:${props.node.slug}`, {
+    slug: props.node.slug,
+    defaultPrevented: e.defaultPrevented,
+  })
+}
+
+function onDragEnd(e: DragEvent) {
+  dndLog('page dragend', {
+    slug: props.node.slug,
+    dropEffect: e.dataTransfer?.dropEffect ?? null,
+  })
+  folderStore.notifyTreeDragEnd()
 }
 
 function onContextMenu(e: MouseEvent) {
@@ -34,6 +59,8 @@ function onContextMenu(e: MouseEvent) {
     :style="{ paddingLeft: `${depth * 16 + 24}px` }"
     draggable="true"
     @dragstart="onDragStart"
+    @dragover="onDragOverPage"
+    @dragend="onDragEnd"
     @contextmenu="onContextMenu"
     @click="emit('select', node.slug!)"
   >

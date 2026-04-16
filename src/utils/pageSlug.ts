@@ -1,9 +1,24 @@
+/** Соответствует regexp slug на API: `^[a-z0-9]+(?:-[a-z0-9]+)*$`. */
+const CYRILLIC_TO_LATIN: Record<string, string> = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'zh', з: 'z', и: 'i', й: 'y',
+  к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f',
+  х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+  і: 'i', ї: 'yi', є: 'ye', ґ: 'g'
+}
+
+function transliterateCyrillic(s: string): string {
+  return [...s].map((ch) => CYRILLIC_TO_LATIN[ch] ?? ch).join('')
+}
+
 /** Приводит заголовок или текст вики-ссылки к slug страницы (как при создании из дерева). */
 export function normalizePageSlug(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9а-яё]+/gi, '-')
+  const base = transliterateCyrillic(input.toLowerCase().trim())
+    .replace(/ß/g, 'ss')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+  return base
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
     .replace(/(^-|-$)/g, '')
 }
 

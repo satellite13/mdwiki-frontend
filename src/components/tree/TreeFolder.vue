@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
 import type { FolderTreeNode } from '@/types'
 import { t } from '@/utils/i18n'
+import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
 import TreePage from './TreePage.vue'
 
 const props = defineProps<{
@@ -28,37 +29,86 @@ const isDragOver = ref(false)
 const folders = computed(() => props.node.children.filter(c => c.type === 'folder'))
 const pages = computed(() => props.node.children.filter(c => c.type === 'page'))
 
+watch(
+  () => folderStore.treeDragGeneration,
+  () => {
+    isDragOver.value = false
+  }
+)
+
 function toggle() {
   folderStore.toggleFolder(props.node.id)
 }
 
 function onDragStart(e: DragEvent) {
-  e.dataTransfer!.setData('text/plain', JSON.stringify({ type: 'folder', id: props.node.id }))
+  const payload = { type: 'folder' as const, id: props.node.id }
+  e.dataTransfer!.setData('text/plain', JSON.stringify(payload))
   e.dataTransfer!.effectAllowed = 'move'
+  dndLog('folder dragstart', {
+    folderId: props.node.id,
+    name: props.node.name,
+    types: e.dataTransfer ? [...e.dataTransfer.types] : [],
+  })
 }
 
 function onDragOver(e: DragEvent) {
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
   isDragOver.value = true
+  const t = e.target as HTMLElement | null
+  dndLogDragOverThrottled(`folder:${props.node.id}`, {
+    folderId: props.node.id,
+    folderName: props.node.name,
+    eventTarget: t?.className ?? t?.tagName,
+    currentTarget: (e.currentTarget as HTMLElement)?.className,
+    depth: props.depth,
+  })
 }
 
-function onDragLeave() {
+function onDragLeave(e: DragEvent) {
+  const cur = e.currentTarget as HTMLElement
+  const rel = e.relatedTarget as Node | null
+  if (rel && cur.contains(rel)) return
+  // WebKit: relatedTarget часто null при движении внутри той же зоны — не сбрасываем (см. notifyTreeDragEnd).
+  if (rel === null) return
+  dndLog('folder dragleave (left folder)', {
+    folderId: props.node.id,
+    relatedTag: 'tagName' in rel ? (rel as HTMLElement).tagName : null,
+  })
   isDragOver.value = false
 }
 
-function onDrop(e: DragEvent) {
+async function onDrop(e: DragEvent) {
   e.preventDefault()
   e.stopPropagation()
   isDragOver.value = false
+  const raw = e.dataTransfer?.getData('text/plain') ?? ''
+  dndLog('folder drop (raw)', {
+    folderId: props.node.id,
+    folderName: props.node.name,
+    rawLength: raw.length,
+    raw: raw.slice(0, 200),
+    dataTransferTypes: e.dataTransfer ? [...e.dataTransfer.types] : [],
+  })
   try {
-    const data = JSON.parse(e.dataTransfer!.getData('text/plain'))
-    if (data.type === 'page') {
-      folderStore.movePage(data.slug, props.node.id)
-    } else if (data.type === 'folder' && data.id !== props.node.id) {
-      folderStore.moveFolder(data.id, props.node.id)
+    const data = JSON.parse(raw || '{}') as { type?: string; slug?: string; id?: string }
+    dndLog('folder drop (parsed)', { folderId: props.node.id, data })
+    if (data.type === 'page' && data.slug) {
+      dndLog('folder drop → movePage', { slug: data.slug, toFolderId: props.node.id })
+      await folderStore.movePage(data.slug, props.node.id)
+    } else if (data.type === 'folder' && data.id && data.id !== props.node.id) {
+      dndLog('folder drop → moveFolder', { folderId: data.id, toParentId: props.node.id })
+      await folderStore.moveFolder(data.id, props.node.id)
+    } else {
+      dndLog('folder drop (no-op)', { reason: 'type mismatch, same folder, or missing fields', data })
     }
-  } catch { /* ignore invalid drag data */ }
+  } catch (err) {
+    dndLog('folder drop (parse or api error)', { message: err instanceof Error ? err.message : String(err), raw })
+  }
+}
+
+function onFolderDragEnd() {
+  folderStore.notifyTreeDragEnd()
 }
 
 function onContextMenu(e: MouseEvent) {
@@ -68,15 +118,18 @@ function onContextMenu(e: MouseEvent) {
 </script>
 
 <template>
-  <div class="tree-folder">
+  <div
+    class="tree-folder"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
+  >
     <div
       :class="['folder-header', { 'drag-over': isDragOver }]"
       :style="{ paddingLeft: `${depth * 16 + 8}px` }"
       draggable="true"
       @dragstart="onDragStart"
-      @dragover="onDragOver"
-      @dragleave="onDragLeave"
-      @drop="onDrop"
+      @dragend="onFolderDragEnd"
       @contextmenu="onContextMenu"
       @click="toggle"
     >

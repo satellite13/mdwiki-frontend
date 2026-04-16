@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useDialogStore } from '@/stores/dialog'
 import * as apiKeysApi from '@/api/apiKeys'
 import type { ApiKey } from '@/types'
+import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
+const dialog = useDialogStore()
 const keys = ref<ApiKey[]>([])
 const newKeyName = ref('')
 const createdKey = ref<string | null>(null)
@@ -25,7 +28,13 @@ async function createKey() {
 }
 
 async function deleteKey(id: string) {
-  if (confirm('Delete this API key?')) { await apiKeysApi.deleteApiKey(id); fetchKeys() }
+  const ok = await dialog.confirm(t.profile.confirmDeleteApiKey, {
+    danger: true,
+    confirmLabel: t.tree.delete
+  })
+  if (!ok) return
+  await apiKeysApi.deleteApiKey(id)
+  fetchKeys()
 }
 
 function copyKey() {

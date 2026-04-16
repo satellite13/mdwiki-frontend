@@ -3,14 +3,13 @@ import { ref } from 'vue'
 import * as foldersApi from '@/api/folders'
 import * as pagesApi from '@/api/pages'
 import type { FolderTreeNode } from '@/types'
-
-/** Backend returns folder IDs as "folder-<uuid>" in tree; API expects raw UUID */
-function stripFolderPrefix(id: string): string {
-  return id.startsWith('folder-') ? id.slice(7) : id
-}
+import { stripFolderPrefix } from '@/utils/folderId'
+import { dndLog } from '@/utils/dndDebug'
 
 export const useFolderStore = defineStore('folders', () => {
   const tree = ref<FolderTreeNode[]>([])
+  /** Инкремент в конце drag (страница/папка) — сброс подсветки drop в WebKit, где dragleave с relatedTarget=null. */
+  const treeDragGeneration = ref(0)
   const loading = ref(false)
   const expandedFolders = ref<Set<string>>(new Set(
     JSON.parse(localStorage.getItem('expandedFolders') || '[]')
@@ -31,6 +30,10 @@ export const useFolderStore = defineStore('folders', () => {
 
   function isExpanded(id: string): boolean {
     return expandedFolders.value.has(id)
+  }
+
+  function notifyTreeDragEnd() {
+    treeDragGeneration.value++
   }
 
   async function fetchTree(force = false) {
@@ -69,12 +72,15 @@ export const useFolderStore = defineStore('folders', () => {
   }
 
   async function moveFolder(id: string, parentId: string | null) {
+    dndLog('store moveFolder (start)', { id, parentId })
     try {
       const cleanId = stripFolderPrefix(id)
       const cleanParentId = parentId ? stripFolderPrefix(parentId) : null
       await foldersApi.moveFolder(cleanId, cleanParentId)
       await fetchTree(true)
+      dndLog('store moveFolder (ok)', { cleanId, cleanParentId })
     } catch (e) {
+      dndLog('store moveFolder (error)', { message: e instanceof Error ? e.message : String(e) })
       console.error('Failed to move folder:', e)
       throw e
     }
@@ -91,6 +97,7 @@ export const useFolderStore = defineStore('folders', () => {
   }
 
   async function movePage(slug: string, folderId: string | null) {
+    dndLog('store movePage (start)', { slug, folderId })
     try {
       const cleanFolderId = folderId ? stripFolderPrefix(folderId) : null
       if (cleanFolderId) {
@@ -99,15 +106,17 @@ export const useFolderStore = defineStore('folders', () => {
         await pagesApi.updatePage(slug, { folderId: null, clearFolder: true })
       }
       await fetchTree(true)
+      dndLog('store movePage (ok)', { slug, cleanFolderId })
     } catch (e) {
+      dndLog('store movePage (error)', { slug, message: e instanceof Error ? e.message : String(e) })
       console.error('Failed to move page:', e)
       throw e
     }
   }
 
   return {
-    tree, loading, expandedFolders,
-    toggleFolder, isExpanded, fetchTree,
+    tree, treeDragGeneration, loading, expandedFolders,
+    toggleFolder, isExpanded, fetchTree, notifyTreeDragEnd,
     createFolder, renameFolder, moveFolder, deleteFolder, movePage
   }
 })

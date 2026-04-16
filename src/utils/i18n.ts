@@ -33,4 +33,21 @@ export const t = {
     confirm: 'Confirm',
     error: 'Error',
   },
+  dialog: {
+    ok: 'OK',
+  },
+  errors: {
+    operationFailed: 'Operation failed',
+    renameFolderFailed: 'Failed to rename folder',
+    deleteFolderFailed: 'Failed to delete folder',
+    deletePageFailed: 'Failed to delete page',
+    uploadFailed: 'Upload failed',
+    deleteAttachmentFailed: 'Delete failed',
+  },
+  profile: {
+    confirmDeleteApiKey: 'Delete this API key?',
+  },
+  attachments: {
+    confirmDelete: (name: string) => `Delete "${name}"?`,
+  },
 } as const

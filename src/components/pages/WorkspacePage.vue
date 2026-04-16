@@ -17,7 +17,8 @@ const auth = useAuthStore()
 
 const page = ref<Page | null>(null)
 const backlinks = ref<Backlink[]>([])
-const loading = ref(true)
+/** Only true while fetching a page from the API (no slug in URL ⇒ idle, not "loading"). */
+const loading = ref(!!route.params.slug)
 const title = ref('')
 const content = ref('')
 const lastSavedTitle = ref('')
@@ -184,7 +185,20 @@ onMounted(() => {
 })
 
 watch(() => route.params.slug, (slug) => {
-  if (slug) loadPage(slug as string)
+  if (slug) {
+    loadPage(slug as string)
+    return
+  }
+  clearSaveTimer()
+  loading.value = false
+  page.value = null
+  backlinks.value = []
+  title.value = ''
+  content.value = ''
+  lastSavedTitle.value = ''
+  lastSavedContentMd.value = ''
+  saveStatus.value = 'idle'
+  saveError.value = null
 })
 
 watch(() => isDirty(), (dirty) => {

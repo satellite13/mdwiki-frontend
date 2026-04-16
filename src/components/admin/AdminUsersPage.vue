@@ -3,9 +3,11 @@ import { ref, onMounted } from 'vue'
 import * as usersApi from '@/api/users'
 import type { User } from '@/types'
 import { useAuthStore } from '@/stores/auth'
+import { useDialogStore } from '@/stores/dialog'
 import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
+const dialog = useDialogStore()
 const users = ref<User[]>([])
 const loading = ref(true)
 
@@ -22,7 +24,11 @@ async function changeRole(user: User, newRole: string) {
 
 async function removeUser(user: User) {
   if (user.username === auth.username) return
-  if (!confirm(t.admin.confirmDeleteUser(user.username))) return
+  const ok = await dialog.confirm(t.admin.confirmDeleteUser(user.username), {
+    danger: true,
+    confirmLabel: t.admin.delete
+  })
+  if (!ok) return
   await usersApi.deleteUser(user.id)
   fetchUsers()
 }

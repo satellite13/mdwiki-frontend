@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useDialogStore } from '@/stores/dialog'
 import * as attachmentsApi from '@/api/attachments'
 import type { Attachment } from '@/types'
+import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
+const dialog = useDialogStore()
 const attachments = ref<Attachment[]>([])
 const loading = ref(true)
 const uploading = ref(false)
@@ -32,7 +35,7 @@ async function handleFiles(files: FileList | null) {
     await fetchAttachments()
   } catch (e) {
     console.error('Upload failed:', e)
-    alert('Upload failed')
+    await dialog.alert(t.errors.uploadFailed)
   } finally {
     uploading.value = false
   }
@@ -58,13 +61,17 @@ function onDragLeave() {
 }
 
 async function deleteAttachment(att: Attachment) {
-  if (!confirm(`Delete "${att.originalName}"?`)) return
+  const ok = await dialog.confirm(t.attachments.confirmDelete(att.originalName), {
+    danger: true,
+    confirmLabel: t.tree.delete
+  })
+  if (!ok) return
   try {
     await attachmentsApi.deleteAttachment(att.id)
     await fetchAttachments()
   } catch (e) {
     console.error('Delete failed:', e)
-    alert('Delete failed')
+    await dialog.alert(t.errors.deleteAttachmentFailed)
   }
 }
 
