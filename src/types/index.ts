@@ -29,7 +29,16 @@ export interface PageListItem {
   slug: string
   title: string
   tags: string[]
+  folderId: string | null
   updatedAt: string
+}
+
+export interface FolderTreeNode {
+  id: string
+  name: string
+  type: 'folder' | 'page'
+  slug?: string
+  children: FolderTreeNode[]
 }
 
 export interface Backlink {

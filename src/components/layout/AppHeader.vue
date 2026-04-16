@@ -26,7 +26,6 @@ function logout() {
       <input v-model="searchQuery" placeholder="Search pages..." type="search" />
     </form>
     <nav class="header-nav">
-      <router-link v-if="auth.isEditor" to="/new" class="btn-primary new-page-btn">+ New Page</router-link>
       <router-link to="/profile" class="nav-link">{{ auth.username }}</router-link>
       <router-link v-if="auth.isAdmin" to="/admin/users" class="nav-link">Admin</router-link>
       <button class="btn-secondary logout-btn" @click="logout">Logout</button>
