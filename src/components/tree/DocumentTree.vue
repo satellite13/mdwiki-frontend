@@ -23,6 +23,7 @@ const TREE_EVENTS_RECONNECT_MS = 3000
 let treeEventsSource: EventSource | null = null
 let treeReconnectTimer: ReturnType<typeof setTimeout> | null = null
 let treeRefreshInFlight = false
+let isMounted = true
 const tagsLoading = ref(false)
 const selectedTag = ref<string | null>(null)
 const pageTagsBySlug = ref<Record<string, string[]>>({})
@@ -154,29 +155,46 @@ async function onContextAction(action: string) {
   const ctx = contextMenu.value
   if (!ctx) return
 
-  if (action === 'new-page') {
-    const folderId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
-    await createNewPage(folderId || undefined)
-  } else if (action === 'new-folder') {
-    const parentId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
-    await createNewFolder(parentId || undefined)
-  } else if (action === 'rename' && ctx.node) {
-    const newName = prompt('Новое имя:', ctx.node.name)
-    if (!newName || newName === ctx.node.name) return
-    if (ctx.node.type === 'folder') {
-      await folderStore.renameFolder(ctx.node.id, newName)
+  try {
+    if (action === 'new-page') {
+      const folderId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
+      await createNewPage(folderId || undefined)
+    } else if (action === 'new-folder') {
+      const parentId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
+      await createNewFolder(parentId || undefined)
+    } else if (action === 'rename' && ctx.node) {
+      const newName = prompt('Новое имя:', ctx.node.name)
+      if (!newName || newName === ctx.node.name) return
+      if (ctx.node.type === 'folder') {
+        try {
+          await folderStore.renameFolder(ctx.node.id, newName)
+        } catch (e) {
+          alert('Failed to rename folder')
+        }
+      }
+    } else if (action === 'delete' && ctx.node) {
+      if (!confirm(`Удалить "${ctx.node.name}"?`)) return
+      if (ctx.node.type === 'folder') {
+        try {
+          await folderStore.deleteFolder(ctx.node.id)
+          await refreshTagData(true)
+        } catch (e) {
+          alert('Failed to delete folder')
+        }
+      } else if (ctx.node.slug) {
+        try {
+          await pagesApi.deletePage(ctx.node.slug)
+          await folderStore.fetchTree(true)
+          await refreshTagData(true)
+          if (activeSlug.value === ctx.node.slug) router.push('/')
+        } catch (e) {
+          alert('Failed to delete page')
+        }
+      }
     }
-  } else if (action === 'delete' && ctx.node) {
-    if (!confirm(`Удалить "${ctx.node.name}"?`)) return
-    if (ctx.node.type === 'folder') {
-      await folderStore.deleteFolder(ctx.node.id)
-      await refreshTagData(true)
-    } else if (ctx.node.slug) {
-      await pagesApi.deletePage(ctx.node.slug)
-      await folderStore.fetchTree(true)
-      await refreshTagData(true)
-      if (activeSlug.value === ctx.node.slug) router.push('/')
-    }
+  } catch (e) {
+    console.error('Context action failed:', e)
+    alert('Operation failed')
   }
 
   contextMenu.value = null
@@ -238,6 +256,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  isMounted = false
   disconnectTreeEvents()
   if (treeReconnectTimer) {
     clearTimeout(treeReconnectTimer)
@@ -258,6 +277,20 @@ async function refreshTree() {
   }
 }
 
+function onTreeUpdated() {
+  refreshTree()
+}
+
+function onTreeError() {
+  disconnectTreeEvents()
+  if (treeReconnectTimer) return
+  treeReconnectTimer = setTimeout(() => {
+    treeReconnectTimer = null
+    if (!isMounted) return
+    connectTreeEvents()
+  }, TREE_EVENTS_RECONNECT_MS)
+}
+
 function connectTreeEvents() {
   const token = auth.token || localStorage.getItem('token')
   if (!token) return
@@ -265,21 +298,14 @@ function connectTreeEvents() {
   disconnectTreeEvents()
 
   treeEventsSource = createTreeEventsSource(token)
-  treeEventsSource.addEventListener('tree-updated', () => {
-    refreshTree()
-  })
-  treeEventsSource.onerror = () => {
-    disconnectTreeEvents()
-    if (treeReconnectTimer) return
-    treeReconnectTimer = setTimeout(() => {
-      treeReconnectTimer = null
-      connectTreeEvents()
-    }, TREE_EVENTS_RECONNECT_MS)
-  }
+  treeEventsSource.addEventListener('tree-updated', onTreeUpdated)
+  treeEventsSource.onerror = onTreeError
 }
 
 function disconnectTreeEvents() {
   if (!treeEventsSource) return
+  treeEventsSource.removeEventListener('tree-updated', onTreeUpdated)
+  treeEventsSource.onerror = null
   treeEventsSource.close()
   treeEventsSource = null
 }

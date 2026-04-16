@@ -39,42 +39,70 @@ export const useFolderStore = defineStore('folders', () => {
     try {
       const { data } = await foldersApi.getFolderTree()
       tree.value = data
+    } catch (e) {
+      console.error('Failed to fetch tree:', e)
+      throw e
     } finally {
       loading.value = false
     }
   }
 
   async function createFolder(name: string, parentId?: string) {
-    const cleanParentId = parentId ? stripFolderPrefix(parentId) : undefined
-    await foldersApi.createFolder(name, cleanParentId)
-    await fetchTree(true)
+    try {
+      const cleanParentId = parentId ? stripFolderPrefix(parentId) : undefined
+      await foldersApi.createFolder(name, cleanParentId)
+      await fetchTree(true)
+    } catch (e) {
+      console.error('Failed to create folder:', e)
+      throw e
+    }
   }
 
   async function renameFolder(id: string, name: string) {
-    await foldersApi.renameFolder(stripFolderPrefix(id), name)
-    await fetchTree(true)
+    try {
+      await foldersApi.renameFolder(stripFolderPrefix(id), name)
+      await fetchTree(true)
+    } catch (e) {
+      console.error('Failed to rename folder:', e)
+      throw e
+    }
   }
 
   async function moveFolder(id: string, parentId: string | null) {
-    const cleanId = stripFolderPrefix(id)
-    const cleanParentId = parentId ? stripFolderPrefix(parentId) : null
-    await foldersApi.moveFolder(cleanId, cleanParentId)
-    await fetchTree(true)
+    try {
+      const cleanId = stripFolderPrefix(id)
+      const cleanParentId = parentId ? stripFolderPrefix(parentId) : null
+      await foldersApi.moveFolder(cleanId, cleanParentId)
+      await fetchTree(true)
+    } catch (e) {
+      console.error('Failed to move folder:', e)
+      throw e
+    }
   }
 
   async function deleteFolder(id: string) {
-    await foldersApi.deleteFolder(stripFolderPrefix(id))
-    await fetchTree(true)
+    try {
+      await foldersApi.deleteFolder(stripFolderPrefix(id))
+      await fetchTree(true)
+    } catch (e) {
+      console.error('Failed to delete folder:', e)
+      throw e
+    }
   }
 
   async function movePage(slug: string, folderId: string | null) {
-    const cleanFolderId = folderId ? stripFolderPrefix(folderId) : null
-    if (cleanFolderId) {
-      await pagesApi.updatePage(slug, { folderId: cleanFolderId })
-    } else {
-      await pagesApi.updatePage(slug, { folderId: null, clearFolder: true })
+    try {
+      const cleanFolderId = folderId ? stripFolderPrefix(folderId) : null
+      if (cleanFolderId) {
+        await pagesApi.updatePage(slug, { folderId: cleanFolderId })
+      } else {
+        await pagesApi.updatePage(slug, { folderId: null, clearFolder: true })
+      }
+      await fetchTree(true)
+    } catch (e) {
+      console.error('Failed to move page:', e)
+      throw e
     }
-    await fetchTree(true)
   }
 
   return {

@@ -22,6 +22,8 @@ const content = ref('')
 const lastSavedTitle = ref('')
 const lastSavedContentMd = ref('')
 const saveStatus = ref<'idle' | 'saving' | 'saved'>('idle')
+const saveError = ref<string | null>(null)
+const isSaving = ref(false)
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function isDirty() {
@@ -129,9 +131,12 @@ function scheduleSaveIfDirty() {
 
 async function doSave() {
   if (!page.value) return
+  if (isSaving.value) return
   clearSaveTimer()
   if (!isDirty()) return
+  isSaving.value = true
   saveStatus.value = 'saving'
+  saveError.value = null
   const prevTitle = lastSavedTitle.value
   try {
     const { data: updatedPage } = await pagesApi.updatePage(page.value.slug, {
@@ -147,8 +152,12 @@ async function doSave() {
     }
     saveStatus.value = 'saved'
     setTimeout(() => { if (saveStatus.value === 'saved') saveStatus.value = 'idle' }, 2000)
-  } catch {
+  } catch (e) {
     saveStatus.value = 'idle'
+    saveError.value = 'Failed to save page. Changes may be lost.'
+    console.error('Failed to save page:', e)
+  } finally {
+    isSaving.value = false
   }
 }
 
@@ -194,6 +203,7 @@ onBeforeUnmount(() => {
         @input="onTitleInput"
         placeholder="Page title"
       />
+      <span v-if="saveError" class="save-error" @click="saveError = null">{{ saveError }}</span>
       <span :class="['save-status', saveStatus]">
         <template v-if="saveStatus === 'saving'">Saving...</template>
         <template v-else-if="saveStatus === 'saved'">Saved</template>
@@ -275,6 +285,13 @@ onBeforeUnmount(() => {
 
 .save-status.saved {
   color: var(--color-primary);
+}
+
+.save-error {
+  font-size: 12px;
+  color: #e53e3e;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .editor-area {

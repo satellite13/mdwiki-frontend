@@ -10,8 +10,15 @@ export const usePageStore = defineStore('pages', () => {
   async function fetchPages(force = false) {
     if (!force && pages.value.length > 0) return
     loading.value = true
-    try { const { data } = await pagesApi.listPages(); pages.value = data }
-    finally { loading.value = false }
+    try {
+      const { data } = await pagesApi.listPages()
+      pages.value = data
+    } catch (e) {
+      console.error('Failed to fetch pages:', e)
+      throw e
+    } finally {
+      loading.value = false
+    }
   }
 
   return { pages, loading, fetchPages }

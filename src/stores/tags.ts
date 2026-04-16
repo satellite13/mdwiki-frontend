@@ -7,7 +7,13 @@ export const useTagStore = defineStore('tags', () => {
   const tags = ref<Tag[]>([])
   async function fetchTags(force = false) {
     if (!force && tags.value.length > 0) return
-    const { data } = await tagsApi.listTags(); tags.value = data
+    try {
+      const { data } = await tagsApi.listTags()
+      tags.value = data
+    } catch (e) {
+      console.error('Failed to fetch tags:', e)
+      throw e
+    }
   }
   return { tags, fetchTags }
 })
