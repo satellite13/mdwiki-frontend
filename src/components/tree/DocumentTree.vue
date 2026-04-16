@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
 import type { FolderTreeNode } from '@/types'
+import { createTreeEventsSource } from '@/api/events'
 import TreeFolder from './TreeFolder.vue'
 import TreePage from './TreePage.vue'
 import TreeContextMenu from './TreeContextMenu.vue'
@@ -14,6 +15,10 @@ const folderStore = useFolderStore()
 const auth = useAuthStore()
 
 const activeSlug = computed(() => (route.params.slug as string) || null)
+const TREE_EVENTS_RECONNECT_MS = 3000
+let treeEventsSource: EventSource | null = null
+let treeReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let treeRefreshInFlight = false
 
 // Context menu state
 const contextMenu = ref<{ x: number; y: number; node: FolderTreeNode | null; parentId: string | null } | null>(null)
@@ -147,7 +152,52 @@ function onRootDrop(e: DragEvent) {
 
 onMounted(() => {
   folderStore.fetchTree()
+  connectTreeEvents()
 })
+
+onBeforeUnmount(() => {
+  disconnectTreeEvents()
+  if (treeReconnectTimer) {
+    clearTimeout(treeReconnectTimer)
+    treeReconnectTimer = null
+  }
+})
+
+async function refreshTree() {
+  if (treeRefreshInFlight) return
+  treeRefreshInFlight = true
+  try {
+    await folderStore.fetchTree(true)
+  } finally {
+    treeRefreshInFlight = false
+  }
+}
+
+function connectTreeEvents() {
+  const token = auth.token || localStorage.getItem('token')
+  if (!token) return
+
+  disconnectTreeEvents()
+
+  treeEventsSource = createTreeEventsSource(token)
+  treeEventsSource.addEventListener('tree-updated', () => {
+    refreshTree()
+  })
+  treeEventsSource.onerror = () => {
+    disconnectTreeEvents()
+    if (treeReconnectTimer) return
+    treeReconnectTimer = setTimeout(() => {
+      treeReconnectTimer = null
+      connectTreeEvents()
+    }, TREE_EVENTS_RECONNECT_MS)
+  }
+}
+
+function disconnectTreeEvents() {
+  if (!treeEventsSource) return
+  treeEventsSource.close()
+  treeEventsSource = null
+}
 </script>
 
 <template>

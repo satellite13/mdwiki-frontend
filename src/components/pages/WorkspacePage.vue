@@ -95,7 +95,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="workspace" v-if="!loading && page">
+  <div class="workspace" v-if="page">
+    <div v-if="loading" class="workspace-loading">Loading...</div>
     <div class="workspace-header">
       <input
         class="title-input"
@@ -139,6 +140,16 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
+}
+
+.workspace-loading {
+  position: absolute;
+  top: 12px;
+  right: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  z-index: 2;
 }
 
 .workspace-header {

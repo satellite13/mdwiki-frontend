@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it'
+import markdownItMark from 'markdown-it-mark'
 import { tagPlugin, wikilinkPlugin } from '@/utils/markdownPlugins'
 
 const md = new MarkdownIt({
@@ -7,6 +8,7 @@ const md = new MarkdownIt({
   breaks: true
 })
 
+md.use(markdownItMark)
 md.use(wikilinkPlugin)
 md.use(tagPlugin)
 
