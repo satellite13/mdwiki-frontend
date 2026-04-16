@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAuthStore } from '@/stores/auth'
 import type { FolderTreeNode } from '@/types'
 
 const props = defineProps<{
@@ -10,7 +11,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [slug: string]
   contextmenu: [event: MouseEvent, node: FolderTreeNode]
+  delete: [node: FolderTreeNode]
 }>()
+
+const auth = useAuthStore()
 
 function onDragStart(e: DragEvent) {
   e.dataTransfer!.setData('text/plain', JSON.stringify({ type: 'page', slug: props.node.slug }))
@@ -32,8 +36,19 @@ function onContextMenu(e: MouseEvent) {
     @contextmenu="onContextMenu"
     @click="emit('select', node.slug!)"
   >
-    <span class="page-icon">📄</span>
+    <span class="page-icon">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <path d="M3.5 1.5h6l3 3v10h-9v-13z" stroke="currentColor" stroke-width="1.2" fill="none"/>
+        <path d="M9.5 1.5v3h3" stroke="currentColor" stroke-width="1.2" fill="none"/>
+      </svg>
+    </span>
     <span class="page-name">{{ node.name }}</span>
+
+    <span v-if="auth.isEditor" class="page-actions" @click.stop>
+      <button class="node-action danger" title="Удалить страницу" @click="emit('delete', node)">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </span>
   </div>
 </template>
 
@@ -48,6 +63,7 @@ function onContextMenu(e: MouseEvent) {
   border-radius: 4px;
   color: var(--color-text);
   user-select: none;
+  transition: background 0.15s;
 }
 
 .tree-page:hover {
@@ -60,13 +76,56 @@ function onContextMenu(e: MouseEvent) {
 }
 
 .page-icon {
-  font-size: 14px;
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.tree-page.active .page-icon {
+  color: white;
 }
 
 .page-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+}
+
+.page-actions {
+  display: none;
+  gap: 1px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tree-page:hover .page-actions {
+  display: flex;
+}
+
+.node-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.node-action:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+.node-action.danger:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--color-danger);
 }
 </style>

@@ -2,10 +2,12 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as pagesApi from '@/api/pages'
+import { useFolderStore } from '@/stores/folders'
 import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
+const folderStore = useFolderStore()
 const slug = computed(() => route.params.slug as string | undefined)
 const isNew = computed(() => !slug.value)
 
@@ -31,9 +33,11 @@ async function save() {
     if (isNew.value) {
       const s = slugInput.value || title.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       await pagesApi.createPage(s, title.value, content.value)
+      await folderStore.fetchTree(true)
       router.push(`/page/${s}`)
     } else {
-      await pagesApi.updatePage(slug.value!, { title: title.value, contentMd: content.value })
+      await pagesApi.updatePage(slug.value!, { title: title.value, contentMd: content.value, clearFolder: false })
+      await folderStore.fetchTree(true)
       router.push(`/page/${slug.value}`)
     }
   } catch (e: any) {
@@ -44,6 +48,7 @@ async function save() {
 async function remove() {
   if (slug.value && confirm('Delete this page?')) {
     await pagesApi.deletePage(slug.value)
+    await folderStore.fetchTree(true)
     router.push('/')
   }
 }

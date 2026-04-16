@@ -2,16 +2,19 @@
 import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import * as pagesApi from '@/api/pages'
+import { useFolderStore } from '@/stores/folders'
 import type { Page, Backlink } from '@/types'
 import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
 
 const route = useRoute()
+const folderStore = useFolderStore()
 
 const page = ref<Page | null>(null)
 const backlinks = ref<Backlink[]>([])
 const loading = ref(true)
 const title = ref('')
 const content = ref('')
+const lastSavedTitle = ref('')
 const saveStatus = ref<'idle' | 'saving' | 'saved'>('idle')
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -26,6 +29,7 @@ async function loadPage(slug: string) {
     page.value = pageRes.data
     backlinks.value = backlinksRes.data
     title.value = pageRes.data.title
+    lastSavedTitle.value = pageRes.data.title
     content.value = pageRes.data.contentMd || ''
   } finally {
     loading.value = false
@@ -41,10 +45,16 @@ async function doSave() {
   if (!page.value) return
   saveStatus.value = 'saving'
   try {
-    await pagesApi.updatePage(page.value.slug, {
+    const { data: updatedPage } = await pagesApi.updatePage(page.value.slug, {
       title: title.value,
-      contentMd: content.value
+      contentMd: content.value,
+      clearFolder: false
     })
+    page.value = updatedPage
+    if (updatedPage.title !== lastSavedTitle.value) {
+      lastSavedTitle.value = updatedPage.title
+      await folderStore.fetchTree(true)
+    }
     saveStatus.value = 'saved'
     setTimeout(() => { if (saveStatus.value === 'saved') saveStatus.value = 'idle' }, 2000)
   } catch {

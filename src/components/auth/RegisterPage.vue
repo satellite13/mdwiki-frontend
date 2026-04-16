@@ -14,7 +14,7 @@ async function onSubmit() {
   error.value = ''
   try {
     await auth.register(username.value, email.value, password.value)
-    router.push({ name: 'pages' })
+    router.push({ name: 'workspace' })
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Registration failed'
   }

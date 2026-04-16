@@ -5,5 +5,5 @@ export function listPages() { return client.get<PageListItem[]>('/pages') }
 export function getPage(slug: string) { return client.get<Page>(`/pages/${slug}`) }
 export function getBacklinks(slug: string) { return client.get<Backlink[]>(`/pages/${slug}/backlinks`) }
 export function createPage(slug: string, title: string, contentMd: string, folderId?: string) { return client.post<Page>('/pages', { slug, title, contentMd, folderId }) }
-export function updatePage(slug: string, data: { title?: string; contentMd?: string; folderId?: string | null }) { return client.put<Page>(`/pages/${slug}`, data) }
+export function updatePage(slug: string, data: { title?: string; contentMd?: string; folderId?: string | null; clearFolder?: boolean }) { return client.put<Page>(`/pages/${slug}`, data) }
 export function deletePage(slug: string) { return client.delete(`/pages/${slug}`) }

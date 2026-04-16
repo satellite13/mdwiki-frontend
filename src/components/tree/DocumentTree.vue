@@ -20,13 +20,17 @@ const contextMenu = ref<{ x: number; y: number; node: FolderTreeNode | null; par
 
 const contextMenuItems = computed(() => {
   if (!auth.isEditor) return []
-  const items = [
-    { label: 'New Page', action: 'new-page' },
-    { label: 'New Folder', action: 'new-folder' },
-  ]
+  const items: { label: string; action: string; danger?: boolean }[] = []
+
+  if (!contextMenu.value?.node || contextMenu.value.node.type === 'folder') {
+    items.push({ label: 'Новая страница', action: 'new-page' })
+    items.push({ label: 'Новая папка', action: 'new-folder' })
+  }
   if (contextMenu.value?.node) {
-    items.push({ label: 'Rename', action: 'rename' })
-    items.push({ label: 'Delete', action: 'delete', danger: true } as any)
+    if (contextMenu.value.node.type === 'folder') {
+      items.push({ label: 'Переименовать', action: 'rename' })
+    }
+    items.push({ label: 'Удалить', action: 'delete', danger: true })
   }
   return items
 })
@@ -48,33 +52,40 @@ function onRootContextMenu(e: MouseEvent) {
   contextMenu.value = { x: e.clientX, y: e.clientY, node: null, parentId: null }
 }
 
+async function createNewPage(folderId?: string) {
+  const title = prompt('Название страницы:')
+  if (!title) return
+  const slug = title.toLowerCase().replace(/[^a-z0-9а-яё]+/gi, '-').replace(/(^-|-$)/g, '')
+  const { createPage } = await import('@/api/pages')
+  await createPage(slug, title, '', folderId || undefined)
+  await folderStore.fetchTree(true)
+  router.push(`/page/${slug}`)
+}
+
+async function createNewFolder(parentId?: string) {
+  const name = prompt('Название папки:')
+  if (!name) return
+  await folderStore.createFolder(name, parentId || undefined)
+}
+
 async function onContextAction(action: string) {
   const ctx = contextMenu.value
   if (!ctx) return
 
   if (action === 'new-page') {
-    const title = prompt('Page title:')
-    if (!title) return
-    const slug = title.toLowerCase().replace(/[^a-z0-9а-яё]+/gi, '-').replace(/(^-|-$)/g, '')
     const folderId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
-    const { createPage } = await import('@/api/pages')
-    await createPage(slug, title, '', folderId || undefined)
-    await folderStore.fetchTree(true)
-    router.push(`/page/${slug}`)
+    await createNewPage(folderId || undefined)
   } else if (action === 'new-folder') {
-    const name = prompt('Folder name:')
-    if (!name) return
     const parentId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
-    await folderStore.createFolder(name, parentId || undefined)
+    await createNewFolder(parentId || undefined)
   } else if (action === 'rename' && ctx.node) {
-    const newName = prompt('New name:', ctx.node.name)
+    const newName = prompt('Новое имя:', ctx.node.name)
     if (!newName || newName === ctx.node.name) return
     if (ctx.node.type === 'folder') {
       await folderStore.renameFolder(ctx.node.id, newName)
     }
-    // Page rename would need a different API (update title)
   } else if (action === 'delete' && ctx.node) {
-    if (!confirm(`Delete "${ctx.node.name}"?`)) return
+    if (!confirm(`Удалить "${ctx.node.name}"?`)) return
     if (ctx.node.type === 'folder') {
       await folderStore.deleteFolder(ctx.node.id)
     } else if (ctx.node.slug) {
@@ -88,19 +99,48 @@ async function onContextAction(action: string) {
   contextMenu.value = null
 }
 
+async function onDeleteNode(node: FolderTreeNode) {
+  if (!confirm(`Удалить "${node.name}"?`)) return
+  if (node.type === 'folder') {
+    await folderStore.deleteFolder(node.id)
+  } else if (node.slug) {
+    const { deletePage } = await import('@/api/pages')
+    await deletePage(node.slug)
+    await folderStore.fetchTree(true)
+    if (activeSlug.value === node.slug) router.push('/')
+  }
+}
+
+async function onAddPageToFolder(folderId: string) {
+  await createNewPage(folderId)
+}
+
+async function onAddSubfolder(parentId: string) {
+  await createNewFolder(parentId)
+}
+
+// Drag & drop on root (move to root level)
+const rootDragOver = ref(false)
+
 function onRootDragOver(e: DragEvent) {
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
+  rootDragOver.value = true
+}
+
+function onRootDragLeave() {
+  rootDragOver.value = false
 }
 
 function onRootDrop(e: DragEvent) {
   e.preventDefault()
+  rootDragOver.value = false
   try {
     const data = JSON.parse(e.dataTransfer!.getData('text/plain'))
     if (data.type === 'page') {
-      folderStore.movePage(data.slug, null as any)
+      folderStore.movePage(data.slug, null)
     } else if (data.type === 'folder') {
-      folderStore.moveFolder(data.id, null as any)
+      folderStore.moveFolder(data.id, null)
     }
   } catch { /* ignore */ }
 }
@@ -115,14 +155,23 @@ onMounted(() => {
     class="document-tree"
     @contextmenu="onRootContextMenu"
     @dragover="onRootDragOver"
+    @dragleave="onRootDragLeave"
     @drop="onRootDrop"
   >
     <div class="tree-header">
-      <span class="tree-title">Documents</span>
+      <span class="tree-title">Документы</span>
+      <div v-if="auth.isEditor" class="tree-actions">
+        <button class="tree-action-btn" title="Новая страница" @click.stop="createNewPage()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 1h7l3 3v11H3V1z" stroke="currentColor" stroke-width="1.3"/><path d="M5 9h6M8 6v6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+        <button class="tree-action-btn" title="Новая папка" @click.stop="createNewFolder()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 3h5l2 2h7v9H1V3z" stroke="currentColor" stroke-width="1.3"/><path d="M5 9h6M8 6.5v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
     </div>
 
-    <div v-if="folderStore.loading" class="tree-loading">Loading...</div>
-    <div v-else class="tree-content">
+    <div v-if="folderStore.loading" class="tree-loading">Загрузка...</div>
+    <div v-else :class="['tree-content', { 'root-drag-over': rootDragOver }]">
       <TreeFolder
         v-for="folder in rootFolders"
         :key="folder.id"
@@ -131,6 +180,9 @@ onMounted(() => {
         :activeSlug="activeSlug"
         @selectPage="onSelectPage"
         @contextmenu="onContextMenu"
+        @delete="onDeleteNode"
+        @addPage="onAddPageToFolder"
+        @addSubfolder="onAddSubfolder"
       />
       <TreePage
         v-for="page in rootPages"
@@ -140,7 +192,12 @@ onMounted(() => {
         :active="activeSlug === page.slug"
         @select="onSelectPage"
         @contextmenu="onContextMenu"
+        @delete="onDeleteNode"
       />
+
+      <div v-if="!folderStore.loading && folderStore.tree.length === 0" class="tree-empty">
+        Нет документов
+      </div>
     </div>
 
     <TreeContextMenu
@@ -163,8 +220,11 @@ onMounted(() => {
 }
 
 .tree-header {
-  padding: 12px 16px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .tree-title {
@@ -175,16 +235,53 @@ onMounted(() => {
   color: var(--color-text-muted);
 }
 
+.tree-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.tree-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tree-action-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
 .tree-content {
   flex: 1;
   padding: 8px;
   overflow-y: auto;
+  transition: background 0.15s;
+}
+
+.tree-content.root-drag-over {
+  background: rgba(91, 95, 199, 0.06);
 }
 
 .tree-loading {
   padding: 24px;
   text-align: center;
   color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.tree-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--color-text-faint);
   font-size: 13px;
 }
 </style>

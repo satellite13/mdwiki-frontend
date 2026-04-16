@@ -13,7 +13,7 @@ async function onSubmit() {
   error.value = ''
   try {
     await auth.login(username.value, password.value)
-    router.push({ name: 'pages' })
+    router.push({ name: 'workspace' })
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Login failed'
   }

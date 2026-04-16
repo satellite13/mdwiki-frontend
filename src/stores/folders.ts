@@ -4,6 +4,11 @@ import * as foldersApi from '@/api/folders'
 import * as pagesApi from '@/api/pages'
 import type { FolderTreeNode } from '@/types'
 
+/** Backend returns folder IDs as "folder-<uuid>" in tree; API expects raw UUID */
+function stripFolderPrefix(id: string): string {
+  return id.startsWith('folder-') ? id.slice(7) : id
+}
+
 export const useFolderStore = defineStore('folders', () => {
   const tree = ref<FolderTreeNode[]>([])
   const loading = ref(false)
@@ -40,27 +45,35 @@ export const useFolderStore = defineStore('folders', () => {
   }
 
   async function createFolder(name: string, parentId?: string) {
-    await foldersApi.createFolder(name, parentId)
+    const cleanParentId = parentId ? stripFolderPrefix(parentId) : undefined
+    await foldersApi.createFolder(name, cleanParentId)
     await fetchTree(true)
   }
 
   async function renameFolder(id: string, name: string) {
-    await foldersApi.renameFolder(id, name)
+    await foldersApi.renameFolder(stripFolderPrefix(id), name)
     await fetchTree(true)
   }
 
   async function moveFolder(id: string, parentId: string | null) {
-    await foldersApi.moveFolder(id, parentId)
+    const cleanId = stripFolderPrefix(id)
+    const cleanParentId = parentId ? stripFolderPrefix(parentId) : null
+    await foldersApi.moveFolder(cleanId, cleanParentId)
     await fetchTree(true)
   }
 
   async function deleteFolder(id: string) {
-    await foldersApi.deleteFolder(id)
+    await foldersApi.deleteFolder(stripFolderPrefix(id))
     await fetchTree(true)
   }
 
   async function movePage(slug: string, folderId: string | null) {
-    await pagesApi.updatePage(slug, { folderId })
+    const cleanFolderId = folderId ? stripFolderPrefix(folderId) : null
+    if (cleanFolderId) {
+      await pagesApi.updatePage(slug, { folderId: cleanFolderId })
+    } else {
+      await pagesApi.updatePage(slug, { folderId: null, clearFolder: true })
+    }
     await fetchTree(true)
   }
 
