@@ -9,4 +9,10 @@ const app = createApp(App)
 setupErrorHandler(app)
 app.use(createPinia())
 app.use(router)
+// Apply saved theme before mount to prevent flash
+const savedTheme = localStorage.getItem('theme')
+if (savedTheme === 'dark') {
+  document.documentElement.dataset.theme = 'dark'
+}
+
 app.mount('#app')

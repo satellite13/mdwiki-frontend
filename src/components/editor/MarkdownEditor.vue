@@ -8,6 +8,7 @@ import 'md-editor-v3/lib/style.css'
 import { Emoji, ExportPDF, Mark } from '@vavt/v3-extension'
 import '@vavt/v3-extension/lib/asset/style.css'
 import { frontmatterStripPlugin, wikilinkPlugin, tagPlugin } from '@/utils/markdownPlugins'
+import { useThemeStore } from '@/stores/theme'
 import { wikilinkCompletions } from '@/utils/wikilinkAutocomplete'
 import { uploadFile } from '@/api/uploads'
 
@@ -63,6 +64,7 @@ const emit = defineEmits<{
 const showLineNumbers = ref(editorLineNumbersEnabled)
 const editorKey = ref(0)
 const isPreviewOnly = ref(false)
+const themeStore = useThemeStore()
 const uploadError = ref('')
 const wrapperRef = ref<HTMLElement | null>(null)
 const editorRef = ref<any>(null)
@@ -140,6 +142,7 @@ onBeforeUnmount(() => {
       ref="editorRef"
       :key="editorKey"
       :modelValue="props.modelValue"
+      :theme="themeStore.isDark ? 'dark' : 'light'"
       :completions="mdEditorCompletions"
       @update:modelValue="emit('update:modelValue', $event)"
       @onSave="onSave"

@@ -275,3 +275,25 @@ input::placeholder, textarea::placeholder {
 body > div:has(.cm-tooltip) {
   z-index: 25000;
 }
+
+/* ---- Dark Theme ---- */
+
+[data-theme="dark"] {
+  --color-bg: #1a1b1e;
+  --color-bg-secondary: #25262b;
+  --color-bg-tertiary: #2c2d33;
+  --color-bg-hover: #35363d;
+  --color-text: #c9cdd1;
+  --color-text-muted: #909399;
+  --color-text-faint: #5c5f66;
+  --color-primary: #20c997;
+  --color-primary-hover: #12b886;
+  --color-danger: #ff6b6b;
+  --color-danger-hover: #e03e3e;
+  --color-success: #51cf66;
+  --color-border: #3a3b40;
+  --color-wikilink: #20c997;
+  --color-wikilink-missing: #ff6b6b;
+  --color-tag: #fcc419;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
