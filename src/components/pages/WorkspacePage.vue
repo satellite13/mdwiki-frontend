@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
 import type { Page, Backlink } from '@/types'
 import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
+import GraphPanel from '@/components/graph/GraphPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +22,7 @@ const title = ref('')
 const content = ref('')
 const lastSavedTitle = ref('')
 const lastSavedContentMd = ref('')
+const showGraph = ref(false)
 const saveStatus = ref<'idle' | 'saving' | 'saved'>('idle')
 const saveError = ref<string | null>(null)
 const isSaving = ref(false)
@@ -219,6 +221,12 @@ onBeforeUnmount(() => {
       />
       <span v-if="isDirty()" class="unsaved-dot" title="Unsaved changes"></span>
       <span v-if="saveError" class="save-error" @click="saveError = null">{{ saveError }}</span>
+      <button class="graph-toggle" @click="showGraph = !showGraph" :title="showGraph ? 'Hide graph' : 'Show graph'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" :stroke="showGraph ? 'var(--color-primary)' : 'currentColor'" stroke-width="2">
+          <circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/>
+          <line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="7.5"/>
+        </svg>
+      </button>
       <span :class="['save-status', saveStatus]">
         <template v-if="saveStatus === 'saving'">Saving...</template>
         <template v-else-if="saveStatus === 'saved'">Saved</template>
@@ -231,6 +239,10 @@ onBeforeUnmount(() => {
         @update:modelValue="onContentChange"
         @save="onEditorSave"
       />
+    </div>
+
+    <div v-if="showGraph && page" class="graph-area">
+      <GraphPanel :slug="page.slug" />
     </div>
 
     <div class="backlinks-panel" v-if="backlinks.length">
@@ -316,6 +328,32 @@ onBeforeUnmount(() => {
   color: #e53e3e;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.graph-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.graph-toggle:hover {
+  color: var(--color-text);
+  background: var(--color-bg-hover);
+}
+
+.graph-area {
+  height: 300px;
+  margin-top: 12px;
 }
 
 .editor-area {
