@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as pagesApi from '@/api/pages'
-import TiptapEditor from '@/components/editor/TiptapEditor.vue'
+import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,7 +54,7 @@ async function remove() {
     <h1>{{ isNew ? 'New Page' : 'Edit Page' }}</h1>
     <div class="field"><label>Title</label><input v-model="title" required placeholder="Page title" /></div>
     <div class="field" v-if="isNew"><label>Slug</label><input v-model="slugInput" placeholder="auto-generated from title" class="slug-input" /></div>
-    <div class="field"><label>Content</label><TiptapEditor v-model="content" /></div>
+    <div class="field"><label>Content</label><MarkdownEditor v-model="content" /></div>
     <p v-if="error" class="error">{{ error }}</p>
     <div class="actions">
       <button class="btn-primary save-btn" @click="save" :disabled="saving">{{ saving ? 'Saving...' : 'Save' }}</button>
