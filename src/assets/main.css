@@ -1,56 +1,234 @@
+/* ============================================
+   Ink & Paper Design System
+   A warm, editorial aesthetic for mdwiki
+   ============================================ */
+
 :root {
-  --color-bg: #ffffff;
-  --color-bg-secondary: #f5f5f5;
-  --color-text: #1a1a1a;
-  --color-text-muted: #6b7280;
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
-  --color-border: #e5e7eb;
-  --color-danger: #ef4444;
-  --color-success: #22c55e;
-  --color-wikilink: #3b82f6;
-  --color-wikilink-missing: #ef4444;
-  --color-tag: #8b5cf6;
-  --radius: 6px;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* Backgrounds */
+  --color-bg: #faf8f5;
+  --color-bg-secondary: #f2efe9;
+  --color-sidebar-bg: #1e1e1e;
+  --color-sidebar-bg-hover: #2a2a2a;
+
+  /* Text */
+  --color-text: #2c2c2c;
+  --color-text-muted: #8a8279;
+  --color-sidebar-text: #c4bfb6;
+  --color-sidebar-text-hover: #f2efe9;
+
+  /* Accent */
+  --color-primary: #1a6b5a;
+  --color-primary-hover: #0f4f42;
+  --color-danger: #c0392b;
+  --color-danger-hover: #a5311f;
+  --color-success: #27ae60;
+
+  /* Borders & Shadows */
+  --color-border: #e0dbd4;
+  --radius: 4px;
+  --shadow: 0 1px 4px rgba(60, 50, 40, 0.08);
+  --shadow-md: 0 4px 12px rgba(60, 50, 40, 0.1);
+  --shadow-lg: 0 8px 24px rgba(60, 50, 40, 0.12);
+
+  /* Semantic */
+  --color-wikilink: #1a6b5a;
+  --color-wikilink-missing: #c0392b;
+  --color-tag: #8b6914;
+
+  /* Typography */
+  --font-heading: 'Libre Baskerville', 'Georgia', serif;
+  --font-body: 'Source Sans 3', 'Source Sans Pro', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* ---- Reset & Base ---- */
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-bg);
   line-height: 1.6;
+  /* Subtle paper grain texture */
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.015'/%3E%3C/svg%3E");
 }
 
-a { color: var(--color-primary); text-decoration: none; }
-a:hover { text-decoration: underline; }
+/* ---- Typography ---- */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.15rem; }
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+/* ---- Links ---- */
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+/* ---- Buttons ---- */
 
 button {
   cursor: pointer;
   border: none;
   border-radius: var(--radius);
-  padding: 8px 16px;
+  padding: 8px 18px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  font-family: var(--font-body);
+  transition: all 0.2s ease;
+  line-height: 1.4;
 }
 
-.btn-primary { background: var(--color-primary); color: white; }
-.btn-primary:hover { background: var(--color-primary-hover); }
-.btn-danger { background: var(--color-danger); color: white; }
-.btn-secondary { background: var(--color-bg-secondary); color: var(--color-text); border: 1px solid var(--color-border); }
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(26, 107, 90, 0.2);
+}
 
-input, textarea {
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+  box-shadow: 0 2px 6px rgba(26, 107, 90, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+}
+
+.btn-danger:hover {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  border-color: #ccc8c0;
+}
+
+/* ---- Inputs ---- */
+
+input, textarea, select {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 8px 12px;
+  padding: 10px 14px;
   font-size: 14px;
+  font-family: var(--font-body);
   width: 100%;
+  color: var(--color-text);
+  background: #fff;
+  transition: all 0.2s ease;
 }
 
-input:focus, textarea:focus {
+input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 3px rgba(26, 107, 90, 0.1);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ---- Custom Scrollbar ---- */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc8c0;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b5b0a6;
+}
+
+/* ---- Utility ---- */
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Ornamental divider */
+.ornament {
+  text-align: center;
+  color: var(--color-border);
+  font-size: 18px;
+  letter-spacing: 8px;
+  margin: 16px 0;
+}
+
+/* Entrance animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.4s ease both;
+}
+
+/* Staggered animation helper */
+@keyframes fadeInUpStagger {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
