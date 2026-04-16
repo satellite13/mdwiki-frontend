@@ -1,15 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import * as pagesApi from '@/api/pages'
 import type { Page, Backlink } from '@/types'
+import { markdownToEditorHtml } from '@/utils/editorMarkdown'
 
 const route = useRoute()
 const auth = useAuthStore()
 const page = ref<Page | null>(null)
 const backlinks = ref<Backlink[]>([])
 const loading = ref(true)
+
+const renderedBodyHtml = computed(() => {
+  const p = page.value
+  if (!p) return ''
+  const html = p.contentHtml?.trim()
+  if (html) return html
+  return markdownToEditorHtml(p.contentMd ?? '')
+})
 
 async function loadPage(slug: string) {
   loading.value = true
@@ -36,7 +45,7 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
     <div class="page-tags" v-if="page.tags.length">
       <span v-for="tag in page.tags" :key="tag" class="tag">#{{ tag }}</span>
     </div>
-    <div class="page-content" v-html="page.contentHtml || page.contentMd" />
+    <div class="page-content" v-html="renderedBodyHtml" />
     <div class="backlinks" v-if="backlinks.length">
       <div class="backlinks-rule">--- * ---</div>
       <h3>Backlinks</h3>
