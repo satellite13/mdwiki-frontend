@@ -200,6 +200,15 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="workspace" v-if="page">
+    <nav v-if="page.folderPath && page.folderPath.length" class="breadcrumbs">
+      <router-link to="/" class="breadcrumb-item">Root</router-link>
+      <span class="breadcrumb-sep">/</span>
+      <template v-for="folder in page.folderPath" :key="folder.id">
+        <span class="breadcrumb-item">{{ folder.name }}</span>
+        <span class="breadcrumb-sep">/</span>
+      </template>
+      <span class="breadcrumb-current">{{ page.title }}</span>
+    </nav>
     <div v-if="loading" class="workspace-loading">Loading...</div>
     <div class="workspace-header">
       <input
@@ -344,5 +353,36 @@ onBeforeUnmount(() => {
   height: 100%;
   color: var(--color-text-muted);
   font-size: 15px;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-faint);
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.breadcrumb-item:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.breadcrumb-sep {
+  color: var(--color-text-faint);
+  user-select: none;
+}
+
+.breadcrumb-current {
+  color: var(--color-text);
+  font-weight: 500;
 }
 </style>

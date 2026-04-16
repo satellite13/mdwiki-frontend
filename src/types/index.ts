@@ -22,6 +22,7 @@ export interface Page {
   tags: string[]
   createdBy: string | null
   updatedBy: string | null
+  folderPath?: FolderPathItem[]
   createdAt: string
   updatedAt: string
 }
@@ -33,6 +34,11 @@ export interface PageListItem {
   tags: string[]
   folderId: string | null
   updatedAt: string
+}
+
+export interface FolderPathItem {
+  id: string
+  name: string
 }
 
 export interface FolderTreeNode {
