@@ -140,8 +140,7 @@ async function createNewPage(folderId?: string) {
   const slug = normalizePageSlug(title)
   if (!slug) return
   await pagesApi.createPage(slug, title, '', folderId || undefined)
-  await folderStore.fetchTree(true)
-  await refreshTagData(true)
+  // Tree refresh is handled by SSE 'tree-updated' event; no manual fetchTree needed.
   router.push(`/page/${slug}`)
 }
 
@@ -177,15 +176,14 @@ async function onContextAction(action: string) {
       if (ctx.node.type === 'folder') {
         try {
           await folderStore.deleteFolder(ctx.node.id)
-          await refreshTagData(true)
+          // Tag refresh and tree refresh handled by SSE 'tree-updated' event.
         } catch (e) {
           alert('Failed to delete folder')
         }
       } else if (ctx.node.slug) {
         try {
           await pagesApi.deletePage(ctx.node.slug)
-          await folderStore.fetchTree(true)
-          await refreshTagData(true)
+          // Tree refresh handled by SSE 'tree-updated' event.
           if (activeSlug.value === ctx.node.slug) router.push('/')
         } catch (e) {
           alert('Failed to delete page')
@@ -204,11 +202,10 @@ async function onDeleteNode(node: FolderTreeNode) {
   if (!confirm(`Удалить "${node.name}"?`)) return
   if (node.type === 'folder') {
     await folderStore.deleteFolder(node.id)
-    await refreshTagData(true)
+    // Tag refresh and tree refresh handled by SSE 'tree-updated' event.
   } else if (node.slug) {
     await pagesApi.deletePage(node.slug)
-    await folderStore.fetchTree(true)
-    await refreshTagData(true)
+    // Tree refresh handled by SSE 'tree-updated' event.
     if (activeSlug.value === node.slug) router.push('/')
   }
 }
@@ -262,14 +259,20 @@ onBeforeUnmount(() => {
     clearTimeout(treeReconnectTimer)
     treeReconnectTimer = null
   }
+  if (refreshDebounceTimer) {
+    clearTimeout(refreshDebounceTimer)
+    refreshDebounceTimer = null
+  }
 })
 
 async function refreshTree() {
   if (treeRefreshInFlight) return
   treeRefreshInFlight = true
   try {
-    await folderStore.fetchTree(true)
-    await refreshPageTagsIndex()
+    await Promise.all([
+      folderStore.fetchTree(true),
+      refreshTagData(true)
+    ])
   } catch (error) {
     console.error('Failed to refresh tree', error)
   } finally {
@@ -277,8 +280,17 @@ async function refreshTree() {
   }
 }
 
+let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null
+const REFRESH_DEBOUNCE_MS = 300
+
 function onTreeUpdated() {
-  refreshTree()
+  // Debounce SSE-driven refreshes to avoid redundant API calls when multiple
+  // events arrive in quick succession (e.g. bulk operations).
+  if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer)
+  refreshDebounceTimer = setTimeout(() => {
+    refreshDebounceTimer = null
+    refreshTree()
+  }, REFRESH_DEBOUNCE_MS)
 }
 
 function onTreeError() {

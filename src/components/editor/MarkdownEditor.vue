@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import axios from 'axios'
 import { MdEditor, NormalToolbar, config } from 'md-editor-v3'
 import { lineNumbers, tooltips } from '@codemirror/view'
@@ -69,10 +69,22 @@ const editorRef = ref<any>(null)
 let modeObserver: MutationObserver | null = null
 
 function toggleLineNumbers() {
+  // md-editor-v3 does not support reactive CodeMirror extension changes, so we
+  // must recreate the editor instance by bumping the key. We save and restore
+  // the cursor (scroll) position to minimise user disruption.
+  const cmView = wrapperRef.value?.querySelector('.cm-editor') as HTMLElement | null
+  const scrollTop = cmView?.querySelector('.cm-scroller')?.scrollTop ?? 0
+
   showLineNumbers.value = !showLineNumbers.value
   editorLineNumbersEnabled = showLineNumbers.value
-  // Recreate editor so md-editor-v3 re-applies CodeMirror extensions.
   editorKey.value++
+
+  nextTick(() => {
+    const newScroller = wrapperRef.value?.querySelector('.cm-scroller') as HTMLElement | null
+    if (newScroller) {
+      newScroller.scrollTop = scrollTop
+    }
+  })
 }
 
 function onSave() {
