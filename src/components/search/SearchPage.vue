@@ -61,11 +61,11 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
 }
 
 .result-card {
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 18px 20px;
   transition: all 0.15s ease;
-  background: #262626;
+  background: var(--color-bg-secondary);
   animation: fadeInUpStagger 0.4s ease both;
 }
 

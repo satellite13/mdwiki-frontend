@@ -90,8 +90,8 @@ onMounted(fetchKeys)
 }
 
 .profile-card {
-  background: #262626;
-  border: 1px solid #3a3a3a;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 20px 24px;
   margin-bottom: 8px;
@@ -109,7 +109,7 @@ onMounted(fetchKeys)
 .role-badge {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: #2d2d2d;
+  background: var(--color-bg-tertiary);
   padding: 2px 8px;
   border-radius: 3px;
   color: var(--color-text-muted);
@@ -122,8 +122,8 @@ onMounted(fetchKeys)
 }
 
 .key-created {
-  background: #1a3a2a;
-  border: 1px solid #2ecc71;
+  background: var(--color-success-bg, rgba(46, 204, 113, 0.1));
+  border: 1px solid var(--color-success);
   border-radius: var(--radius);
   padding: 18px 20px;
   margin-bottom: 20px;
@@ -142,13 +142,13 @@ onMounted(fetchKeys)
 
 .key-display code {
   font-family: var(--font-mono);
-  background: #2d2d2d;
+  background: var(--color-bg-tertiary);
   padding: 8px 14px;
   border-radius: var(--radius);
   font-size: 13px;
   word-break: break-all;
   flex: 1;
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--color-border);
 }
 
 .create-key {
@@ -162,7 +162,7 @@ onMounted(fetchKeys)
 }
 
 .keys-table tbody tr:hover {
-  background: #333333;
+  background: var(--color-bg-hover);
 }
 
 .key-name {

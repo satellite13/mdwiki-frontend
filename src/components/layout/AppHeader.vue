@@ -28,7 +28,7 @@ function logout() {
     <nav class="header-nav">
       <router-link to="/profile" class="nav-link">{{ auth.username }}</router-link>
       <router-link v-if="auth.isAdmin" to="/admin/users" class="nav-link">Admin</router-link>
-      <button class="btn-secondary logout-btn" @click="logout">Logout</button>
+      <button class="btn-secondary" @click="logout">Logout</button>
     </nav>
   </header>
 </template>
@@ -37,93 +37,40 @@ function logout() {
 .app-header {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 0 28px;
-  height: 60px;
-  background: #262626;
-  border-bottom: 1px solid #3a3a3a;
-  position: relative;
-  z-index: 10;
+  gap: 16px;
+  padding: 0 20px;
+  height: 49px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .logo {
-  font-family: var(--font-body);
-  font-size: 22px;
-  font-weight: 600;
-  color: #dcddde;
-  text-decoration: none;
-  letter-spacing: -0.5px;
-  transition: color 0.15s ease;
-}
-
-.logo:hover {
-  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
   text-decoration: none;
 }
 
-.search-form {
-  flex: 1;
-  max-width: 420px;
-}
+.logo:hover { text-decoration: none; }
 
-.search-form input {
-  width: 100%;
-  background: #2d2d2d;
-  border: 1px solid #3a3a3a;
-  border-radius: var(--radius);
-  color: #dcddde;
-  padding: 8px 14px;
-  font-size: 14px;
-  font-family: var(--font-body);
-  transition: all 0.15s ease;
-}
-
-.search-form input::placeholder {
-  color: #666666;
-}
-
-.search-form input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.25);
-}
+.search-form { flex: 1; max-width: 360px; }
+.search-form input { font-size: 13px; padding: 6px 12px; }
 
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   margin-left: auto;
 }
 
 .nav-link {
-  color: #999999;
-  font-size: 14px;
-  font-weight: 500;
+  color: var(--color-text-muted);
+  font-size: 13px;
   text-decoration: none;
-  transition: color 0.15s ease;
 }
 
 .nav-link:hover {
-  color: #dcddde;
+  color: var(--color-text);
   text-decoration: none;
-}
-
-.new-page-btn {
-  font-size: 13px;
-  padding: 6px 14px;
-  text-decoration: none;
-}
-
-.logout-btn {
-  color: #999999;
-  border-color: #3a3a3a;
-  font-size: 13px;
-  padding: 6px 14px;
-}
-
-.logout-btn:hover {
-  color: #dcddde;
-  background: #333333;
-  border-color: #555;
 }
 </style>

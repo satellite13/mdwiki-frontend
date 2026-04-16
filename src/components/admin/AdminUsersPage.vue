@@ -51,15 +51,15 @@ onMounted(fetchUsers)
 }
 
 .users-table tbody tr:nth-child(even) {
-  background: #262626;
+  background: var(--color-bg-secondary);
 }
 
 .users-table tbody tr:nth-child(odd) {
-  background: #2d2d2d;
+  background: var(--color-bg-tertiary);
 }
 
 .users-table tbody tr:hover {
-  background: #333333;
+  background: var(--color-bg-hover);
 }
 
 .user-name {
@@ -74,20 +74,20 @@ onMounted(fetchUsers)
 .role-badge {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: #2d2d2d;
+  background: var(--color-bg-tertiary);
   padding: 3px 8px;
   border-radius: 3px;
   color: var(--color-text-muted);
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--color-border);
 }
 
 .users-table select {
   padding: 6px 10px;
   border-radius: var(--radius);
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--color-border);
   font-family: var(--font-body);
   font-size: 13px;
-  background: #2d2d2d;
+  background: var(--color-bg-tertiary);
   color: var(--color-text);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -96,7 +96,7 @@ onMounted(fetchUsers)
 
 .users-table select:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 0 0 2px rgba(91, 95, 199, 0.15);
 }
 
 </style>

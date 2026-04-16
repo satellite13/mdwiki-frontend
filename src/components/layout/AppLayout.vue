@@ -20,7 +20,6 @@ import AppSidebar from './AppSidebar.vue'
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #1e1e1e;
 }
 
 .app-body {
@@ -30,9 +29,9 @@ import AppSidebar from './AppSidebar.vue'
 
 .app-main {
   flex: 1;
-  padding: 32px 40px;
+  padding: 24px 32px;
   overflow-y: auto;
-  height: calc(100vh - 60px);
-  background: #1e1e1e;
+  height: calc(100vh - 49px);
+  background: var(--color-bg);
 }
 </style>
