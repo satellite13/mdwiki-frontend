@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios'
 import * as pagesApi from '@/api/pages'
 import { useFolderStore } from '@/stores/folders'
+import { useAuthStore } from '@/stores/auth'
+import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
 import type { Page, Backlink } from '@/types'
 import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
 
 const route = useRoute()
+const router = useRouter()
 const folderStore = useFolderStore()
+const auth = useAuthStore()
 
 const page = ref<Page | null>(null)
 const backlinks = ref<Backlink[]>([])
@@ -15,35 +20,119 @@ const loading = ref(true)
 const title = ref('')
 const content = ref('')
 const lastSavedTitle = ref('')
+const lastSavedContentMd = ref('')
 const saveStatus = ref<'idle' | 'saving' | 'saved'>('idle')
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-async function loadPage(slug: string) {
-  loading.value = true
-  saveStatus.value = 'idle'
-  try {
-    const [pageRes, backlinksRes] = await Promise.all([
-      pagesApi.getPage(slug),
-      pagesApi.getBacklinks(slug)
-    ])
-    page.value = pageRes.data
-    backlinks.value = backlinksRes.data
-    title.value = pageRes.data.title
-    lastSavedTitle.value = pageRes.data.title
-    content.value = pageRes.data.contentMd || ''
-  } finally {
-    loading.value = false
+function isDirty() {
+  return title.value !== lastSavedTitle.value || content.value !== lastSavedContentMd.value
+}
+
+function clearSaveTimer() {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
   }
 }
 
-function scheduleSave() {
+async function loadPage(slugParam: string) {
+  clearSaveTimer()
+  loading.value = true
+  saveStatus.value = 'idle'
+  page.value = null
+
+  const normalized = normalizePageSlug(slugParam)
+  const tryOrder = [...new Set([slugParam, normalized].filter((s): s is string => !!s))]
+
+  let loaded: Page | null = null
+  let resolvedSlug = slugParam
+
+  for (const s of tryOrder) {
+    try {
+      const { data } = await pagesApi.getPage(s)
+      loaded = data
+      resolvedSlug = data.slug
+      if (data.slug !== slugParam) {
+        router.replace(`/page/${data.slug}`)
+      }
+      break
+    } catch (e) {
+      if (!axios.isAxiosError(e) || e.response?.status !== 404) {
+        loading.value = false
+        return
+      }
+    }
+  }
+
+  if (!loaded && auth.isEditor && normalized) {
+    try {
+      const { data } = await pagesApi.createPage(
+        normalized,
+        titleForStubPage(slugParam, normalized),
+        '',
+        undefined
+      )
+      loaded = data
+      resolvedSlug = data.slug
+      if (slugParam !== data.slug) {
+        router.replace(`/page/${data.slug}`)
+      }
+      await folderStore.fetchTree(true)
+    } catch (e) {
+      if (axios.isAxiosError(e) && e.response?.status === 409) {
+        try {
+          const { data } = await pagesApi.getPage(normalized)
+          loaded = data
+          resolvedSlug = data.slug
+          if (slugParam !== data.slug) {
+            router.replace(`/page/${data.slug}`)
+          }
+          await folderStore.fetchTree(true)
+        } catch {
+          loading.value = false
+          return
+        }
+      } else {
+        loading.value = false
+        return
+      }
+    }
+  }
+
+  if (!loaded) {
+    loading.value = false
+    return
+  }
+
+  page.value = loaded
+  try {
+    backlinks.value = (await pagesApi.getBacklinks(resolvedSlug)).data
+  } catch {
+    backlinks.value = []
+  }
+  title.value = loaded.title
+  lastSavedTitle.value = loaded.title
+  const md = loaded.contentMd || ''
+  lastSavedContentMd.value = md
+  content.value = md
+  loading.value = false
+}
+
+function scheduleSaveIfDirty() {
+  if (!isDirty()) {
+    clearSaveTimer()
+    return
+  }
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(doSave, 2000)
 }
 
 async function doSave() {
   if (!page.value) return
+  clearSaveTimer()
+  if (!isDirty()) return
   saveStatus.value = 'saving'
+  const prevTitle = lastSavedTitle.value
   try {
     const { data: updatedPage } = await pagesApi.updatePage(page.value.slug, {
       title: title.value,
@@ -51,8 +140,9 @@ async function doSave() {
       clearFolder: false
     })
     page.value = updatedPage
-    if (updatedPage.title !== lastSavedTitle.value) {
-      lastSavedTitle.value = updatedPage.title
+    lastSavedTitle.value = updatedPage.title
+    lastSavedContentMd.value = updatedPage.contentMd || ''
+    if (updatedPage.title !== prevTitle) {
       await folderStore.fetchTree(true)
     }
     saveStatus.value = 'saved'
@@ -64,16 +154,16 @@ async function doSave() {
 
 function onContentChange(val: string) {
   content.value = val
-  scheduleSave()
+  scheduleSaveIfDirty()
 }
 
 function onTitleInput(e: Event) {
   title.value = (e.target as HTMLInputElement).value
-  scheduleSave()
+  scheduleSaveIfDirty()
 }
 
 function onEditorSave() {
-  if (saveTimer) clearTimeout(saveTimer)
+  clearSaveTimer()
   doSave()
 }
 
@@ -88,8 +178,8 @@ watch(() => route.params.slug, (slug) => {
 
 onBeforeUnmount(() => {
   if (saveTimer) {
-    clearTimeout(saveTimer)
-    doSave()
+    clearSaveTimer()
+    void doSave()
   }
 })
 </script>

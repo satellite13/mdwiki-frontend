@@ -2,32 +2,47 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import axios from 'axios'
 import { MdEditor, NormalToolbar, config } from 'md-editor-v3'
-import { lineNumbers } from '@codemirror/view'
+import { lineNumbers, tooltips } from '@codemirror/view'
 import markdownItMark from 'markdown-it-mark'
 import 'md-editor-v3/lib/style.css'
 import { Emoji, ExportPDF, Mark } from '@vavt/v3-extension'
 import '@vavt/v3-extension/lib/asset/style.css'
-import { wikilinkPlugin, tagPlugin } from '@/utils/markdownPlugins'
+import { frontmatterStripPlugin, wikilinkPlugin, tagPlugin } from '@/utils/markdownPlugins'
+import { wikilinkCompletions } from '@/utils/wikilinkAutocomplete'
 import { uploadFile } from '@/api/uploads'
 
+/** md-editor-v3 передаёт это в autocompletion({ override: [встроенный, ...completions] }) */
+const mdEditorCompletions = [wikilinkCompletions]
+
 let editorLineNumbersEnabled = false
+
+/** Подсказки CodeMirror (в т.ч. completion) — вне overflow-обёрток редактора */
+function codeMirrorTooltipRoot() {
+  return typeof document !== 'undefined' ? document.body : undefined
+}
 
 config({
   markdownItPlugins(plugins) {
     return [
       ...plugins,
       { type: 'markdown-it' as const, plugin: markdownItMark, options: {} },
+      { type: 'markdown-it' as const, plugin: frontmatterStripPlugin, options: {} },
       { type: 'markdown-it' as const, plugin: wikilinkPlugin, options: {} },
       { type: 'markdown-it' as const, plugin: tagPlugin, options: {} }
     ]
   },
   codeMirrorExtensions(extensions) {
     const baseExtensions = extensions.filter((item) => item.type !== 'lineNumbers')
+    const parent = codeMirrorTooltipRoot()
+    const tooltipExt = parent
+      ? [{ type: 'codemirrorTooltipsRoot', extension: tooltips({ parent }) }]
+      : []
     if (!editorLineNumbersEnabled) {
-      return baseExtensions
+      return [...baseExtensions, ...tooltipExt]
     }
     return [
       ...baseExtensions,
+      ...tooltipExt,
       {
         type: 'lineNumbers',
         extension: lineNumbers()
@@ -113,6 +128,7 @@ onBeforeUnmount(() => {
       ref="editorRef"
       :key="editorKey"
       :modelValue="props.modelValue"
+      :completions="mdEditorCompletions"
       @update:modelValue="emit('update:modelValue', $event)"
       @onSave="onSave"
       @onUploadImg="onUploadImg"

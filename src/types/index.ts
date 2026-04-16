@@ -17,6 +17,8 @@ export interface Page {
   title: string
   contentMd: string | null
   contentHtml: string | null
+  /** Распарсенный YAML frontmatter (с сервера), опционально. */
+  frontmatterMeta?: Record<string, unknown> | null
   tags: string[]
   createdBy: string | null
   updatedBy: string | null
@@ -49,6 +51,7 @@ export interface Backlink {
 export interface Tag {
   id: string
   name: string
+  pageCount: number
 }
 
 export interface SearchResult {

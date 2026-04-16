@@ -3,8 +3,11 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
+import { useTagStore } from '@/stores/tags'
+import * as pagesApi from '@/api/pages'
 import type { FolderTreeNode } from '@/types'
 import { createTreeEventsSource } from '@/api/events'
+import { normalizePageSlug } from '@/utils/pageSlug'
 import TreeFolder from './TreeFolder.vue'
 import TreePage from './TreePage.vue'
 import TreeContextMenu from './TreeContextMenu.vue'
@@ -13,12 +16,18 @@ const router = useRouter()
 const route = useRoute()
 const folderStore = useFolderStore()
 const auth = useAuthStore()
+const tagStore = useTagStore()
 
 const activeSlug = computed(() => (route.params.slug as string) || null)
 const TREE_EVENTS_RECONNECT_MS = 3000
 let treeEventsSource: EventSource | null = null
 let treeReconnectTimer: ReturnType<typeof setTimeout> | null = null
 let treeRefreshInFlight = false
+const tagsLoading = ref(false)
+const selectedTag = ref<string | null>(null)
+const pageTagsBySlug = ref<Record<string, string[]>>({})
+const tagsCollapsed = ref(false)
+const tagQuery = ref('')
 
 // Context menu state
 const contextMenu = ref<{ x: number; y: number; node: FolderTreeNode | null; parentId: string | null } | null>(null)
@@ -40,8 +49,75 @@ const contextMenuItems = computed(() => {
   return items
 })
 
-const rootFolders = computed(() => folderStore.tree.filter(n => n.type === 'folder'))
-const rootPages = computed(() => folderStore.tree.filter(n => n.type === 'page'))
+const visibleTree = computed(() => {
+  if (!selectedTag.value) {
+    return folderStore.tree
+  }
+  return filterTreeByTag(folderStore.tree, selectedTag.value)
+})
+const rootFolders = computed(() => visibleTree.value.filter(n => n.type === 'folder'))
+const rootPages = computed(() => visibleTree.value.filter(n => n.type === 'page'))
+const filteredTags = computed(() => {
+  const query = tagQuery.value.trim().toLowerCase()
+  if (!query) return tagStore.tags
+  return tagStore.tags.filter((tag) => tag.name.toLowerCase().includes(query))
+})
+
+function filterTreeByTag(nodes: FolderTreeNode[], tag: string): FolderTreeNode[] {
+  return nodes.reduce<FolderTreeNode[]>((acc, node) => {
+    if (node.type === 'page') {
+      const tagNames = node.slug ? pageTagsBySlug.value[node.slug] || [] : []
+      if (tagNames.includes(tag)) {
+        acc.push(node)
+      }
+      return acc
+    }
+
+    const filteredChildren = filterTreeByTag(node.children, tag)
+    if (filteredChildren.length > 0) {
+      acc.push({
+        ...node,
+        children: filteredChildren
+      })
+    }
+    return acc
+  }, [])
+}
+
+function toggleTagFilter(tagName: string) {
+  selectedTag.value = selectedTag.value === tagName ? null : tagName
+}
+
+function clearTagFilter() {
+  selectedTag.value = null
+}
+
+function toggleTagsPanel() {
+  tagsCollapsed.value = !tagsCollapsed.value
+}
+
+async function refreshPageTagsIndex() {
+  const { data } = await pagesApi.listPages()
+  pageTagsBySlug.value = Object.fromEntries(data.map((page) => [page.slug, page.tags]))
+}
+
+async function refreshTagData(force = false) {
+  tagsLoading.value = true
+  try {
+    await Promise.all([
+      tagStore.fetchTags(force),
+      refreshPageTagsIndex()
+    ])
+  } catch (error) {
+    console.error('Failed to refresh tags', error)
+  } finally {
+    tagsLoading.value = false
+  }
+
+  if (selectedTag.value && !tagStore.tags.some((tag) => tag.name === selectedTag.value)) {
+    selectedTag.value = null
+  }
+}
 
 function onSelectPage(slug: string) {
   router.push(`/page/${slug}`)
@@ -60,10 +136,11 @@ function onRootContextMenu(e: MouseEvent) {
 async function createNewPage(folderId?: string) {
   const title = prompt('Название страницы:')
   if (!title) return
-  const slug = title.toLowerCase().replace(/[^a-z0-9а-яё]+/gi, '-').replace(/(^-|-$)/g, '')
-  const { createPage } = await import('@/api/pages')
-  await createPage(slug, title, '', folderId || undefined)
+  const slug = normalizePageSlug(title)
+  if (!slug) return
+  await pagesApi.createPage(slug, title, '', folderId || undefined)
   await folderStore.fetchTree(true)
+  await refreshTagData(true)
   router.push(`/page/${slug}`)
 }
 
@@ -93,10 +170,11 @@ async function onContextAction(action: string) {
     if (!confirm(`Удалить "${ctx.node.name}"?`)) return
     if (ctx.node.type === 'folder') {
       await folderStore.deleteFolder(ctx.node.id)
+      await refreshTagData(true)
     } else if (ctx.node.slug) {
-      const { deletePage } = await import('@/api/pages')
-      await deletePage(ctx.node.slug)
+      await pagesApi.deletePage(ctx.node.slug)
       await folderStore.fetchTree(true)
+      await refreshTagData(true)
       if (activeSlug.value === ctx.node.slug) router.push('/')
     }
   }
@@ -108,10 +186,11 @@ async function onDeleteNode(node: FolderTreeNode) {
   if (!confirm(`Удалить "${node.name}"?`)) return
   if (node.type === 'folder') {
     await folderStore.deleteFolder(node.id)
+    await refreshTagData(true)
   } else if (node.slug) {
-    const { deletePage } = await import('@/api/pages')
-    await deletePage(node.slug)
+    await pagesApi.deletePage(node.slug)
     await folderStore.fetchTree(true)
+    await refreshTagData(true)
     if (activeSlug.value === node.slug) router.push('/')
   }
 }
@@ -147,11 +226,14 @@ function onRootDrop(e: DragEvent) {
     } else if (data.type === 'folder') {
       folderStore.moveFolder(data.id, null)
     }
-  } catch { /* ignore */ }
+  } catch {
+    // ignore invalid drag data
+  }
 }
 
-onMounted(() => {
-  folderStore.fetchTree()
+onMounted(async () => {
+  await folderStore.fetchTree()
+  await refreshTagData()
   connectTreeEvents()
 })
 
@@ -168,6 +250,9 @@ async function refreshTree() {
   treeRefreshInFlight = true
   try {
     await folderStore.fetchTree(true)
+    await refreshPageTagsIndex()
+  } catch (error) {
+    console.error('Failed to refresh tree', error)
   } finally {
     treeRefreshInFlight = false
   }
@@ -220,6 +305,46 @@ function disconnectTreeEvents() {
       </div>
     </div>
 
+    <div class="tags-panel">
+      <div class="tags-panel-header">
+        <button class="tags-toggle-btn" type="button" @click="toggleTagsPanel">
+          <span class="tree-title">Теги</span>
+          <span :class="['tags-chevron', { collapsed: tagsCollapsed }]">▾</span>
+        </button>
+        <button
+          v-if="selectedTag"
+          class="clear-tag-btn"
+          type="button"
+          @click="clearTagFilter"
+        >
+          Сбросить
+        </button>
+      </div>
+      <div v-if="!tagsCollapsed" class="tags-panel-body">
+        <input
+          v-model="tagQuery"
+          class="tags-search-input"
+          type="search"
+          placeholder="Поиск тега..."
+        />
+        <div v-if="tagsLoading" class="tags-loading">Загрузка тегов...</div>
+        <div v-else-if="tagStore.tags.length === 0" class="tags-empty">Нет тегов</div>
+        <div v-else-if="filteredTags.length === 0" class="tags-empty">Теги не найдены</div>
+        <div v-else class="tags-list">
+          <button
+            v-for="tag in filteredTags"
+            :key="tag.id"
+            :class="['tag-chip', { active: selectedTag === tag.name }]"
+            type="button"
+            @click="toggleTagFilter(tag.name)"
+          >
+            <span class="tag-name">#{{ tag.name }}</span>
+            <span class="tag-count">{{ tag.pageCount }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="folderStore.loading" class="tree-loading">Загрузка...</div>
     <div v-else :class="['tree-content', { 'root-drag-over': rootDragOver }]">
       <TreeFolder
@@ -245,8 +370,9 @@ function disconnectTreeEvents() {
         @delete="onDeleteNode"
       />
 
-      <div v-if="!folderStore.loading && folderStore.tree.length === 0" class="tree-empty">
-        Нет документов
+      <div v-if="!folderStore.loading && visibleTree.length === 0" class="tree-empty">
+        <template v-if="selectedTag">Нет документов с тегом #{{ selectedTag }}</template>
+        <template v-else>Нет документов</template>
       </div>
     </div>
 
@@ -308,6 +434,103 @@ function disconnectTreeEvents() {
 .tree-action-btn:hover {
   background: var(--color-bg-hover);
   color: var(--color-text);
+}
+
+.tags-panel {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tags-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tags-toggle-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.tags-chevron {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  transition: transform 0.15s;
+}
+
+.tags-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.clear-tag-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.clear-tag-btn:hover {
+  text-decoration: underline;
+}
+
+.tags-loading,
+.tags-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.tags-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tags-search-input {
+  width: 100%;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-radius: 999px;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tag-chip:hover {
+  border-color: var(--color-primary);
+}
+
+.tag-chip.active {
+  border-color: var(--color-primary);
+  background: rgba(91, 95, 199, 0.1);
+  color: var(--color-primary);
+}
+
+.tag-count {
+  color: var(--color-text-muted);
+  font-size: 11px;
 }
 
 .tree-content {

@@ -1,6 +1,6 @@
 import MarkdownIt from 'markdown-it'
 import markdownItMark from 'markdown-it-mark'
-import { tagPlugin, wikilinkPlugin } from '@/utils/markdownPlugins'
+import { frontmatterStripPlugin, tagPlugin, wikilinkPlugin } from '@/utils/markdownPlugins'
 
 const md = new MarkdownIt({
   html: false,
@@ -9,6 +9,7 @@ const md = new MarkdownIt({
 })
 
 md.use(markdownItMark)
+md.use(frontmatterStripPlugin)
 md.use(wikilinkPlugin)
 md.use(tagPlugin)
 

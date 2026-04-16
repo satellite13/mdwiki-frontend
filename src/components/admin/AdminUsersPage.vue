@@ -2,7 +2,9 @@
 import { ref, onMounted } from 'vue'
 import * as usersApi from '@/api/users'
 import type { User } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 
+const auth = useAuthStore()
 const users = ref<User[]>([])
 const loading = ref(true)
 
@@ -14,6 +16,13 @@ async function fetchUsers() {
 
 async function changeRole(user: User, newRole: string) {
   await usersApi.updateUserRole(user.id, newRole)
+  fetchUsers()
+}
+
+async function removeUser(user: User) {
+  if (user.username === auth.username) return
+  if (!confirm(`Удалить пользователя «${user.username}»?`)) return
+  await usersApi.deleteUser(user.id)
   fetchUsers()
 }
 
@@ -31,12 +40,20 @@ onMounted(fetchUsers)
           <td class="user-name">{{ user.username }}</td>
           <td class="user-email">{{ user.email }}</td>
           <td><span class="role-badge">{{ user.role }}</span></td>
-          <td>
+          <td class="actions-cell">
             <select :value="user.role" @change="changeRole(user, ($event.target as HTMLSelectElement).value)">
               <option value="READER">READER</option>
               <option value="EDITOR">EDITOR</option>
               <option value="ADMIN">ADMIN</option>
             </select>
+            <button
+              v-if="user.username !== auth.username"
+              type="button"
+              class="btn-delete-user"
+              @click="removeUser(user)"
+            >
+              Удалить
+            </button>
           </td>
         </tr>
       </tbody>
@@ -97,6 +114,31 @@ onMounted(fetchUsers)
 .users-table select:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(91, 95, 199, 0.15);
+}
+
+.actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-delete-user {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-body);
+  font-size: 13px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.btn-delete-user:hover {
+  color: #c44;
+  border-color: rgba(204, 68, 68, 0.45);
+  background: rgba(204, 68, 68, 0.06);
 }
 
 </style>

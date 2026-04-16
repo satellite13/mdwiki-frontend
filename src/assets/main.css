@@ -238,12 +238,33 @@ input::placeholder, textarea::placeholder {
 /* ---- Wikilink & Tag in Preview ---- */
 
 .wikilink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
   color: var(--color-wikilink);
   text-decoration: underline;
   text-decoration-style: dotted;
+  vertical-align: baseline;
+}
+
+.wikilink-text {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.wikilink-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
+  color: var(--color-wikilink);
 }
 
 .hashtag {
   color: var(--color-tag);
   font-weight: 500;
+}
+
+/* CodeMirror: тултипы монтируются на body — поверх .app-main и сайдбара */
+body > div:has(.cm-tooltip) {
+  z-index: 25000;
 }
