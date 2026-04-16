@@ -39,7 +39,7 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
 
 <style scoped>
 .search-page h1 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   margin-bottom: 8px;
 }
 
@@ -61,18 +61,16 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
 }
 
 .result-card {
-  border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-primary);
+  border: 1px solid #3a3a3a;
   border-radius: var(--radius);
   padding: 18px 20px;
-  transition: all 0.2s ease;
-  background: var(--color-bg);
+  transition: all 0.15s ease;
+  background: #262626;
   animation: fadeInUpStagger 0.4s ease both;
 }
 
 .result-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  border-color: var(--color-primary);
 }
 
 .result-card a {
@@ -81,8 +79,9 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
 }
 
 .result-card h3 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   font-size: 1.05rem;
+  font-weight: 600;
   margin-bottom: 6px;
   color: var(--color-text);
 }

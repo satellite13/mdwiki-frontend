@@ -41,22 +41,20 @@ function logout() {
   gap: 20px;
   padding: 0 28px;
   height: 60px;
-  background: #1e1e1e;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  background: #262626;
+  border-bottom: 1px solid #3a3a3a;
   position: relative;
   z-index: 10;
 }
 
 .logo {
-  font-family: var(--font-heading);
-  font-style: italic;
+  font-family: var(--font-body);
   font-size: 22px;
-  font-weight: 700;
-  color: #f2efe9;
+  font-weight: 600;
+  color: #dcddde;
   text-decoration: none;
   letter-spacing: -0.5px;
-  transition: color 0.2s ease;
+  transition: color 0.15s ease;
 }
 
 .logo:hover {
@@ -71,25 +69,24 @@ function logout() {
 
 .search-form input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #2d2d2d;
+  border: 1px solid #3a3a3a;
   border-radius: var(--radius);
-  color: #e8e4de;
+  color: #dcddde;
   padding: 8px 14px;
   font-size: 14px;
   font-family: var(--font-body);
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .search-form input::placeholder {
-  color: rgba(196, 191, 182, 0.6);
+  color: #666666;
 }
 
 .search-form input:focus {
   outline: none;
-  background: rgba(255, 255, 255, 0.12);
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(26, 107, 90, 0.25);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.25);
 }
 
 .header-nav {
@@ -100,15 +97,15 @@ function logout() {
 }
 
 .nav-link {
-  color: #c4bfb6;
+  color: #999999;
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color 0.15s ease;
 }
 
 .nav-link:hover {
-  color: #f2efe9;
+  color: #dcddde;
   text-decoration: none;
 }
 
@@ -119,15 +116,15 @@ function logout() {
 }
 
 .logout-btn {
-  color: #c4bfb6;
-  border-color: rgba(255, 255, 255, 0.12);
+  color: #999999;
+  border-color: #3a3a3a;
   font-size: 13px;
   padding: 6px 14px;
 }
 
 .logout-btn:hover {
-  color: #f2efe9;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+  color: #dcddde;
+  background: #333333;
+  border-color: #555;
 }
 </style>

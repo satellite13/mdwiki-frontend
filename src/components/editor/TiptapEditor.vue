@@ -57,10 +57,10 @@ watch(() => props.modelValue, (newVal) => {
 
 <style scoped>
 .tiptap-editor {
-  border: 1px solid var(--color-border);
+  border: 1px solid #3a3a3a;
   border-radius: var(--radius);
   overflow: hidden;
-  background: var(--color-bg);
+  background: #1e1e1e;
 }
 
 .toolbar {
@@ -68,8 +68,8 @@ watch(() => props.modelValue, (newVal) => {
   align-items: center;
   gap: 2px;
   padding: 8px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: #1e1e1e;
+  border-bottom: 1px solid #3a3a3a;
+  background: #262626;
 }
 
 .toolbar button {
@@ -81,13 +81,13 @@ watch(() => props.modelValue, (newVal) => {
   border: 1px solid transparent;
   border-radius: var(--radius);
   cursor: pointer;
-  color: #c4bfb6;
+  color: #999999;
   transition: all 0.15s ease;
 }
 
 .toolbar button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #f2efe9;
+  background: #333333;
+  color: #dcddde;
 }
 
 .toolbar button.active {
@@ -99,15 +99,14 @@ watch(() => props.modelValue, (newVal) => {
 .toolbar-divider {
   width: 1px;
   height: 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background: #3a3a3a;
   margin: 0 4px;
 }
 
 .editor-content {
   padding: 24px;
   min-height: 300px;
-  background: var(--color-bg);
-  box-shadow: inset 0 2px 6px rgba(60, 50, 40, 0.04);
+  background: #1e1e1e;
 }
 
 .editor-content :deep(.tiptap) {
@@ -116,35 +115,35 @@ watch(() => props.modelValue, (newVal) => {
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.8;
-  color: var(--color-text);
+  color: #dcddde;
 }
 
 .editor-content :deep(.tiptap h1),
 .editor-content :deep(.tiptap h2),
 .editor-content :deep(.tiptap h3) {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
 }
 
 .editor-content :deep(.tiptap code) {
   font-family: var(--font-mono);
   font-size: 0.9em;
-  background: var(--color-bg-secondary);
+  background: #2d2d2d;
   padding: 2px 6px;
   border-radius: 3px;
 }
 
 .editor-content :deep(.tiptap pre) {
   font-family: var(--font-mono);
-  background: var(--color-bg-secondary);
+  background: #2d2d2d;
   padding: 14px 18px;
   border-radius: var(--radius);
-  border: 1px solid var(--color-border);
+  border: 1px solid #3a3a3a;
   font-size: 14px;
 }
 
 .editor-content :deep(.tiptap p.is-editor-empty:first-child::before) {
   content: attr(data-placeholder);
-  color: var(--color-text-muted);
+  color: #666666;
   float: left;
   pointer-events: none;
   height: 0;

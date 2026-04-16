@@ -70,7 +70,7 @@ async function remove() {
 }
 
 .page-edit h1 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   margin-bottom: 28px;
 }
 

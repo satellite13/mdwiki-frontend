@@ -27,7 +27,7 @@ onMounted(() => { pageStore.fetchPages() })
 
 <style scoped>
 .page-list-page h1 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   margin-bottom: 28px;
 }
 
@@ -39,19 +39,16 @@ onMounted(() => { pageStore.fetchPages() })
 }
 
 .page-card {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-primary);
+  background: #262626;
+  border: 1px solid #3a3a3a;
   border-radius: var(--radius);
   padding: 18px 20px;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   animation: fadeInUpStagger 0.4s ease both;
 }
 
 .page-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
-  border-left-color: var(--color-primary-hover);
+  border-color: var(--color-primary);
 }
 
 .page-card a {
@@ -60,8 +57,9 @@ onMounted(() => { pageStore.fetchPages() })
 }
 
 .page-card h3 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   font-size: 1.05rem;
+  font-weight: 600;
   margin-bottom: 6px;
   color: var(--color-text);
 }
@@ -77,14 +75,14 @@ onMounted(() => { pageStore.fetchPages() })
 .page-slug {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--color-text-muted);
-  background: var(--color-bg-secondary);
+  color: #666666;
+  background: #2d2d2d;
   padding: 1px 6px;
   border-radius: 3px;
 }
 
 .tag {
-  color: var(--color-tag);
+  color: #e5a00d;
   font-weight: 500;
 }
 

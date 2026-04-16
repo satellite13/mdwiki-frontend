@@ -24,7 +24,7 @@ async function onSubmit() {
   <div class="auth-page">
     <div class="auth-card">
       <h1>Login</h1>
-      <div class="ornament-rule">--- * ---</div>
+
       <form @submit.prevent="onSubmit">
         <div class="field"><label>Username</label><input v-model="username" required autocomplete="username" /></div>
         <div class="field"><label>Password</label><input v-model="password" type="password" required autocomplete="current-password" /></div>

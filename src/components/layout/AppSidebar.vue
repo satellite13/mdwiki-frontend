@@ -48,11 +48,11 @@ onMounted(() => {
 <style scoped>
 .sidebar {
   width: 260px;
-  background: #1e1e1e;
+  background: #262626;
   padding: 20px 16px;
   overflow-y: auto;
   height: calc(100vh - 60px);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid #3a3a3a;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -64,12 +64,12 @@ onMounted(() => {
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: #555;
   border-radius: 2px;
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: #777;
 }
 
 .sidebar-section {
@@ -82,14 +82,14 @@ onMounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  color: #8b6914;
+  color: #666666;
   margin-bottom: 12px;
   padding: 0 4px;
 }
 
 .sidebar-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.06);
+  background: #3a3a3a;
   margin: 16px 4px;
 }
 
@@ -102,25 +102,24 @@ onMounted(() => {
 
 .tag-chip {
   font-size: 12px;
-  font-family: var(--font-body);
+  font-family: var(--font-mono);
   padding: 3px 10px;
-  border-radius: 12px;
-  background: rgba(139, 105, 20, 0.12);
-  border: 1px solid rgba(139, 105, 20, 0.25);
-  color: #c9a83e;
+  border-radius: var(--radius);
+  background: #2d2d2d;
+  border: 1px solid transparent;
+  color: #e5a00d;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .tag-chip:hover {
-  background: rgba(139, 105, 20, 0.2);
-  color: #dfc057;
+  background: #333333;
 }
 
 .tag-chip.active {
-  background: #8b6914;
-  color: #fff;
-  border-color: #8b6914;
+  background: #e5a00d;
+  color: #1e1e1e;
+  border-color: #e5a00d;
 }
 
 .page-list {
@@ -135,23 +134,23 @@ onMounted(() => {
 .page-link {
   display: block;
   font-size: 14px;
-  color: #c4bfb6;
+  color: #999999;
   text-decoration: none;
   padding: 5px 10px;
   border-left: 2px solid transparent;
   border-radius: 0 var(--radius) var(--radius) 0;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .page-link:hover {
-  color: #f2efe9;
-  background: rgba(255, 255, 255, 0.04);
+  color: #dcddde;
+  background: #333333;
   text-decoration: none;
 }
 
 .page-link.router-link-active {
-  color: #f2efe9;
+  color: #dcddde;
   border-left-color: var(--color-primary);
-  background: rgba(26, 107, 90, 0.1);
+  background: rgba(124, 58, 237, 0.1);
 }
 </style>

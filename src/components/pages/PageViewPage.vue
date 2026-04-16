@@ -47,7 +47,7 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
     </div>
     <div class="page-content" v-html="renderedBodyHtml" />
     <div class="backlinks" v-if="backlinks.length">
-      <div class="backlinks-rule">--- * ---</div>
+      <div class="backlinks-divider"></div>
       <h3>Backlinks</h3>
       <ul>
         <li v-for="bl in backlinks" :key="bl.slug">
@@ -64,7 +64,7 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
 
 <style scoped>
 .page-view {
-  max-width: 720px;
+  max-width: 800px;
   animation: fadeInUp 0.4s ease both;
 }
 
@@ -76,9 +76,11 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
 }
 
 .page-header h1 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   font-size: 2rem;
+  font-weight: 600;
   line-height: 1.25;
+  color: #dcddde;
   flex: 1;
 }
 
@@ -90,7 +92,7 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   white-space: nowrap;
   margin-left: 16px;
   margin-top: 4px;
@@ -109,25 +111,27 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
 }
 
 .tag {
-  color: var(--color-tag);
+  color: #e5a00d;
   font-size: 14px;
   font-weight: 500;
-  background: rgba(139, 105, 20, 0.08);
+  background: #2d2d2d;
   padding: 2px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
 
 .page-content {
-  line-height: 1.9;
+  line-height: 1.7;
   font-size: 16px;
+  font-family: var(--font-body);
   margin-bottom: 40px;
   color: var(--color-text);
+  max-width: 800px;
 }
 
 .page-content :deep(h1),
 .page-content :deep(h2),
 .page-content :deep(h3) {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   margin-top: 2em;
   margin-bottom: 0.6em;
 }
@@ -139,7 +143,7 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
 .page-content :deep(code) {
   font-family: var(--font-mono);
   font-size: 0.9em;
-  background: var(--color-bg-secondary);
+  background: #2d2d2d;
   padding: 2px 6px;
   border-radius: 3px;
   color: var(--color-text);
@@ -147,12 +151,12 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
 
 .page-content :deep(pre) {
   font-family: var(--font-mono);
-  background: var(--color-bg-secondary);
+  background: #2d2d2d;
   padding: 16px 20px;
   border-radius: var(--radius);
   overflow-x: auto;
   margin-bottom: 1.2em;
-  border: 1px solid var(--color-border);
+  border: 1px solid #3a3a3a;
   font-size: 14px;
 }
 
@@ -171,14 +175,11 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
 .backlinks {
   padding-top: 8px;
   margin-top: 40px;
+  border-top: 1px solid #3a3a3a;
 }
 
-.backlinks-rule {
-  text-align: center;
-  color: var(--color-border);
-  font-size: 13px;
-  letter-spacing: 4px;
-  margin-bottom: 20px;
+.backlinks-divider {
+  display: none;
 }
 
 .backlinks h3 {
@@ -189,6 +190,7 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
   letter-spacing: 1px;
   color: var(--color-text-muted);
   margin-bottom: 10px;
+  margin-top: 16px;
 }
 
 .backlinks ul {
@@ -210,7 +212,7 @@ watch(() => route.params.slug, (slug) => { if (slug) loadPage(slug as string) })
   font-size: 12px;
   margin-top: 32px;
   padding-top: 16px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid #3a3a3a;
 }
 
 </style>

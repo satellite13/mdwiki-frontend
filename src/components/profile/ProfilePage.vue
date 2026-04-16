@@ -78,20 +78,20 @@ onMounted(fetchKeys)
 
 <style scoped>
 .profile-page h1 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   margin-bottom: 20px;
 }
 
 .profile-page h2 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   margin-top: 36px;
   margin-bottom: 8px;
   font-size: 1.3rem;
 }
 
 .profile-card {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  background: #262626;
+  border: 1px solid #3a3a3a;
   border-radius: var(--radius);
   padding: 20px 24px;
   margin-bottom: 8px;
@@ -109,7 +109,7 @@ onMounted(fetchKeys)
 .role-badge {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: var(--color-bg-secondary);
+  background: #2d2d2d;
   padding: 2px 8px;
   border-radius: 3px;
   color: var(--color-text-muted);
@@ -122,8 +122,8 @@ onMounted(fetchKeys)
 }
 
 .key-created {
-  background: rgba(39, 174, 96, 0.06);
-  border: 1px solid rgba(39, 174, 96, 0.3);
+  background: #1a3a2a;
+  border: 1px solid #2ecc71;
   border-radius: var(--radius);
   padding: 18px 20px;
   margin-bottom: 20px;
@@ -142,13 +142,13 @@ onMounted(fetchKeys)
 
 .key-display code {
   font-family: var(--font-mono);
-  background: var(--color-bg-secondary);
+  background: #2d2d2d;
   padding: 8px 14px;
   border-radius: var(--radius);
   font-size: 13px;
   word-break: break-all;
   flex: 1;
-  border: 1px solid var(--color-border);
+  border: 1px solid #3a3a3a;
 }
 
 .create-key {
@@ -162,7 +162,7 @@ onMounted(fetchKeys)
 }
 
 .keys-table tbody tr:hover {
-  background: rgba(0, 0, 0, 0.015);
+  background: #333333;
 }
 
 .key-name {

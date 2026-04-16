@@ -46,16 +46,20 @@ onMounted(fetchUsers)
 
 <style scoped>
 .admin-users h1 {
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   margin-bottom: 28px;
 }
 
 .users-table tbody tr:nth-child(even) {
-  background: rgba(0, 0, 0, 0.015);
+  background: #262626;
+}
+
+.users-table tbody tr:nth-child(odd) {
+  background: #2d2d2d;
 }
 
 .users-table tbody tr:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: #333333;
 }
 
 .user-name {
@@ -70,29 +74,29 @@ onMounted(fetchUsers)
 .role-badge {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: var(--color-bg-secondary);
+  background: #2d2d2d;
   padding: 3px 8px;
   border-radius: 3px;
   color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
+  border: 1px solid #3a3a3a;
 }
 
 .users-table select {
   padding: 6px 10px;
   border-radius: var(--radius);
-  border: 1px solid var(--color-border);
+  border: 1px solid #3a3a3a;
   font-family: var(--font-body);
   font-size: 13px;
-  background: var(--color-bg);
+  background: #2d2d2d;
   color: var(--color-text);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   width: auto;
 }
 
 .users-table select:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(26, 107, 90, 0.1);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
 }
 
 </style>
