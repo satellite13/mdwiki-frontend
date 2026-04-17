@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const username = ref('')
 const password = ref('')
 const error = ref('')
@@ -13,7 +14,11 @@ async function onSubmit() {
   error.value = ''
   try {
     await auth.login(username.value, password.value)
-    router.push({ name: 'workspace' })
+    const redirect =
+      typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
+        ? route.query.redirect
+        : '/'
+    router.push(redirect)
   } catch (e: unknown) {
     if (e instanceof Error && 'response' in e) {
       const axiosErr = e as { response?: { data?: { message?: string } } }

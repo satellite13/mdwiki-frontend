@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
-const props = defineProps<{
+defineProps<{
   x: number
   y: number
   items: { label: string; action: string; danger?: boolean }[]

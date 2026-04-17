@@ -175,7 +175,7 @@ async function onContextAction(action: string) {
       if (ctx.node.type === 'folder') {
         try {
           await folderStore.renameFolder(ctx.node.id, newName)
-        } catch (e) {
+        } catch (_e) {
           await dialog.alert(t.errors.renameFolderFailed)
         }
       }
@@ -189,7 +189,7 @@ async function onContextAction(action: string) {
         try {
           await folderStore.deleteFolder(ctx.node.id)
           // Tag refresh and tree refresh handled by SSE 'tree-updated' event.
-        } catch (e) {
+        } catch (_e) {
           await dialog.alert(t.errors.deleteFolderFailed)
         }
       } else if (ctx.node.slug) {
@@ -197,7 +197,7 @@ async function onContextAction(action: string) {
           await pagesApi.deletePage(ctx.node.slug)
           if (activeSlug.value === ctx.node.slug) router.push('/')
           await folderStore.fetchTree(true)
-        } catch (e) {
+        } catch (_e) {
           await dialog.alert(t.errors.deletePageFailed)
         }
       }

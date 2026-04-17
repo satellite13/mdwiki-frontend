@@ -1,227 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
-import * as pagesApi from '@/api/pages'
-import { useFolderStore } from '@/stores/folders'
-import { useAuthStore } from '@/stores/auth'
-import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
-import {
-  refreshWikilinkPreviewIndex,
-  getWikilinkPreviewPages,
-  slugCandidatesForNavigation
-} from '@/utils/wikilinkResolve'
-import type { Page, Backlink } from '@/types'
 import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
 import GraphPanel from '@/components/graph/GraphPanel.vue'
+import { useWorkspacePage } from '@/composables/useWorkspacePage'
 
-const route = useRoute()
-const router = useRouter()
-const folderStore = useFolderStore()
-const auth = useAuthStore()
-
-const page = ref<Page | null>(null)
-const backlinks = ref<Backlink[]>([])
-/** Only true while fetching a page from the API (no slug in URL ⇒ idle, not "loading"). */
-const loading = ref(!!route.params.slug)
-const title = ref('')
-const content = ref('')
-const lastSavedTitle = ref('')
-const lastSavedContentMd = ref('')
-const showGraph = ref(false)
-const saveStatus = ref<'idle' | 'saving' | 'saved'>('idle')
-const saveError = ref<string | null>(null)
-const isSaving = ref(false)
-let saveTimer: ReturnType<typeof setTimeout> | null = null
-
-function isDirty() {
-  return title.value !== lastSavedTitle.value || content.value !== lastSavedContentMd.value
-}
-
-function clearSaveTimer() {
-  if (saveTimer) {
-    clearTimeout(saveTimer)
-    saveTimer = null
-  }
-}
-
-async function loadPage(slugParam: string) {
-  clearSaveTimer()
-  loading.value = true
-  saveStatus.value = 'idle'
-  page.value = null
-
-  await refreshWikilinkPreviewIndex()
-  const tryOrder = slugCandidatesForNavigation(slugParam, getWikilinkPreviewPages())
-  const normalized = normalizePageSlug(slugParam)
-
-  let loaded: Page | null = null
-  let resolvedSlug = slugParam
-
-  for (const s of tryOrder) {
-    try {
-      const { data } = await pagesApi.getPage(s)
-      loaded = data
-      resolvedSlug = data.slug
-      if (data.slug !== slugParam) {
-        router.replace(`/page/${data.slug}`)
-      }
-      break
-    } catch (e) {
-      if (!axios.isAxiosError(e) || e.response?.status !== 404) {
-        loading.value = false
-        return
-      }
-    }
-  }
-
-  if (!loaded && auth.isEditor && normalized) {
-    try {
-      const { data } = await pagesApi.createPage(
-        normalized,
-        titleForStubPage(slugParam, normalized),
-        '',
-        undefined
-      )
-      loaded = data
-      resolvedSlug = data.slug
-      if (slugParam !== data.slug) {
-        router.replace(`/page/${data.slug}`)
-      }
-      await folderStore.fetchTree(true)
-    } catch (e) {
-      if (axios.isAxiosError(e) && e.response?.status === 409) {
-        try {
-          const { data } = await pagesApi.getPage(normalized)
-          loaded = data
-          resolvedSlug = data.slug
-          if (slugParam !== data.slug) {
-            router.replace(`/page/${data.slug}`)
-          }
-          await folderStore.fetchTree(true)
-        } catch {
-          loading.value = false
-          return
-        }
-      } else {
-        loading.value = false
-        return
-      }
-    }
-  }
-
-  if (!loaded) {
-    loading.value = false
-    return
-  }
-
-  page.value = loaded
-  try {
-    backlinks.value = (await pagesApi.getBacklinks(resolvedSlug)).data
-  } catch {
-    backlinks.value = []
-  }
-  title.value = loaded.title
-  lastSavedTitle.value = loaded.title
-  const md = loaded.contentMd || ''
-  lastSavedContentMd.value = md
-  content.value = md
-  loading.value = false
-}
-
-function scheduleSaveIfDirty() {
-  if (!isDirty()) {
-    clearSaveTimer()
-    return
-  }
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(doSave, 2000)
-}
-
-async function doSave() {
-  if (!page.value) return
-  if (isSaving.value) return
-  clearSaveTimer()
-  if (!isDirty()) return
-  isSaving.value = true
-  saveStatus.value = 'saving'
-  saveError.value = null
-  const prevTitle = lastSavedTitle.value
-  const prevSlug = page.value.slug
-  try {
-    const { data: updatedPage } = await pagesApi.updatePage(page.value.slug, {
-      title: title.value,
-      contentMd: content.value,
-      clearFolder: false
-    })
-    page.value = updatedPage
-    lastSavedTitle.value = updatedPage.title
-    lastSavedContentMd.value = updatedPage.contentMd || ''
-    if (updatedPage.slug !== prevSlug) {
-      await router.replace(`/page/${encodeURIComponent(updatedPage.slug)}`)
-    }
-    if (updatedPage.title !== prevTitle || updatedPage.slug !== prevSlug) {
-      await folderStore.fetchTree(true)
-    }
-    saveStatus.value = 'saved'
-    setTimeout(() => { if (saveStatus.value === 'saved') saveStatus.value = 'idle' }, 2000)
-  } catch (e) {
-    saveStatus.value = 'idle'
-    saveError.value = 'Failed to save page. Changes may be lost.'
-    console.error('Failed to save page:', e)
-  } finally {
-    isSaving.value = false
-  }
-}
-
-function onContentChange(val: string) {
-  content.value = val
-  scheduleSaveIfDirty()
-}
-
-function onTitleInput(e: Event) {
-  title.value = (e.target as HTMLInputElement).value
-  scheduleSaveIfDirty()
-}
-
-function onEditorSave() {
-  clearSaveTimer()
-  doSave()
-}
-
-onMounted(() => {
-  const slug = route.params.slug as string
-  if (slug) loadPage(slug)
-})
-
-watch(() => route.params.slug, (slug) => {
-  if (slug) {
-    loadPage(slug as string)
-    return
-  }
-  clearSaveTimer()
-  loading.value = false
-  page.value = null
-  backlinks.value = []
-  title.value = ''
-  content.value = ''
-  lastSavedTitle.value = ''
-  lastSavedContentMd.value = ''
-  saveStatus.value = 'idle'
-  saveError.value = null
-})
-
-watch(() => isDirty(), (dirty) => {
-  const baseTitle = title.value || 'MDWiki'
-  document.title = dirty ? `● ${baseTitle} — MDWiki` : `${baseTitle} — MDWiki`
-})
-
-onBeforeUnmount(() => {
-  if (saveTimer) {
-    clearSaveTimer()
-    void doSave()
-  }
-})
+const {
+  page,
+  backlinks,
+  loading,
+  title,
+  content,
+  showGraph,
+  saveStatus,
+  saveError,
+  isDirty,
+  onContentChange,
+  onTitleInput,
+  onEditorSave,
+  clearSaveError,
+  toggleGraph
+} = useWorkspacePage()
 </script>
 
 <template>
@@ -244,10 +41,10 @@ onBeforeUnmount(() => {
         placeholder="Page title"
       />
       <span v-if="isDirty()" class="unsaved-dot" title="Unsaved changes"></span>
-      <span v-if="saveError" class="save-error" @click="saveError = null">{{ saveError }}</span>
+      <span v-if="saveError" class="save-error" @click="clearSaveError">{{ saveError }}</span>
       <button
         class="graph-toggle"
-        @click="showGraph = !showGraph"
+        @click="toggleGraph"
         :title="showGraph ? 'Hide neighborhood graph' : 'Neighborhood graph (this page and linked pages, depth 1–3)'"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" :stroke="showGraph ? 'var(--color-primary)' : 'currentColor'" stroke-width="2">

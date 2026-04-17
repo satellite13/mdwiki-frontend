@@ -15,6 +15,7 @@ export function dndDebugEnabled(): boolean {
 
 export function dndLog(phase: string, detail: Record<string, unknown> = {}) {
   if (!dndDebugEnabled()) return
+  // eslint-disable-next-line no-console
   console.log('[mdwiki-dnd]', phase, detail)
 }
 
@@ -27,5 +28,6 @@ export function dndLogDragOverThrottled(key: string, detail: Record<string, unkn
   const prev = dragOverLast.get(key) ?? 0
   if (now - prev < intervalMs) return
   dragOverLast.set(key, now)
+  // eslint-disable-next-line no-console
   console.log('[mdwiki-dnd] dragover', key, detail)
 }
