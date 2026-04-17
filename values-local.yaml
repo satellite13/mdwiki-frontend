@@ -1,0 +1,7 @@
+image:
+  repository: mdwiki-frontend
+  tag: local
+  pullPolicy: IfNotPresent
+
+api:
+  upstream: http://mdwiki-api-mdwiki-api:8080

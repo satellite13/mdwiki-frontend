@@ -2,7 +2,6 @@ import type { Ref } from 'vue'
 import axios from 'axios'
 import type { Router } from 'vue-router'
 import * as pagesApi from '@/api/pages'
-import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
 import {
   refreshWikilinkPreviewIndex,
   getWikilinkPreviewPages,
@@ -22,15 +21,12 @@ type LoaderState = {
 
 type LoaderDependencies = {
   router: Router
-  isEditor: () => boolean
-  fetchTree: () => Promise<void>
   stopPendingSave: () => void
   onLoadStart?: () => void
 }
 
 /**
- * Загружает страницу с fallback-логикой по slug-кандидатам и
- * при необходимости создаёт stub-страницу для редактора.
+ * Загружает страницу с fallback-логикой по slug-кандидатам.
  */
 export function usePageLoader(
   state: LoaderState,
@@ -44,7 +40,6 @@ export function usePageLoader(
 
     await refreshWikilinkPreviewIndex()
     const tryOrder = slugCandidatesForNavigation(slugParam, getWikilinkPreviewPages())
-    const normalized = normalizePageSlug(slugParam)
 
     let loaded: Page | null = null
     let resolvedSlug = slugParam
@@ -60,41 +55,6 @@ export function usePageLoader(
         break
       } catch (e) {
         if (!axios.isAxiosError(e) || e.response?.status !== 404) {
-          state.loading.value = false
-          return
-        }
-      }
-    }
-
-    if (!loaded && deps.isEditor() && normalized) {
-      try {
-        const { data } = await pagesApi.createPage(
-          normalized,
-          titleForStubPage(slugParam, normalized),
-          '',
-          undefined
-        )
-        loaded = data
-        resolvedSlug = data.slug
-        if (slugParam !== data.slug) {
-          await deps.router.replace(`/page/${data.slug}`)
-        }
-        await deps.fetchTree()
-      } catch (e) {
-        if (axios.isAxiosError(e) && e.response?.status === 409) {
-          try {
-            const { data } = await pagesApi.getPage(normalized)
-            loaded = data
-            resolvedSlug = data.slug
-            if (slugParam !== data.slug) {
-              await deps.router.replace(`/page/${data.slug}`)
-            }
-            await deps.fetchTree()
-          } catch {
-            state.loading.value = false
-            return
-          }
-        } else {
           state.loading.value = false
           return
         }
