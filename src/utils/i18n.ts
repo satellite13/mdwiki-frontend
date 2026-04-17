@@ -26,6 +26,13 @@ export const t = {
   admin: {
     confirmDeleteUser: (username: string) => `Delete user "${username}"?`,
     delete: 'Delete',
+    syncWikiTitle: 'Sync wiki from disk',
+    syncWikiConfirm:
+      'Run full sync: import all .md files from wiki-content into the database and remove pages whose files no longer exist on disk?',
+    syncWikiButton: 'Sync disk',
+    syncWikiDone: (added: number, updated: number, removed: number) =>
+      `Sync finished: ${added} added, ${updated} updated, ${removed} removed.`,
+    syncWikiFailed: 'Sync failed. Check that you are logged in as admin.',
   },
   common: {
     save: 'Save',

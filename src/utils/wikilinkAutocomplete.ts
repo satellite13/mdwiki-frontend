@@ -36,6 +36,21 @@ function safeInsertTitle(title: string): string {
   return title.replace(/\]/g, '')
 }
 
+/** Метка после `|` в `[[slug|label]]` — без `]` и `|`, иначе парсер вики-ссылки сломается. */
+function safeWikilinkLabel(title: string): string {
+  return title.replace(/\]/g, '').replace(/\|/g, ' ')
+}
+
+/** Текст внутри `[[ ... ]]` — целевой slug, чтобы совпадал с файлом/БД, а не с `normalizePageSlug(title)`. */
+function wikilinkInsertInner(p: PageListItem): string {
+  const slug = p.slug
+  const fromTitle = normalizePageSlug(p.title)
+  if (fromTitle === slug) {
+    return safeInsertTitle(p.title)
+  }
+  return `${slug}|${safeWikilinkLabel(p.title)}`
+}
+
 /**
  * Источник для пропа `completions` у md-editor-v3 (попадает в autocompletion override).
  * Подсказки при вводе [[...]] по списку страниц.
@@ -74,7 +89,7 @@ export async function wikilinkCompletions(
   const options: Completion[] = sorted.map((p) => ({
     label: p.title,
     detail: p.slug,
-    apply: safeInsertTitle(p.title),
+    apply: wikilinkInsertInner(p),
     section: 'Wiki',
     boost: 9,
   }))

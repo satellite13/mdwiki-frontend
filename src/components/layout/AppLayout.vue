@@ -42,6 +42,9 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
 .app-main {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 24px 32px;
   overflow-y: auto;
   height: calc(100vh - 49px);

@@ -8,6 +8,7 @@ import * as pagesApi from '@/api/pages'
 import type { FolderTreeNode } from '@/types'
 import { createTreeEventsSource } from '@/api/events'
 import { normalizePageSlug } from '@/utils/pageSlug'
+import { refreshWikilinkPreviewIndex } from '@/utils/wikilinkResolve'
 import { t } from '@/utils/i18n'
 import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
 import { useDialogStore } from '@/stores/dialog'
@@ -194,8 +195,8 @@ async function onContextAction(action: string) {
       } else if (ctx.node.slug) {
         try {
           await pagesApi.deletePage(ctx.node.slug)
-          // Tree refresh handled by SSE 'tree-updated' event.
           if (activeSlug.value === ctx.node.slug) router.push('/')
+          await folderStore.fetchTree(true)
         } catch (e) {
           await dialog.alert(t.errors.deletePageFailed)
         }
@@ -215,13 +216,19 @@ async function onDeleteNode(node: FolderTreeNode) {
     confirmLabel: t.tree.delete
   })
   if (!ok) return
-  if (node.type === 'folder') {
-    await folderStore.deleteFolder(node.id)
-    // Tag refresh and tree refresh handled by SSE 'tree-updated' event.
-  } else if (node.slug) {
-    await pagesApi.deletePage(node.slug)
-    // Tree refresh handled by SSE 'tree-updated' event.
-    if (activeSlug.value === node.slug) router.push('/')
+  try {
+    if (node.type === 'folder') {
+      await folderStore.deleteFolder(node.id)
+    } else if (node.slug) {
+      await pagesApi.deletePage(node.slug)
+      if (activeSlug.value === node.slug) router.push('/')
+      await folderStore.fetchTree(true)
+    }
+  } catch (e) {
+    console.error('Delete node failed:', e)
+    await dialog.alert(
+      node.type === 'folder' ? t.errors.deleteFolderFailed : t.errors.deletePageFailed
+    )
   }
 }
 
@@ -290,6 +297,7 @@ async function onRootDrop(e: DragEvent) {
 
 onMounted(async () => {
   await folderStore.fetchTree()
+  void refreshWikilinkPreviewIndex()
   await refreshTagData()
   connectTreeEvents()
 })
@@ -313,6 +321,7 @@ async function refreshTree() {
   try {
     await Promise.all([
       folderStore.fetchTree(true),
+      refreshWikilinkPreviewIndex(true),
       refreshTagData(true)
     ])
   } catch (error) {

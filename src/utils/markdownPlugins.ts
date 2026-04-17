@@ -1,6 +1,6 @@
 import type MarkdownIt from 'markdown-it'
 import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
-import { normalizePageSlug } from '@/utils/pageSlug'
+import { wikilinkPreviewHref } from '@/utils/wikilinkResolve'
 
 /** Убирает frontmatter до парсинга, чтобы превью не показывало сырой YAML. */
 export function frontmatterStripPlugin(md: MarkdownIt) {
@@ -21,11 +21,11 @@ export function wikilinkPlugin(md: MarkdownIt) {
       /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g,
       (_match: string, slug: string, label?: string) => {
         const rawSlug = slug.trim()
-        const normalized = normalizePageSlug(rawSlug)
-        if (!normalized) return esc(_match)
+        const href = wikilinkPreviewHref(rawSlug)
+        if (href === '#') return esc(_match)
         const displayText = label?.trim() || rawSlug
         const safeLabel = esc(displayText)
-        return `<a href="/page/${normalized}" class="wikilink"><span class="wikilink-text">${safeLabel}</span>${WIKILINK_ICON}</a>`
+        return `<a href="${esc(href)}" class="wikilink"><span class="wikilink-text">${safeLabel}</span>${WIKILINK_ICON}</a>`
       }
     )
     if (replaced !== content) return replaced

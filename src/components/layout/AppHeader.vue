@@ -1,13 +1,52 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
+import { useFolderStore } from '@/stores/folders'
+import { useDialogStore } from '@/stores/dialog'
+import { postWikiFullSync } from '@/api/sync'
+import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
+const folderStore = useFolderStore()
+const dialog = useDialogStore()
 const themeStore = useThemeStore()
 const router = useRouter()
+const route = useRoute()
 const searchQuery = ref('')
+const syncWikiLoading = ref(false)
+
+async function onSyncWikiFromDisk() {
+  const ok = await dialog.confirm(t.admin.syncWikiConfirm, {
+    title: t.admin.syncWikiTitle,
+    confirmLabel: t.admin.syncWikiButton
+  })
+  if (!ok) return
+  syncWikiLoading.value = true
+  try {
+    const { data } = await postWikiFullSync()
+    await folderStore.fetchTree(true)
+    await dialog.alert(t.admin.syncWikiDone(data.added, data.updated, data.removed))
+  } catch (e) {
+    const msg =
+      axios.isAxiosError(e) && e.response?.data && typeof (e.response.data as { message?: string }).message === 'string'
+        ? (e.response.data as { message: string }).message
+        : t.admin.syncWikiFailed
+    await dialog.alert(msg)
+  } finally {
+    syncWikiLoading.value = false
+  }
+}
+
+/** Полный граф вики; на странице документа — с подсветкой текущей. */
+const graphLinkTo = computed(() => {
+  if (route.name === 'page' && typeof route.params.slug === 'string' && route.params.slug.length > 0) {
+    return { name: 'wiki-graph', query: { highlight: route.params.slug } }
+  }
+  return { name: 'wiki-graph' }
+})
 
 function onSearch() {
   if (searchQuery.value.trim()) {
@@ -28,9 +67,20 @@ function logout() {
       <input v-model="searchQuery" placeholder="Search pages..." type="search" />
     </form>
     <nav class="header-nav">
+      <router-link :to="graphLinkTo" class="nav-link" title="All pages and links in the wiki">Graph</router-link>
       <router-link to="/attachments" class="nav-link">Attachments</router-link>
       <router-link to="/profile" class="nav-link">{{ auth.username }}</router-link>
       <router-link v-if="auth.isAdmin" to="/admin/users" class="nav-link">Admin</router-link>
+      <button
+        v-if="auth.isAdmin"
+        type="button"
+        class="sync-disk-btn"
+        :disabled="syncWikiLoading"
+        :title="t.admin.syncWikiTitle"
+        @click="onSyncWikiFromDisk"
+      >
+        {{ syncWikiLoading ? '…' : t.admin.syncWikiButton }}
+      </button>
       <button class="theme-toggle" @click="themeStore.toggle()" :title="themeStore.isDark ? 'Switch to light' : 'Switch to dark'">
         <svg v-if="themeStore.isDark" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
@@ -115,5 +165,28 @@ function logout() {
 .theme-toggle:hover {
   color: var(--color-text);
   background: var(--color-bg-hover);
+}
+
+.sync-disk-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.sync-disk-btn:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-bg-hover);
+  border-color: var(--color-text-faint);
+}
+
+.sync-disk-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

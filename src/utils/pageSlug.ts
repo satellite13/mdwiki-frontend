@@ -1,3 +1,18 @@
+/**
+ * Как `WikilinkService.normalizePageSlug` на API: lower + дефисы, кириллица **не** транслитерируется.
+ * Используется для текста внутри `[[...]]` и сопоставления с `title` в БД.
+ */
+const WIKILINK_NON_SLUG = /[^a-z0-9а-яё]+/giu
+
+export function normalizeWikilinkKey(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(WIKILINK_NON_SLUG, '-')
+    .replace(/-+/g, '-')
+    .replace(/(^-|-$)/g, '')
+}
+
 /** Соответствует regexp slug на API: `^[a-z0-9]+(?:-[a-z0-9]+)*$`. */
 const CYRILLIC_TO_LATIN: Record<string, string> = {
   а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'zh', з: 'z', и: 'i', й: 'y',

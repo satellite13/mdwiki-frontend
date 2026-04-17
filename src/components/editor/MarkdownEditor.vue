@@ -82,7 +82,6 @@ const emit = defineEmits<{
 
 const showLineNumbers = ref(editorLineNumbersEnabled)
 const editorKey = ref(0)
-const isPreviewOnly = ref(false)
 const themeStore = useThemeStore()
 const uploadError = ref('')
 const wrapperRef = ref<HTMLElement | null>(null)
@@ -142,7 +141,6 @@ function ensurePreviewOnlyListener() {
   if (previewOnlyListenerAttachedForKey === k) return
   previewOnlyListenerAttachedForKey = k
   inst.on('previewOnly', (status: boolean) => {
-    isPreviewOnly.value = status
     if (!suppressPreviewOnlyPersist) writePreviewOnlyPref(status)
   })
 }
@@ -155,16 +153,6 @@ function applyPreviewOnlyFromStorage() {
     nextTick(() => {
       suppressPreviewOnlyPersist = false
     })
-  })
-}
-
-function exitPreviewOnly() {
-  suppressPreviewOnlyPersist = true
-  editorRef.value?.togglePreviewOnly?.(false)
-  isPreviewOnly.value = false
-  writePreviewOnlyPref(false)
-  nextTick(() => {
-    suppressPreviewOnlyPersist = false
   })
 }
 
@@ -187,9 +175,6 @@ watch(
 
 <template>
   <div ref="wrapperRef" class="markdown-editor-wrapper">
-    <button v-if="isPreviewOnly" class="preview-exit-btn" @click="exitPreviewOnly">
-      Exit preview
-    </button>
     <MdEditor
       ref="editorRef"
       :key="editorKey"
@@ -233,27 +218,6 @@ watch(
 .markdown-editor-wrapper {
   height: 100%;
   position: relative;
-}
-
-.preview-exit-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 20;
-  padding: 6px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-size: 12px;
-}
-
-.preview-exit-btn:hover {
-  background: var(--color-bg-hover);
-}
-
-.markdown-editor-wrapper :deep(.md-editor-previewOnly .md-editor-toolbar-wrapper) {
-  display: none;
 }
 
 .markdown-editor-wrapper :deep(.emoji-container .emojis li) {

@@ -137,8 +137,10 @@ onMounted(fetchAttachments)
           <td class="user-cell">{{ att.uploadedBy || '—' }}</td>
           <td class="date-cell">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
           <td class="actions-cell">
-            <button class="btn-secondary btn-sm" @click="copyLink(att)" title="Copy markdown link">Copy link</button>
-            <button v-if="auth.isEditor" class="btn-danger btn-sm" @click="deleteAttachment(att)">Delete</button>
+            <div class="actions-inner">
+              <button class="btn-secondary btn-sm" type="button" @click="copyLink(att)" title="Copy markdown link">Copy link</button>
+              <button v-if="auth.isEditor" class="btn-danger btn-sm" type="button" @click="deleteAttachment(att)">Delete</button>
+            </div>
           </td>
         </tr>
       </tbody>
@@ -148,6 +150,10 @@ onMounted(fetchAttachments)
 
 <style scoped>
 .attachments-page h1 { margin-bottom: 20px; }
+
+.attachments-table tbody td {
+  vertical-align: middle;
+}
 
 .upload-zone {
   border: 2px dashed var(--color-border);
@@ -185,6 +191,15 @@ onMounted(fetchAttachments)
 .size-cell { font-family: var(--font-mono); font-size: 13px; }
 .user-cell { color: var(--color-text-muted); font-size: 13px; }
 .date-cell { font-family: var(--font-mono); font-size: 13px; color: var(--color-text-muted); }
-.actions-cell { display: flex; gap: 6px; }
+/* flex на <td> снимает table-cell и даёт строке меньшую высоту — flex только во внутреннем блоке */
+.actions-cell {
+  white-space: nowrap;
+}
+.actions-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 </style>

@@ -6,6 +6,11 @@ import * as pagesApi from '@/api/pages'
 import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
 import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
+import {
+  refreshWikilinkPreviewIndex,
+  getWikilinkPreviewPages,
+  slugCandidatesForNavigation
+} from '@/utils/wikilinkResolve'
 import type { Page, Backlink } from '@/types'
 import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
 import GraphPanel from '@/components/graph/GraphPanel.vue'
@@ -46,8 +51,9 @@ async function loadPage(slugParam: string) {
   saveStatus.value = 'idle'
   page.value = null
 
+  await refreshWikilinkPreviewIndex()
+  const tryOrder = slugCandidatesForNavigation(slugParam, getWikilinkPreviewPages())
   const normalized = normalizePageSlug(slugParam)
-  const tryOrder = [...new Set([slugParam, normalized].filter((s): s is string => !!s))]
 
   let loaded: Page | null = null
   let resolvedSlug = slugParam
@@ -141,6 +147,7 @@ async function doSave() {
   saveStatus.value = 'saving'
   saveError.value = null
   const prevTitle = lastSavedTitle.value
+  const prevSlug = page.value.slug
   try {
     const { data: updatedPage } = await pagesApi.updatePage(page.value.slug, {
       title: title.value,
@@ -150,7 +157,10 @@ async function doSave() {
     page.value = updatedPage
     lastSavedTitle.value = updatedPage.title
     lastSavedContentMd.value = updatedPage.contentMd || ''
-    if (updatedPage.title !== prevTitle) {
+    if (updatedPage.slug !== prevSlug) {
+      await router.replace(`/page/${encodeURIComponent(updatedPage.slug)}`)
+    }
+    if (updatedPage.title !== prevTitle || updatedPage.slug !== prevSlug) {
       await folderStore.fetchTree(true)
     }
     saveStatus.value = 'saved'
@@ -235,7 +245,11 @@ onBeforeUnmount(() => {
       />
       <span v-if="isDirty()" class="unsaved-dot" title="Unsaved changes"></span>
       <span v-if="saveError" class="save-error" @click="saveError = null">{{ saveError }}</span>
-      <button class="graph-toggle" @click="showGraph = !showGraph" :title="showGraph ? 'Hide graph' : 'Show graph'">
+      <button
+        class="graph-toggle"
+        @click="showGraph = !showGraph"
+        :title="showGraph ? 'Hide neighborhood graph' : 'Neighborhood graph (this page and linked pages, depth 1–3)'"
+      >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" :stroke="showGraph ? 'var(--color-primary)' : 'currentColor'" stroke-width="2">
           <circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/>
           <line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="7.5"/>
