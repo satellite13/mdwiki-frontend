@@ -45,6 +45,7 @@ export const t = {
   },
   errors: {
     operationFailed: 'Operation failed',
+    createFolderFailed: 'Failed to create folder',
     renameFolderFailed: 'Failed to rename folder',
     deleteFolderFailed: 'Failed to delete folder',
     deletePageFailed: 'Failed to delete page',

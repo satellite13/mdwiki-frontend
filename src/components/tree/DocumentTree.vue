@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import axios from 'axios'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFolderStore } from '@/stores/folders'
@@ -153,7 +154,17 @@ async function createNewPage(folderId?: string) {
 async function createNewFolder(parentId?: string) {
   const nameRaw = await dialog.prompt(t.tree.folderNamePrompt)
   if (nameRaw === null || !nameRaw.trim()) return
-  await folderStore.createFolder(nameRaw.trim(), parentId || undefined)
+  try {
+    await folderStore.createFolder(nameRaw.trim(), parentId || undefined)
+  } catch (error) {
+    const message =
+      axios.isAxiosError(error) &&
+      error.response?.data &&
+      typeof (error.response.data as { message?: string }).message === 'string'
+        ? (error.response.data as { message: string }).message
+        : t.errors.createFolderFailed
+    await dialog.alert(message)
+  }
 }
 
 async function onContextAction(action: string) {
