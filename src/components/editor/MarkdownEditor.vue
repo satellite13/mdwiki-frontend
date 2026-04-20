@@ -761,7 +761,7 @@ onBeforeUnmount(() => {
         <button type="button" class="icon-btn" title="Editor" aria-label="Editor" :class="{ active: editorMode === 'editor' }" @click="setMode('editor')"><span class="material-symbols-outlined notranslate" translate="no">edit_note</span></button>
         <button type="button" class="icon-btn" title="Split" aria-label="Split" :class="{ active: editorMode === 'split' }" @click="setMode('split')"><span class="material-symbols-outlined notranslate" translate="no">split_scene</span></button>
         <button type="button" class="icon-btn" title="Preview" aria-label="Preview" :class="{ active: editorMode === 'preview' }" @click="setMode('preview')"><span class="material-symbols-outlined notranslate" translate="no">preview</span></button>
-        <button type="button" class="icon-btn" title="Reading" aria-label="Reading" :class="{ active: editorMode === 'reading' }" @click="setMode('reading')"><span class="material-symbols-outlined notranslate" translate="no">menu_book</span></button>
+        <button type="button" class="icon-btn" title="Reading" aria-label="Reading" @click="setMode('reading')"><span class="material-symbols-outlined notranslate" translate="no">menu_book</span></button>
       </span>
       </template>
     </div>
