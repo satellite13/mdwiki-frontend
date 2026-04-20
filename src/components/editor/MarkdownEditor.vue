@@ -35,6 +35,7 @@ const md = createMarkdownRenderer()
 
 const props = defineProps<{
   modelValue: string
+  readingTitle?: string
 }>()
 
 const emit = defineEmits<{
@@ -658,7 +659,20 @@ onBeforeUnmount(() => {
 <template>
   <div class="markdown-editor-wrapper" :class="{ dark: themeStore.isDark, 'reading-mode': editorMode === 'reading' }">
     <div class="toolbar">
-      <template v-if="editorMode !== 'reading'">
+      <template v-if="editorMode === 'reading'">
+        <router-link to="/" class="reading-logo">MDWiki</router-link>
+        <div class="reading-title" :title="props.readingTitle || ''">{{ props.readingTitle || 'Untitled' }}</div>
+        <button
+          type="button"
+          class="reading-exit-btn"
+          title="Exit reading mode"
+          aria-label="Exit reading mode"
+          @click="exitReadingMode"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no">close_fullscreen</span>
+        </button>
+      </template>
+      <template v-else>
       <button type="button" class="icon-btn" title="Bold" aria-label="Bold" @click="wrapSelection('**', '**')"><span class="material-symbols-outlined notranslate" translate="no">format_bold</span></button>
       <button type="button" class="icon-btn" title="Italic" aria-label="Italic" @click="wrapSelection('*', '*')"><span class="material-symbols-outlined notranslate" translate="no">format_italic</span></button>
       <button type="button" class="icon-btn" title="Underline" aria-label="Underline" @click="wrapSelection('<u>', '</u>')"><span class="material-symbols-outlined notranslate" translate="no">format_underlined</span></button>
@@ -743,16 +757,16 @@ onBeforeUnmount(() => {
       <button type="button" class="icon-btn" title="Undo" aria-label="Undo" :disabled="!canUndo" @click="undo"><span class="material-symbols-outlined notranslate" translate="no">undo</span></button>
       <button type="button" class="icon-btn" title="Redo" aria-label="Redo" :disabled="!canRedo" @click="redo"><span class="material-symbols-outlined notranslate" translate="no">redo</span></button>
       <button type="button" class="icon-btn" title="Save" aria-label="Save" @click="emit('save')"><span class="material-symbols-outlined notranslate" translate="no">save</span></button>
-      </template>
       <span class="mode-switch">
         <button type="button" class="icon-btn" title="Editor" aria-label="Editor" :class="{ active: editorMode === 'editor' }" @click="setMode('editor')"><span class="material-symbols-outlined notranslate" translate="no">edit_note</span></button>
         <button type="button" class="icon-btn" title="Split" aria-label="Split" :class="{ active: editorMode === 'split' }" @click="setMode('split')"><span class="material-symbols-outlined notranslate" translate="no">split_scene</span></button>
         <button type="button" class="icon-btn" title="Preview" aria-label="Preview" :class="{ active: editorMode === 'preview' }" @click="setMode('preview')"><span class="material-symbols-outlined notranslate" translate="no">preview</span></button>
         <button type="button" class="icon-btn" title="Reading" aria-label="Reading" :class="{ active: editorMode === 'reading' }" @click="setMode('reading')"><span class="material-symbols-outlined notranslate" translate="no">menu_book</span></button>
       </span>
+      </template>
     </div>
     <div ref="splitShellRef" class="editor-shell" :class="`mode-${editorMode}`" :style="editorShellStyle">
-      <div v-if="editorMode !== 'preview'" class="editor-pane">
+      <div v-if="editorMode === 'editor' || editorMode === 'split'" class="editor-pane">
         <textarea
           ref="editorRef"
           class="markdown-input"
@@ -796,16 +810,6 @@ onBeforeUnmount(() => {
         @click="onPreviewClick"
         @scroll="onPreviewScroll"
       >
-        <button
-          v-if="editorMode === 'reading'"
-          type="button"
-          class="reading-exit-btn"
-          title="Exit reading mode"
-          aria-label="Exit reading mode"
-          @click="exitReadingMode"
-        >
-          <span class="material-symbols-outlined notranslate" translate="no">close_fullscreen</span>
-        </button>
         <div class="preview-content markdown-body" v-html="previewHtml" />
       </div>
     </div>
@@ -844,7 +848,34 @@ onBeforeUnmount(() => {
 }
 
 .reading-mode .toolbar {
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+.reading-logo {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-decoration: none;
+  letter-spacing: -0.3px;
+}
+
+.reading-logo:hover {
+  color: var(--color-primary);
+}
+
+.reading-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 
 .icon-btn {
@@ -1053,10 +1084,6 @@ onBeforeUnmount(() => {
 }
 
 .reading-exit-btn {
-  position: sticky;
-  top: 10px;
-  margin-left: auto;
-  z-index: 6;
   width: 34px;
   height: 34px;
   display: flex;

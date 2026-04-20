@@ -43,8 +43,7 @@ watch(page, (nextPage) => {
 <template>
   <div class="workspace" :class="{ 'reading-mode': editorUi.isReadingMode }" v-if="page">
     <nav v-if="!editorUi.isReadingMode && page.folderPath && page.folderPath.length" class="breadcrumbs">
-      <router-link to="/" class="breadcrumb-item">Root</router-link>
-      <span class="breadcrumb-sep">/</span>
+      <router-link to="/" class="breadcrumb-item">/</router-link>
       <template v-for="folder in page.folderPath" :key="folder.id">
         <span class="breadcrumb-item">{{ folder.name }}</span>
         <span class="breadcrumb-sep">/</span>
@@ -80,6 +79,7 @@ watch(page, (nextPage) => {
     <div class="editor-area">
       <MarkdownEditor
         :modelValue="content"
+        :readingTitle="title || page.title"
         @update:modelValue="onContentChange"
         @save="onEditorSave"
         @mode-change="onEditorModeChange"
