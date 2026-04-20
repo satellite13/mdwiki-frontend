@@ -27,6 +27,8 @@ ingress:
 
 api:
   upstream: http://mdwiki-api-mdwiki-api:8080
+  clientMaxBodySize: 25m
+  eventsReadTimeout: 300s
 
 resources: {}
 

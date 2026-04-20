@@ -3,8 +3,12 @@ import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import * as searchApi from '@/api/search'
 import type { SearchResult } from '@/types'
+import { useDialogStore } from '@/stores/dialog'
+import { getApiErrorMessage } from '@/utils/apiError'
+import { t } from '@/utils/i18n'
 
 const route = useRoute()
+const dialog = useDialogStore()
 const results = ref<SearchResult[]>([])
 const loading = ref(false)
 const query = ref((route.query.q as string) || '')
@@ -12,8 +16,15 @@ const query = ref((route.query.q as string) || '')
 async function doSearch() {
   if (!query.value.trim()) return
   loading.value = true
-  try { const { data } = await searchApi.searchPages(query.value); results.value = data }
-  finally { loading.value = false }
+  try {
+    const { data } = await searchApi.searchPages(query.value)
+    results.value = data
+  } catch (e) {
+    results.value = []
+    await dialog.alert(getApiErrorMessage(e, t.errors.searchFailed))
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(doSearch)

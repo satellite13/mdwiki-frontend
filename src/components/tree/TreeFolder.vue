@@ -2,9 +2,11 @@
 import { ref, computed, watch } from 'vue'
 import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
+import { useMovePage } from '@/composables/useMovePage'
 import type { FolderTreeNode } from '@/types'
 import { t } from '@/utils/i18n'
 import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
+import { parseDndPayload, serializeDndPayload } from '@/utils/dndPayload'
 import TreePage from './TreePage.vue'
 
 const props = defineProps<{
@@ -23,6 +25,7 @@ const emit = defineEmits<{
 
 const folderStore = useFolderStore()
 const auth = useAuthStore()
+const { movePage } = useMovePage()
 const expanded = computed(() => folderStore.isExpanded(props.node.id))
 const isDragOver = ref(false)
 
@@ -41,8 +44,7 @@ function toggle() {
 }
 
 function onDragStart(e: DragEvent) {
-  const payload = { type: 'folder' as const, id: props.node.id }
-  e.dataTransfer!.setData('text/plain', JSON.stringify(payload))
+  e.dataTransfer!.setData('text/plain', serializeDndPayload({ type: 'folder', id: props.node.id }))
   e.dataTransfer!.effectAllowed = 'move'
   dndLog('folder dragstart', {
     folderId: props.node.id,
@@ -90,20 +92,19 @@ async function onDrop(e: DragEvent) {
     raw: raw.slice(0, 200),
     dataTransferTypes: e.dataTransfer ? [...e.dataTransfer.types] : [],
   })
+  const data = parseDndPayload(raw)
+  dndLog('folder drop (parsed)', { folderId: props.node.id, data })
+  if (!data) return
   try {
-    const data = JSON.parse(raw || '{}') as { type?: string; slug?: string; id?: string }
-    dndLog('folder drop (parsed)', { folderId: props.node.id, data })
-    if (data.type === 'page' && data.slug) {
+    if (data.type === 'page') {
       dndLog('folder drop → movePage', { slug: data.slug, toFolderId: props.node.id })
-      await folderStore.movePage(data.slug, props.node.id)
-    } else if (data.type === 'folder' && data.id && data.id !== props.node.id) {
+      await movePage(data.slug, props.node.id)
+    } else if (data.type === 'folder' && data.id !== props.node.id) {
       dndLog('folder drop → moveFolder', { folderId: data.id, toParentId: props.node.id })
       await folderStore.moveFolder(data.id, props.node.id)
-    } else {
-      dndLog('folder drop (no-op)', { reason: 'type mismatch, same folder, or missing fields', data })
     }
   } catch (err) {
-    dndLog('folder drop (parse or api error)', { message: err instanceof Error ? err.message : String(err), raw })
+    dndLog('folder drop (api error)', { message: err instanceof Error ? err.message : String(err) })
   }
 }
 

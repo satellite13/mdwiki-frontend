@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useFolderStore } from '@/stores/folders'
 import { useDialogStore } from '@/stores/dialog'
 import { postWikiFullSync } from '@/api/sync'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
@@ -30,11 +30,7 @@ async function onSyncWikiFromDisk() {
     await folderStore.fetchTree(true)
     await dialog.alert(t.admin.syncWikiDone(data.added, data.updated, data.removed))
   } catch (e) {
-    const msg =
-      axios.isAxiosError(e) && e.response?.data && typeof (e.response.data as { message?: string }).message === 'string'
-        ? (e.response.data as { message: string }).message
-        : t.admin.syncWikiFailed
-    await dialog.alert(msg)
+    await dialog.alert(getApiErrorMessage(e, t.admin.syncWikiFailed))
   } finally {
     syncWikiLoading.value = false
   }

@@ -3,6 +3,8 @@ import type { Ref } from 'vue'
 import type { Router } from 'vue-router'
 import * as pagesApi from '@/api/pages'
 import type { Page } from '@/types'
+import { t } from '@/utils/i18n'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 type SaveStatus = 'idle' | 'saving' | 'saved'
 
@@ -87,7 +89,7 @@ export function usePageAutosave(
       }, 2000)
     } catch (e) {
       saveStatus.value = 'idle'
-      saveError.value = 'Failed to save page. Changes may be lost.'
+      saveError.value = getApiErrorMessage(e, t.errors.savePageFailed)
       console.error('Failed to save page:', e)
     } finally {
       isSaving.value = false

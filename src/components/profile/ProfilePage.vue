@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import * as apiKeysApi from '@/api/apiKeys'
 import type { ApiKey } from '@/types'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
@@ -15,16 +16,26 @@ const loading = ref(true)
 
 async function fetchKeys() {
   loading.value = true
-  try { const { data } = await apiKeysApi.listApiKeys(); keys.value = data }
-  finally { loading.value = false }
+  try {
+    const { data } = await apiKeysApi.listApiKeys()
+    keys.value = data
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t.errors.loadApiKeysFailed))
+  } finally {
+    loading.value = false
+  }
 }
 
 async function createKey() {
   if (!newKeyName.value.trim()) return
-  const { data } = await apiKeysApi.createApiKey(newKeyName.value)
-  createdKey.value = data.key
-  newKeyName.value = ''
-  fetchKeys()
+  try {
+    const { data } = await apiKeysApi.createApiKey(newKeyName.value)
+    createdKey.value = data.key
+    newKeyName.value = ''
+    await fetchKeys()
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t.errors.createApiKeyFailed))
+  }
 }
 
 async function deleteKey(id: string) {
@@ -33,8 +44,12 @@ async function deleteKey(id: string) {
     confirmLabel: t.tree.delete
   })
   if (!ok) return
-  await apiKeysApi.deleteApiKey(id)
-  fetchKeys()
+  try {
+    await apiKeysApi.deleteApiKey(id)
+    await fetchKeys()
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t.errors.deleteApiKeyFailed))
+  }
 }
 
 function copyKey() {

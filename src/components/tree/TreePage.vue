@@ -4,6 +4,7 @@ import { useFolderStore } from '@/stores/folders'
 import type { FolderTreeNode } from '@/types'
 import { t } from '@/utils/i18n'
 import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
+import { serializeDndPayload } from '@/utils/dndPayload'
 
 const props = defineProps<{
   node: FolderTreeNode
@@ -21,8 +22,8 @@ const auth = useAuthStore()
 const folderStore = useFolderStore()
 
 function onDragStart(e: DragEvent) {
-  const payload = { type: 'page' as const, slug: props.node.slug }
-  e.dataTransfer!.setData('text/plain', JSON.stringify(payload))
+  if (!props.node.slug) return
+  e.dataTransfer!.setData('text/plain', serializeDndPayload({ type: 'page', slug: props.node.slug }))
   e.dataTransfer!.effectAllowed = 'move'
   dndLog('page dragstart', {
     slug: props.node.slug,

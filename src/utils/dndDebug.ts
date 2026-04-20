@@ -4,7 +4,7 @@
  *   localStorage.setItem('mdwikiDndDebug', '1')
  * и перезагрузите страницу. Убрать: removeItem('mdwikiDndDebug').
  */
-export function dndDebugEnabled(): boolean {
+function dndDebugEnabled(): boolean {
   if (import.meta.env.DEV) return true
   try {
     return localStorage.getItem('mdwikiDndDebug') === '1'

@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getApiErrorMessage } from '@/utils/apiError'
+import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -16,12 +18,7 @@ async function onSubmit() {
     await auth.register(username.value, email.value, password.value)
     router.push({ name: 'workspace' })
   } catch (e: unknown) {
-    if (e instanceof Error && 'response' in e) {
-      const axiosErr = e as { response?: { data?: { message?: string } } }
-      error.value = axiosErr.response?.data?.message || 'Registration failed'
-    } else {
-      error.value = 'Registration failed'
-    }
+    error.value = getApiErrorMessage(e, t.errors.registerFailed)
   }
 }
 </script>

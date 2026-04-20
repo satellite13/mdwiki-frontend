@@ -1,22 +1,28 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as foldersApi from '@/api/folders'
-import * as pagesApi from '@/api/pages'
 import type { FolderTreeNode } from '@/types'
 import { stripFolderPrefix } from '@/utils/folderId'
 import { dndLog } from '@/utils/dndDebug'
+import { readJson, writeJson } from '@/utils/localPreferences'
+
+const EXPANDED_FOLDERS_KEY = 'expandedFolders'
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
 
 export const useFolderStore = defineStore('folders', () => {
   const tree = ref<FolderTreeNode[]>([])
   /** Инкремент в конце drag (страница/папка) — сброс подсветки drop в WebKit, где dragleave с relatedTarget=null. */
   const treeDragGeneration = ref(0)
   const loading = ref(false)
-  const expandedFolders = ref<Set<string>>(new Set(
-    JSON.parse(localStorage.getItem('expandedFolders') || '[]')
-  ))
+  const expandedFolders = ref<Set<string>>(
+    new Set(readJson<string[]>(EXPANDED_FOLDERS_KEY, [], isStringArray))
+  )
 
   function saveExpanded() {
-    localStorage.setItem('expandedFolders', JSON.stringify([...expandedFolders.value]))
+    writeJson(EXPANDED_FOLDERS_KEY, [...expandedFolders.value])
   }
 
   function toggleFolder(id: string) {
@@ -96,27 +102,18 @@ export const useFolderStore = defineStore('folders', () => {
     }
   }
 
-  async function movePage(slug: string, folderId: string | null) {
-    dndLog('store movePage (start)', { slug, folderId })
-    try {
-      const cleanFolderId = folderId ? stripFolderPrefix(folderId) : null
-      if (cleanFolderId) {
-        await pagesApi.updatePage(slug, { folderId: cleanFolderId })
-      } else {
-        await pagesApi.updatePage(slug, { folderId: null, clearFolder: true })
-      }
-      await fetchTree(true)
-      dndLog('store movePage (ok)', { slug, cleanFolderId })
-    } catch (e) {
-      dndLog('store movePage (error)', { slug, message: e instanceof Error ? e.message : String(e) })
-      console.error('Failed to move page:', e)
-      throw e
-    }
-  }
-
   return {
-    tree, treeDragGeneration, loading, expandedFolders,
-    toggleFolder, isExpanded, fetchTree, notifyTreeDragEnd,
-    createFolder, renameFolder, moveFolder, deleteFolder, movePage
+    tree,
+    treeDragGeneration,
+    loading,
+    expandedFolders,
+    toggleFolder,
+    isExpanded,
+    fetchTree,
+    notifyTreeDragEnd,
+    createFolder,
+    renameFolder,
+    moveFolder,
+    deleteFolder
   }
 })

@@ -1,14 +1,16 @@
+export type UserRole = 'READER' | 'EDITOR' | 'ADMIN'
+
 export interface User {
   id: string
   username: string
   email: string
-  role: 'READER' | 'EDITOR' | 'ADMIN'
+  role: UserRole
 }
 
 export interface AuthResponse {
   token: string
   username: string
-  role: string
+  role: UserRole
 }
 
 export interface Page {
@@ -16,9 +18,6 @@ export interface Page {
   slug: string
   title: string
   contentMd: string | null
-  contentHtml: string | null
-  /** Распарсенный YAML frontmatter (с сервера), опционально. */
-  frontmatterMeta?: Record<string, unknown> | null
   tags: string[]
   createdBy: string | null
   updatedBy: string | null

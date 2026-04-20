@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import axios from 'axios'
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
-import { useTagStore } from '@/stores/tags'
-import * as pagesApi from '@/api/pages'
-import type { FolderTreeNode } from '@/types'
-import { createTreeEventsSource } from '@/api/events'
-import { normalizePageSlug } from '@/utils/pageSlug'
-import { refreshWikilinkPreviewIndex } from '@/utils/wikilinkResolve'
+import { useDialogStore } from '@/stores/dialog'
+import { useMovePage } from '@/composables/useMovePage'
+import { usePageTags } from '@/composables/usePageTags'
+import { useTreeSse } from '@/composables/useTreeSse'
+import { useTreeActions } from '@/composables/useTreeActions'
+import { invalidatePageIndex } from '@/services/pageIndex'
+import { parseDndPayload } from '@/utils/dndPayload'
 import { t } from '@/utils/i18n'
 import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
-import { useDialogStore } from '@/stores/dialog'
+import type { FolderTreeNode } from '@/types'
 import TreeFolder from './TreeFolder.vue'
 import TreePage from './TreePage.vue'
 import TreeContextMenu from './TreeContextMenu.vue'
@@ -21,23 +21,29 @@ const router = useRouter()
 const route = useRoute()
 const folderStore = useFolderStore()
 const auth = useAuthStore()
-const tagStore = useTagStore()
 const dialog = useDialogStore()
+const { movePage } = useMovePage()
 
 const activeSlug = computed(() => (route.params.slug as string) || null)
-const TREE_EVENTS_RECONNECT_MS = 3000
-let treeEventsSource: EventSource | null = null
-let treeReconnectTimer: ReturnType<typeof setTimeout> | null = null
-let treeRefreshInFlight = false
-let isMounted = true
-const tagsLoading = ref(false)
-const selectedTag = ref<string | null>(null)
-const pageTagsBySlug = ref<Record<string, string[]>>({})
-const tagsCollapsed = ref(false)
-const tagQuery = ref('')
 
-// Context menu state
+const {
+  tagStore,
+  tagsLoading,
+  selectedTag,
+  tagsCollapsed,
+  tagQuery,
+  filteredTags,
+  filterTreeByTag,
+  toggleTagFilter,
+  clearTagFilter,
+  toggleTagsPanel,
+  refreshTagData
+} = usePageTags()
+
+const treeActions = useTreeActions({ getActiveSlug: () => activeSlug.value })
+
 const contextMenu = ref<{ x: number; y: number; node: FolderTreeNode | null; parentId: string | null } | null>(null)
+let treeRefreshInFlight = false
 
 const contextMenuItems = computed(() => {
   if (!auth.isEditor) return []
@@ -57,74 +63,11 @@ const contextMenuItems = computed(() => {
 })
 
 const visibleTree = computed(() => {
-  if (!selectedTag.value) {
-    return folderStore.tree
-  }
+  if (!selectedTag.value) return folderStore.tree
   return filterTreeByTag(folderStore.tree, selectedTag.value)
 })
-const rootFolders = computed(() => visibleTree.value.filter(n => n.type === 'folder'))
-const rootPages = computed(() => visibleTree.value.filter(n => n.type === 'page'))
-const filteredTags = computed(() => {
-  const query = tagQuery.value.trim().toLowerCase()
-  if (!query) return tagStore.tags
-  return tagStore.tags.filter((tag) => tag.name.toLowerCase().includes(query))
-})
-
-function filterTreeByTag(nodes: FolderTreeNode[], tag: string): FolderTreeNode[] {
-  return nodes.reduce<FolderTreeNode[]>((acc, node) => {
-    if (node.type === 'page') {
-      const tagNames = node.slug ? pageTagsBySlug.value[node.slug] || [] : []
-      if (tagNames.includes(tag)) {
-        acc.push(node)
-      }
-      return acc
-    }
-
-    const filteredChildren = filterTreeByTag(node.children, tag)
-    if (filteredChildren.length > 0) {
-      acc.push({
-        ...node,
-        children: filteredChildren
-      })
-    }
-    return acc
-  }, [])
-}
-
-function toggleTagFilter(tagName: string) {
-  selectedTag.value = selectedTag.value === tagName ? null : tagName
-}
-
-function clearTagFilter() {
-  selectedTag.value = null
-}
-
-function toggleTagsPanel() {
-  tagsCollapsed.value = !tagsCollapsed.value
-}
-
-async function refreshPageTagsIndex() {
-  const { data } = await pagesApi.listPages()
-  pageTagsBySlug.value = Object.fromEntries(data.map((page) => [page.slug, page.tags]))
-}
-
-async function refreshTagData(force = false) {
-  tagsLoading.value = true
-  try {
-    await Promise.all([
-      tagStore.fetchTags(force),
-      refreshPageTagsIndex()
-    ])
-  } catch (error) {
-    console.error('Failed to refresh tags', error)
-  } finally {
-    tagsLoading.value = false
-  }
-
-  if (selectedTag.value && !tagStore.tags.some((tag) => tag.name === selectedTag.value)) {
-    selectedTag.value = null
-  }
-}
+const rootFolders = computed(() => visibleTree.value.filter((n) => n.type === 'folder'))
+const rootPages = computed(() => visibleTree.value.filter((n) => n.type === 'page'))
 
 function onSelectPage(slug: string) {
   router.push(`/page/${slug}`)
@@ -140,33 +83,6 @@ function onRootContextMenu(e: MouseEvent) {
   contextMenu.value = { x: e.clientX, y: e.clientY, node: null, parentId: null }
 }
 
-async function createNewPage(folderId?: string) {
-  const titleRaw = await dialog.prompt(t.tree.pageNamePrompt)
-  if (titleRaw === null || !titleRaw.trim()) return
-  const title = titleRaw.trim()
-  const slug = normalizePageSlug(title)
-  if (!slug) return
-  await pagesApi.createPage(slug, title, '', folderId || undefined)
-  // Tree refresh is handled by SSE 'tree-updated' event; no manual fetchTree needed.
-  router.push(`/page/${slug}`)
-}
-
-async function createNewFolder(parentId?: string) {
-  const nameRaw = await dialog.prompt(t.tree.folderNamePrompt)
-  if (nameRaw === null || !nameRaw.trim()) return
-  try {
-    await folderStore.createFolder(nameRaw.trim(), parentId || undefined)
-  } catch (error) {
-    const message =
-      axios.isAxiosError(error) &&
-      error.response?.data &&
-      typeof (error.response.data as { message?: string }).message === 'string'
-        ? (error.response.data as { message: string }).message
-        : t.errors.createFolderFailed
-    await dialog.alert(message)
-  }
-}
-
 async function onContextAction(action: string) {
   const ctx = contextMenu.value
   if (!ctx) return
@@ -174,44 +90,14 @@ async function onContextAction(action: string) {
   try {
     if (action === 'new-page') {
       const folderId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
-      await createNewPage(folderId || undefined)
+      await treeActions.createNewPage(folderId || undefined)
     } else if (action === 'new-folder') {
       const parentId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
-      await createNewFolder(parentId || undefined)
-    } else if (action === 'rename' && ctx.node) {
-      const newNameRaw = await dialog.prompt(t.tree.newNamePrompt, ctx.node.name)
-      if (newNameRaw === null) return
-      const newName = newNameRaw.trim()
-      if (!newName || newName === ctx.node.name) return
-      if (ctx.node.type === 'folder') {
-        try {
-          await folderStore.renameFolder(ctx.node.id, newName)
-        } catch (_e) {
-          await dialog.alert(t.errors.renameFolderFailed)
-        }
-      }
+      await treeActions.createNewFolder(parentId || undefined)
+    } else if (action === 'rename' && ctx.node?.type === 'folder') {
+      await treeActions.renameFolderNode(ctx.node)
     } else if (action === 'delete' && ctx.node) {
-      const ok = await dialog.confirm(t.tree.confirmDelete(ctx.node.name), {
-        danger: true,
-        confirmLabel: t.tree.delete
-      })
-      if (!ok) return
-      if (ctx.node.type === 'folder') {
-        try {
-          await folderStore.deleteFolder(ctx.node.id)
-          // Tag refresh and tree refresh handled by SSE 'tree-updated' event.
-        } catch (_e) {
-          await dialog.alert(t.errors.deleteFolderFailed)
-        }
-      } else if (ctx.node.slug) {
-        try {
-          await pagesApi.deletePage(ctx.node.slug)
-          if (activeSlug.value === ctx.node.slug) router.push('/')
-          await folderStore.fetchTree(true)
-        } catch (_e) {
-          await dialog.alert(t.errors.deletePageFailed)
-        }
-      }
+      await treeActions.deleteNode(ctx.node)
     }
   } catch (e) {
     console.error('Context action failed:', e)
@@ -222,36 +108,17 @@ async function onContextAction(action: string) {
 }
 
 async function onDeleteNode(node: FolderTreeNode) {
-  const ok = await dialog.confirm(t.tree.confirmDelete(node.name), {
-    danger: true,
-    confirmLabel: t.tree.delete
-  })
-  if (!ok) return
-  try {
-    if (node.type === 'folder') {
-      await folderStore.deleteFolder(node.id)
-    } else if (node.slug) {
-      await pagesApi.deletePage(node.slug)
-      if (activeSlug.value === node.slug) router.push('/')
-      await folderStore.fetchTree(true)
-    }
-  } catch (e) {
-    console.error('Delete node failed:', e)
-    await dialog.alert(
-      node.type === 'folder' ? t.errors.deleteFolderFailed : t.errors.deletePageFailed
-    )
-  }
+  await treeActions.deleteNode(node)
 }
 
 async function onAddPageToFolder(folderId: string) {
-  await createNewPage(folderId)
+  await treeActions.createNewPage(folderId)
 }
 
 async function onAddSubfolder(parentId: string) {
-  await createNewFolder(parentId)
+  await treeActions.createNewFolder(parentId)
 }
 
-// Drag & drop on root (move to root level)
 const rootDragOver = ref(false)
 
 watch(
@@ -265,9 +132,9 @@ function onRootDragOver(e: DragEvent) {
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
   rootDragOver.value = true
-  const t = e.target as HTMLElement | null
+  const target = e.target as HTMLElement | null
   dndLogDragOverThrottled('root:document-tree', {
-    eventTarget: t?.className ?? t?.tagName,
+    eventTarget: target?.className ?? target?.tagName
   })
 }
 
@@ -276,7 +143,9 @@ function onRootDragLeave(e: DragEvent) {
   const rel = e.relatedTarget as Node | null
   if (rel && cur.contains(rel)) return
   if (rel === null) return
-  dndLog('root dragleave (left tree)', { relatedTag: 'tagName' in rel ? (rel as HTMLElement).tagName : null })
+  dndLog('root dragleave (left tree)', {
+    relatedTag: 'tagName' in rel ? (rel as HTMLElement).tagName : null
+  })
   rootDragOver.value = false
 }
 
@@ -287,54 +156,30 @@ async function onRootDrop(e: DragEvent) {
   dndLog('root drop (raw)', {
     rawLength: raw.length,
     raw: raw.slice(0, 200),
-    types: e.dataTransfer ? [...e.dataTransfer.types] : [],
+    types: e.dataTransfer ? [...e.dataTransfer.types] : []
   })
+  const data = parseDndPayload(raw)
+  dndLog('root drop (parsed)', { data })
+  if (!data) return
   try {
-    const data = JSON.parse(raw || '{}') as { type?: string; slug?: string; id?: string }
-    dndLog('root drop (parsed)', { data })
-    if (data.type === 'page' && data.slug) {
+    if (data.type === 'page') {
       dndLog('root drop → movePage', { slug: data.slug, toRoot: true })
-      await folderStore.movePage(data.slug, null)
-    } else if (data.type === 'folder' && data.id) {
+      await movePage(data.slug, null)
+    } else if (data.type === 'folder') {
       dndLog('root drop → moveFolder', { folderId: data.id, toRoot: true })
       await folderStore.moveFolder(data.id, null)
-    } else {
-      dndLog('root drop (no-op)', { data })
     }
   } catch (err) {
-    dndLog('root drop (parse or api error)', { message: err instanceof Error ? err.message : String(err), raw })
+    dndLog('root drop (api error)', { message: err instanceof Error ? err.message : String(err) })
   }
 }
-
-onMounted(async () => {
-  await folderStore.fetchTree()
-  void refreshWikilinkPreviewIndex()
-  await refreshTagData()
-  connectTreeEvents()
-})
-
-onBeforeUnmount(() => {
-  isMounted = false
-  disconnectTreeEvents()
-  if (treeReconnectTimer) {
-    clearTimeout(treeReconnectTimer)
-    treeReconnectTimer = null
-  }
-  if (refreshDebounceTimer) {
-    clearTimeout(refreshDebounceTimer)
-    refreshDebounceTimer = null
-  }
-})
 
 async function refreshTree() {
   if (treeRefreshInFlight) return
   treeRefreshInFlight = true
   try {
-    await Promise.all([
-      folderStore.fetchTree(true),
-      refreshWikilinkPreviewIndex(true),
-      refreshTagData(true)
-    ])
+    invalidatePageIndex()
+    await Promise.all([folderStore.fetchTree(true), refreshTagData(true)])
   } catch (error) {
     console.error('Failed to refresh tree', error)
   } finally {
@@ -342,47 +187,12 @@ async function refreshTree() {
   }
 }
 
-let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null
-const REFRESH_DEBOUNCE_MS = 300
+useTreeSse({ onTreeUpdated: refreshTree })
 
-function onTreeUpdated() {
-  // Debounce SSE-driven refreshes to avoid redundant API calls when multiple
-  // events arrive in quick succession (e.g. bulk operations).
-  if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer)
-  refreshDebounceTimer = setTimeout(() => {
-    refreshDebounceTimer = null
-    refreshTree()
-  }, REFRESH_DEBOUNCE_MS)
-}
-
-function onTreeError() {
-  disconnectTreeEvents()
-  if (treeReconnectTimer) return
-  treeReconnectTimer = setTimeout(() => {
-    treeReconnectTimer = null
-    if (!isMounted) return
-    connectTreeEvents()
-  }, TREE_EVENTS_RECONNECT_MS)
-}
-
-function connectTreeEvents() {
-  const token = auth.token || localStorage.getItem('token')
-  if (!token) return
-
-  disconnectTreeEvents()
-
-  treeEventsSource = createTreeEventsSource(token)
-  treeEventsSource.addEventListener('tree-updated', onTreeUpdated)
-  treeEventsSource.onerror = onTreeError
-}
-
-function disconnectTreeEvents() {
-  if (!treeEventsSource) return
-  treeEventsSource.removeEventListener('tree-updated', onTreeUpdated)
-  treeEventsSource.onerror = null
-  treeEventsSource.close()
-  treeEventsSource = null
-}
+onMounted(async () => {
+  await folderStore.fetchTree()
+  await refreshTagData()
+})
 </script>
 
 <template>
@@ -396,10 +206,10 @@ function disconnectTreeEvents() {
     <div class="tree-header">
       <span class="tree-title">{{ t.tree.documents }}</span>
       <div v-if="auth.isEditor" class="tree-actions">
-        <button class="tree-action-btn" :title="t.tree.newPage" @click.stop="createNewPage()">
+        <button class="tree-action-btn" :title="t.tree.newPage" @click.stop="treeActions.createNewPage()">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 1h7l3 3v11H3V1z" stroke="currentColor" stroke-width="1.3"/><path d="M5 9h6M8 6v6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         </button>
-        <button class="tree-action-btn" :title="t.tree.newFolder" @click.stop="createNewFolder()">
+        <button class="tree-action-btn" :title="t.tree.newFolder" @click.stop="treeActions.createNewFolder()">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 3h5l2 2h7v9H1V3z" stroke="currentColor" stroke-width="1.3"/><path d="M5 9h6M8 6.5v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         </button>
       </div>

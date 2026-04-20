@@ -21,5 +21,5 @@ export function uploadAttachment(file: File) {
 }
 
 export function deleteAttachment(id: string) {
-  return client.delete(`/attachments/${id}`)
+  return client.delete<void>(`/attachments/${id}`)
 }

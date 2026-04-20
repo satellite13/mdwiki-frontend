@@ -11,10 +11,3 @@ export function stripMarkdownFrontmatter(markdown: string): string {
   if (!m) return src
   return src.slice(m.index + m[0].length).replace(/^[\r\n]+/, '')
 }
-
-/** Сырой YAML между ограждениями, или `null`. */
-export function extractYamlInner(markdown: string): string | null {
-  const m = FRONTMATTER_FENCE.exec(markdown ?? '')
-  if (!m) return null
-  return m[1].trim()
-}

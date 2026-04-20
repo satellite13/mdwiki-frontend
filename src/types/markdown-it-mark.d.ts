@@ -1,6 +1,6 @@
 declare module 'markdown-it-mark' {
   import type { PluginWithOptions } from 'markdown-it'
 
-  const markdownItMark: PluginWithOptions<any>
+  const markdownItMark: PluginWithOptions<unknown>
   export default markdownItMark
 }

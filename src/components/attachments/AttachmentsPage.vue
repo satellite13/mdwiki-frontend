@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import * as attachmentsApi from '@/api/attachments'
 import type { Attachment } from '@/types'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
@@ -19,7 +20,7 @@ async function fetchAttachments() {
     const { data } = await attachmentsApi.listAttachments()
     attachments.value = data
   } catch (e) {
-    console.error('Failed to load attachments:', e)
+    await dialog.alert(getApiErrorMessage(e, t.errors.loadAttachmentsFailed))
   } finally {
     loading.value = false
   }
@@ -34,8 +35,7 @@ async function handleFiles(files: FileList | null) {
     }
     await fetchAttachments()
   } catch (e) {
-    console.error('Upload failed:', e)
-    await dialog.alert(t.errors.uploadFailed)
+    await dialog.alert(getApiErrorMessage(e, t.errors.uploadFailed))
   } finally {
     uploading.value = false
   }
@@ -70,8 +70,7 @@ async function deleteAttachment(att: Attachment) {
     await attachmentsApi.deleteAttachment(att.id)
     await fetchAttachments()
   } catch (e) {
-    console.error('Delete failed:', e)
-    await dialog.alert(t.errors.deleteAttachmentFailed)
+    await dialog.alert(getApiErrorMessage(e, t.errors.deleteAttachmentFailed))
   }
 }
 

@@ -1,12 +1,8 @@
 import type { Ref } from 'vue'
-import axios from 'axios'
 import type { Router } from 'vue-router'
 import * as pagesApi from '@/api/pages'
-import {
-  refreshWikilinkPreviewIndex,
-  getWikilinkPreviewPages,
-  slugCandidatesForNavigation
-} from '@/utils/wikilinkResolve'
+import { getPages, slugCandidatesForNavigation } from '@/services/pageIndex'
+import { isApiErrorWithStatus } from '@/utils/apiError'
 import type { Backlink, Page } from '@/types'
 
 type LoaderState = {
@@ -38,8 +34,8 @@ export function usePageLoader(
     deps.onLoadStart?.()
     state.page.value = null
 
-    await refreshWikilinkPreviewIndex()
-    const tryOrder = slugCandidatesForNavigation(slugParam, getWikilinkPreviewPages())
+    const pages = await getPages()
+    const tryOrder = slugCandidatesForNavigation(slugParam, pages)
 
     let loaded: Page | null = null
     let resolvedSlug = slugParam
@@ -54,7 +50,7 @@ export function usePageLoader(
         }
         break
       } catch (e) {
-        if (!axios.isAxiosError(e) || e.response?.status !== 404) {
+        if (!isApiErrorWithStatus(e, 404)) {
           state.loading.value = false
           return
         }
