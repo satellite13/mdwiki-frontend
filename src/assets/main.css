@@ -37,6 +37,32 @@
   --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
 }
 
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined" !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  font-variant-ligatures: normal !important;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
 /* ---- Reset & Base ---- */
 
 *, *::before, *::after {
@@ -48,6 +74,8 @@
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
 }
 
 body {
@@ -296,4 +324,167 @@ body > div:has(.cm-tooltip) {
   --color-wikilink-missing: #ff6b6b;
   --color-tag: #fcc419;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- Markdown code highlighting (highlight.js) ---- */
+
+.markdown-body .hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 12px;
+  background: #f6f8fa;
+  color: #24292f;
+}
+
+.markdown-body :not(pre) > code {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+
+.markdown-body .hljs-comment,
+.markdown-body .hljs-quote {
+  color: #6e7781;
+  font-style: italic;
+}
+
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-selector-tag,
+.markdown-body .hljs-subst {
+  color: #cf222e;
+}
+
+.markdown-body .hljs-number,
+.markdown-body .hljs-literal,
+.markdown-body .hljs-variable,
+.markdown-body .hljs-template-variable,
+.markdown-body .hljs-tag .hljs-attr {
+  color: #0550ae;
+}
+
+.markdown-body .hljs-string,
+.markdown-body .hljs-doctag {
+  color: #0a7f38;
+}
+
+.markdown-body .hljs-title,
+.markdown-body .hljs-section,
+.markdown-body .hljs-selector-id {
+  color: #8250df;
+}
+
+.markdown-body .hljs-type,
+.markdown-body .hljs-class .hljs-title {
+  color: #9a6700;
+}
+
+.markdown-body .hljs-tag,
+.markdown-body .hljs-name,
+.markdown-body .hljs-attribute {
+  color: #116329;
+}
+
+.markdown-body .hljs-regexp,
+.markdown-body .hljs-link {
+  color: #0a3069;
+}
+
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-builtin-name {
+  color: #953800;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--color-border);
+  padding: 8px 10px;
+}
+
+.markdown-body th {
+  background: var(--color-bg-secondary);
+}
+
+.markdown-body .mermaid {
+  text-align: center;
+  overflow-x: auto;
+}
+
+.markdown-body .mermaid svg {
+  display: block;
+  margin: 0 auto;
+}
+
+[data-theme="dark"] .markdown-body .hljs {
+  background: #272822;
+  color: #f8f8f2;
+}
+
+[data-theme="dark"] .markdown-body :not(pre) > code {
+  background: #2b2d31;
+  border-color: #3a3f45;
+  color: #f8f8f2;
+}
+
+[data-theme="dark"] .markdown-body .hljs-comment,
+[data-theme="dark"] .markdown-body .hljs-quote {
+  color: #75715e;
+  font-style: italic;
+}
+
+[data-theme="dark"] .markdown-body .hljs-keyword,
+[data-theme="dark"] .markdown-body .hljs-selector-tag,
+[data-theme="dark"] .markdown-body .hljs-subst {
+  color: #f92672;
+}
+
+[data-theme="dark"] .markdown-body .hljs-number,
+[data-theme="dark"] .markdown-body .hljs-literal,
+[data-theme="dark"] .markdown-body .hljs-variable,
+[data-theme="dark"] .markdown-body .hljs-template-variable,
+[data-theme="dark"] .markdown-body .hljs-tag .hljs-attr {
+  color: #ae81ff;
+}
+
+[data-theme="dark"] .markdown-body .hljs-string,
+[data-theme="dark"] .markdown-body .hljs-doctag {
+  color: #e6db74;
+}
+
+[data-theme="dark"] .markdown-body .hljs-title,
+[data-theme="dark"] .markdown-body .hljs-section,
+[data-theme="dark"] .markdown-body .hljs-selector-id {
+  color: #a6e22e;
+}
+
+[data-theme="dark"] .markdown-body .hljs-type,
+[data-theme="dark"] .markdown-body .hljs-class .hljs-title {
+  color: #66d9ef;
+}
+
+[data-theme="dark"] .markdown-body .hljs-tag,
+[data-theme="dark"] .markdown-body .hljs-name,
+[data-theme="dark"] .markdown-body .hljs-attribute {
+  color: #f92672;
+}
+
+[data-theme="dark"] .markdown-body .hljs-regexp,
+[data-theme="dark"] .markdown-body .hljs-link {
+  color: #fd971f;
+}
+
+[data-theme="dark"] .markdown-body .hljs-built_in,
+[data-theme="dark"] .markdown-body .hljs-builtin-name {
+  color: #66d9ef;
 }

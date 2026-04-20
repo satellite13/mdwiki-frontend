@@ -1,29 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
-import { EditorContent, useEditor } from '@tiptap/vue-3'
-import { Extension, Mark, mergeAttributes } from '@tiptap/core'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
-import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
-import Link from '@tiptap/extension-link'
-import Image from '@tiptap/extension-image'
-import Placeholder from '@tiptap/extension-placeholder'
-import { Table } from '@tiptap/extension-table'
-import TableRow from '@tiptap/extension-table-row'
-import TableCell from '@tiptap/extension-table-cell'
-import TableHeader from '@tiptap/extension-table-header'
-import Highlight from '@tiptap/extension-highlight'
-import TaskList from '@tiptap/extension-task-list'
-import TaskItem from '@tiptap/extension-task-item'
-import Subscript from '@tiptap/extension-subscript'
-import Superscript from '@tiptap/extension-superscript'
-import Suggestion from '@tiptap/suggestion'
 import MarkdownIt from 'markdown-it'
 import markdownItMark from 'markdown-it-mark'
-import TurndownService from 'turndown'
-import { gfm } from 'turndown-plugin-gfm'
+import markdownItTaskLists from 'markdown-it-task-lists'
+import markdownItAnchor from 'markdown-it-anchor'
+import markdownItSub from 'markdown-it-sub'
+import markdownItSup from 'markdown-it-sup'
+import hljs from 'highlight.js'
+import mermaid from 'mermaid'
 import { useThemeStore } from '@/stores/theme'
 import { uploadAttachment } from '@/api/attachments'
 import { listPages } from '@/api/pages'
@@ -33,10 +18,56 @@ import { readWikilinkPagesCache, writeWikilinkPagesCache } from '@/utils/wikilin
 import { wikilinkPreviewHref } from '@/utils/wikilinkResolve'
 import type { PageListItem } from '@/types'
 
+const EDITOR_MODE_LS_KEY = 'mdwiki-editor-mode'
+const SPLIT_RATIO_LS_KEY = 'mdwiki-editor-split-ratio'
+const TABLE_GRID_MAX = 8
 const WIKI_REGEX = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g
-const FRONTMATTER_FENCE =
-  /^\uFEFF?---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m
 const TAG_REGEX = /(?:^|\s)#([\w\u0400-\u04FF-]+)/g
+
+const EMOJI_ITEMS = [
+  '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
+  '🙂', '😉', '😍', '😘', '😗', '😚', '😋', '😎',
+  '🤩', '🤔', '🫠', '😐', '😑', '🙄', '😴', '🤯',
+  '🥳', '😭', '😡', '👍', '👎', '👏', '🙏', '🔥',
+  '✨', '💡', '🎯', '✅', '❌', '⚠️', '🚀', '📌',
+  '📎', '📷', '🧠', '🔧', '📝', '💬', '🌟', '💯'
+]
+
+function readEditorModePref(): 'editor' | 'split' | 'preview' {
+  try {
+    const value = localStorage.getItem(EDITOR_MODE_LS_KEY)
+    if (value === 'editor' || value === 'split' || value === 'preview') return value
+  } catch {
+    // ignore
+  }
+  return 'split'
+}
+
+function writeEditorModePref(value: 'editor' | 'split' | 'preview') {
+  try {
+    localStorage.setItem(EDITOR_MODE_LS_KEY, value)
+  } catch {
+    // ignore
+  }
+}
+
+function readSplitRatioPref(): number {
+  try {
+    const raw = Number(localStorage.getItem(SPLIT_RATIO_LS_KEY) || '50')
+    if (Number.isFinite(raw)) return Math.min(75, Math.max(25, raw))
+  } catch {
+    // ignore
+  }
+  return 50
+}
+
+function writeSplitRatioPref(value: number) {
+  try {
+    localStorage.setItem(SPLIT_RATIO_LS_KEY, String(Math.round(value)))
+  } catch {
+    // ignore
+  }
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -46,305 +77,81 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function splitFrontmatter(markdown: string): { frontmatter: string; body: string } {
-  const src = markdown ?? ''
-  const match = FRONTMATTER_FENCE.exec(src)
-  if (!match) return { frontmatter: '', body: src }
-  const body = src.slice(match.index + match[0].length).replace(/^[\r\n]+/, '')
-  return { frontmatter: match[0].trimEnd(), body }
+function frontmatterStripPlugin(md: MarkdownIt) {
+  md.core.ruler.before('normalize', 'mdwiki_strip_frontmatter', (state) => {
+    state.src = stripMarkdownFrontmatter(state.src)
+  })
 }
 
-function joinFrontmatter(frontmatter: string, body: string): string {
-  const cleanBody = body.trim()
-  if (!frontmatter) return cleanBody
-  if (!cleanBody) return `${frontmatter}\n`
-  return `${frontmatter}\n\n${cleanBody}`
-}
-
-function toWikilinkInner(page: PageListItem): string {
-  const slug = page.slug.trim()
-  const normalizedTitle = normalizePageSlug(page.title)
-  if (normalizedTitle === slug) {
-    return page.title.replace(/\]/g, '')
+function wikilinkPlugin(md: MarkdownIt) {
+  const prev = md.renderer.rules.text
+  md.renderer.rules.text = (tokens, idx, options, env, self) => {
+    const source = prev ? prev(tokens, idx, options, env, self) : tokens[idx].content
+    return source.replace(WIKI_REGEX, (_m, slugRaw: string, labelRaw?: string) => {
+      const slug = slugRaw.trim()
+      const label = (labelRaw?.trim() || slug).trim()
+      const href = wikilinkPreviewHref(slug)
+      return `<a href="${escapeHtml(href)}" class="wikilink" data-wikilink="1" data-slug="${escapeHtml(slug)}">${escapeHtml(label)}</a>`
+    })
   }
-  return `${slug}|${page.title.replace(/\]/g, '').replace(/\|/g, ' ')}`
 }
 
-async function getCachedPages(): Promise<PageListItem[]> {
-  const now = Date.now()
-  const cache = readWikilinkPagesCache(now)
-  if (cache) return cache
-  const { data } = await listPages()
-  writeWikilinkPagesCache(data, now)
-  return data
+function tagPlugin(md: MarkdownIt) {
+  const prev = md.renderer.rules.text
+  md.renderer.rules.text = (tokens, idx, options, env, self) => {
+    const source = prev ? prev(tokens, idx, options, env, self) : tokens[idx].content
+    return source.replace(TAG_REGEX, (full: string, tag: string) => {
+      const prefix = full.startsWith(' ') ? ' ' : ''
+      return `${prefix}<span class="hashtag">#${escapeHtml(tag)}</span>`
+    })
+  }
 }
 
-function matchesQuery(page: PageListItem, query: string): boolean {
-  const q = query.toLowerCase()
-  return (
-    page.title.toLowerCase().includes(q) ||
-    page.slug.toLowerCase().includes(q) ||
-    normalizePageSlug(page.title).includes(q)
-  )
-}
-
-const WikilinkMark = Mark.create({
-  name: 'wikilink',
-  inclusive: false,
-  addAttributes() {
-    return {
-      slug: { default: '' },
-      label: { default: '' },
-      href: { default: '' }
+function mermaidFencePlugin(md: MarkdownIt) {
+  const defaultFence = md.renderer.rules.fence
+  md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+    const token = tokens[idx]
+    const info = (token.info || '').trim().toLowerCase()
+    if (info === 'mermaid') {
+      return `<div class="mermaid">${escapeHtml(token.content)}</div>`
     }
-  },
-  parseHTML() {
-    return [{ tag: 'a[data-wikilink]' }]
-  },
-  renderHTML({ HTMLAttributes }) {
-    const slug = String(HTMLAttributes.slug || '').trim()
-    const label = String(HTMLAttributes.label || '').trim()
-    const href = String(HTMLAttributes.href || wikilinkPreviewHref(slug || label))
-    return [
-      'a',
-      mergeAttributes(HTMLAttributes, {
-        'data-wikilink': '1',
-        href,
-        class: 'wikilink'
-      }),
-      0
-    ]
+    if (defaultFence) return defaultFence(tokens, idx, options, env, self)
+    return self.renderToken(tokens, idx, options)
   }
-})
-
-type WikilinkSuggestionItem = {
-  title: string
-  slug: string
-  inner: string
 }
-
-const WikilinkSuggestion = Extension.create({
-  name: 'wikilinkSuggestion',
-  addProseMirrorPlugins() {
-    const key = new PluginKey('wikilinkSuggestion')
-    return [
-      Suggestion<WikilinkSuggestionItem>({
-        editor: this.editor,
-        pluginKey: key,
-        allow: ({ state, range }) => {
-          if (range.from < 2) return false
-          const before = state.doc.textBetween(range.from - 2, range.from, '\0', '\0')
-          return before === '[['
-        },
-        char: '[',
-        items: async ({ query }) => {
-          const pages = await getCachedPages()
-          const filtered = query.trim()
-            ? pages.filter((p) => matchesQuery(p, query.trim()))
-            : pages
-          return filtered
-            .slice()
-            .sort((a, b) => a.title.localeCompare(b.title, 'ru', { sensitivity: 'base' }))
-            .slice(0, 8)
-            .map((p) => ({ title: p.title, slug: p.slug, inner: toWikilinkInner(p) }))
-        },
-        command: ({ editor, range, props }) => {
-          const from = Math.max(0, range.from - 1)
-          const to = range.to
-          const label = props.title
-          const slug = props.slug
-          editor
-            .chain()
-            .focus()
-            .deleteRange({ from, to })
-            .insertContent({
-              type: 'text',
-              text: label,
-              marks: [
-                {
-                  type: 'wikilink',
-                  attrs: {
-                    slug,
-                    label,
-                    href: wikilinkPreviewHref(slug)
-                  }
-                }
-              ]
-            })
-            .run()
-        },
-        render: () => {
-          let root: HTMLDivElement | null = null
-          let activeIndex = 0
-          let lastProps: {
-            items: WikilinkSuggestionItem[]
-            command: (item: WikilinkSuggestionItem) => void
-            clientRect?: (() => DOMRect | null) | null
-          } | null = null
-
-          const place = () => {
-            if (!root || !lastProps?.clientRect) return
-            const rect = lastProps.clientRect()
-            if (!rect) return
-            root.style.left = `${rect.left + window.scrollX}px`
-            root.style.top = `${rect.bottom + window.scrollY + 8}px`
-          }
-
-          const repaint = () => {
-            if (!root || !lastProps) return
-            root.innerHTML = ''
-            if (lastProps.items.length === 0) {
-              const empty = document.createElement('div')
-              empty.className = 'wikilink-suggestion-empty'
-              empty.textContent = 'No pages found'
-              root.appendChild(empty)
-              return
-            }
-            lastProps.items.forEach((item, idx) => {
-              const btn = document.createElement('button')
-              btn.type = 'button'
-              btn.className = 'wikilink-suggestion-item'
-              if (idx === activeIndex) btn.classList.add('is-active')
-              btn.innerHTML = `<span>${escapeHtml(item.title)}</span><small>${escapeHtml(item.slug)}</small>`
-              btn.onmousedown = (event) => {
-                event.preventDefault()
-                lastProps?.command(item)
-              }
-              root?.appendChild(btn)
-            })
-          }
-
-          return {
-            onStart: (props) => {
-              activeIndex = 0
-              lastProps = props
-              root = document.createElement('div')
-              root.className = 'wikilink-suggestion'
-              document.body.appendChild(root)
-              place()
-              repaint()
-            },
-            onUpdate: (props) => {
-              activeIndex = 0
-              lastProps = props
-              place()
-              repaint()
-            },
-            onKeyDown: (props) => {
-              if (!lastProps) return false
-              if (props.event.key === 'Escape') return true
-              if (props.event.key === 'ArrowDown') {
-                props.event.preventDefault()
-                activeIndex = Math.min(activeIndex + 1, Math.max(0, lastProps.items.length - 1))
-                repaint()
-                return true
-              }
-              if (props.event.key === 'ArrowUp') {
-                props.event.preventDefault()
-                activeIndex = Math.max(activeIndex - 1, 0)
-                repaint()
-                return true
-              }
-              if (props.event.key === 'Enter') {
-                props.event.preventDefault()
-                const item = lastProps.items[activeIndex]
-                if (item) {
-                  lastProps.command(item)
-                  return true
-                }
-              }
-              return false
-            },
-            onExit: () => {
-              root?.remove()
-              root = null
-              lastProps = null
-            }
-          }
-        }
-      })
-    ]
-  }
-})
-
-const HashtagHighlight = Extension.create({
-  name: 'hashtagHighlight',
-  addProseMirrorPlugins() {
-    const key = new PluginKey('hashtagHighlight')
-    return [
-      new Plugin({
-        key,
-        state: {
-          init: (_, { doc }) => {
-            const decorations: Decoration[] = []
-            doc.descendants((node, pos) => {
-              if (!node.isText || !node.text) return
-              const text = node.text
-              TAG_REGEX.lastIndex = 0
-              let match: RegExpExecArray | null = TAG_REGEX.exec(text)
-              while (match) {
-                const offset = match[0].startsWith(' ') ? 1 : 0
-                const from = pos + match.index + offset
-                const to = from + `#${match[1]}`.length
-                decorations.push(Decoration.inline(from, to, { class: 'hashtag' }))
-                match = TAG_REGEX.exec(text)
-              }
-            })
-            return DecorationSet.create(doc, decorations)
-          },
-          apply: (tr, oldState, _oldEditorState, newEditorState) => {
-            if (!tr.docChanged) return oldState
-            const decorations: Decoration[] = []
-            newEditorState.doc.descendants((node, pos) => {
-              if (!node.isText || !node.text) return
-              const text = node.text
-              TAG_REGEX.lastIndex = 0
-              let match: RegExpExecArray | null = TAG_REGEX.exec(text)
-              while (match) {
-                const offset = match[0].startsWith(' ') ? 1 : 0
-                const from = pos + match.index + offset
-                const to = from + `#${match[1]}`.length
-                decorations.push(Decoration.inline(from, to, { class: 'hashtag' }))
-                match = TAG_REGEX.exec(text)
-              }
-            })
-            return DecorationSet.create(newEditorState.doc, decorations)
-          }
-        },
-        props: {
-          decorations(state) {
-            return this.getState(state)
-          }
-        }
-      })
-    ]
-  }
-})
 
 const md = new MarkdownIt({
   html: true,
   breaks: true,
-  linkify: true
-}).use(markdownItMark)
-
-const turndown = new TurndownService({
-  bulletListMarker: '-',
-  headingStyle: 'atx',
-  codeBlockStyle: 'fenced'
-})
-turndown.use(gfm)
-
-turndown.addRule('wikilink', {
-  filter: (node) => node.nodeName === 'A' && node instanceof HTMLElement && node.dataset.wikilink === '1',
-  replacement: (content, node) => {
-    if (!(node instanceof HTMLElement)) return content
-    const slug = (node.dataset.slug || '').trim()
-    const label = (node.dataset.label || content || '').trim()
-    if (!slug) return label
-    if (!label || label === slug) return `[[${slug}]]`
-    return `[[${slug}|${label.replace(/\]/g, '').replace(/\|/g, ' ')}]]`
+  linkify: true,
+  highlight(code: string, lang: string) {
+    const hasLanguage = !!lang && hljs.getLanguage(lang)
+    const highlighted = hasLanguage
+      ? hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
+      : hljs.highlightAuto(code).value
+    return `<pre><code class="hljs${lang ? ` language-${escapeHtml(lang)}` : ''}">${highlighted}</code></pre>`
   }
 })
+  .use(markdownItMark)
+  .use(markdownItTaskLists, { enabled: false, label: true, labelAfter: true })
+  .use(markdownItSub)
+  .use(markdownItSup)
+  .use(markdownItAnchor, {
+    level: [1, 2, 3, 4, 5, 6],
+    slugify: (s) => normalizePageSlug(s) || 'section',
+    permalink: markdownItAnchor.permalink.headerLink({
+      safariReaderFix: true,
+      symbol: '#',
+      renderAttrs: () => ({
+        class: 'heading-anchor',
+        'aria-label': 'Ссылка на раздел'
+      })
+    })
+  })
+  .use(frontmatterStripPlugin)
+  .use(wikilinkPlugin)
+  .use(tagPlugin)
+  .use(mermaidFencePlugin)
 
 const props = defineProps<{
   modelValue: string
@@ -356,141 +163,471 @@ const emit = defineEmits<{
 }>()
 
 const themeStore = useThemeStore()
+
 const uploadError = ref('')
 const uploadInput = ref<HTMLInputElement | null>(null)
-const editorMode = ref<'editor' | 'split' | 'preview'>('editor')
-const frontmatterRef = ref('')
-const bodyMarkdownRef = ref('')
-const syncingFromProps = ref(false)
-const lastEmittedValue = ref(props.modelValue)
+const editorRef = ref<HTMLTextAreaElement | null>(null)
+const splitShellRef = ref<HTMLElement | null>(null)
+const previewPaneRef = ref<HTMLElement | null>(null)
+const headingMenuRef = ref<HTMLElement | null>(null)
+const tableMenuRef = ref<HTMLElement | null>(null)
+const emojiMenuRef = ref<HTMLElement | null>(null)
 
-function wikilinkTextToHtml(markdownBody: string): string {
-  return markdownBody.replace(WIKI_REGEX, (_match, slugRaw: string, labelRaw?: string) => {
-    const slug = slugRaw.trim()
-    const label = (labelRaw?.trim() || slug).trim()
-    const href = wikilinkPreviewHref(slug)
-    return `<a data-wikilink="1" data-slug="${escapeHtml(slug)}" data-label="${escapeHtml(label)}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`
-  })
-}
+const editorMode = ref<'editor' | 'split' | 'preview'>(readEditorModePref())
+const splitRatio = ref(readSplitRatioPref())
+const splitDragging = ref(false)
+const markdownValue = ref(props.modelValue)
 
-function markdownToHtml(markdownBody: string): string {
-  const noFrontmatter = stripMarkdownFrontmatter(markdownBody)
-  return md.render(wikilinkTextToHtml(noFrontmatter))
-}
+const historyStack = ref<string[]>([props.modelValue])
+const historyIndex = ref(0)
+const applyingHistory = ref(false)
 
-function htmlToMarkdown(html: string): string {
-  return turndown.turndown(html).trim()
-}
+const headingMenuOpen = ref(false)
+const tableMenuOpen = ref(false)
+const emojiMenuOpen = ref(false)
+const tableHoverCols = ref(1)
+const tableHoverRows = ref(1)
 
-function syncFromModel(markdown: string) {
-  const { frontmatter, body } = splitFrontmatter(markdown)
-  frontmatterRef.value = frontmatter
-  bodyMarkdownRef.value = body
-  const instance = editor.value
-  if (!instance) return
-  syncingFromProps.value = true
-  instance.commands.setContent(markdownToHtml(body), { emitUpdate: false })
-  nextTick(() => {
-    syncingFromProps.value = false
-  })
-}
-
-const editor = useEditor({
-  content: '',
-  editable: true,
-  extensions: [
-    StarterKit.configure({
-      link: false
-    }),
-    Link.configure({
-      openOnClick: false,
-      autolink: true,
-      protocols: ['http', 'https', 'mailto']
-    }),
-    Image.configure({
-      allowBase64: false
-    }),
-    Underline,
-    Highlight,
-    TaskList,
-    TaskItem.configure({
-      nested: true
-    }),
-    Subscript,
-    Superscript,
-    Placeholder.configure({
-      placeholder: 'Write your page...'
-    }),
-    Table.configure({
-      resizable: true
-    }),
-    TableRow,
-    TableHeader,
-    TableCell,
-    WikilinkMark,
-    WikilinkSuggestion,
-    HashtagHighlight,
-    Extension.create({
-      name: 'saveShortcut',
-      addKeyboardShortcuts() {
-        return {
-          'Mod-s': () => {
-            emit('save')
-            return true
-          }
-        }
-      }
-    })
-  ],
-  onUpdate: ({ editor: tiptap }) => {
-    if (syncingFromProps.value) return
-    bodyMarkdownRef.value = htmlToMarkdown(tiptap.getHTML())
-    const joined = joinFrontmatter(frontmatterRef.value, bodyMarkdownRef.value)
-    lastEmittedValue.value = joined
-    emit('update:modelValue', joined)
-  }
+const wikilinkOpen = ref(false)
+const wikilinkItems = ref<PageListItem[]>([])
+const wikilinkSelected = ref(0)
+const wikilinkFrom = ref(0)
+const wikilinkTo = ref(0)
+const wikilinkRequestId = ref(0)
+const wikilinkMenuStyle = ref<Record<string, string>>({
+  left: '8px',
+  top: '8px',
+  width: '320px'
 })
 
-const previewHtml = computed(() => markdownToHtml(bodyMarkdownRef.value))
+let suppressEditorScrollUntil = 0
+let suppressPreviewScrollUntil = 0
+let pointerMoveHandler: ((event: MouseEvent) => void) | null = null
+let pointerUpHandler: (() => void) | null = null
+const copyFeedbackTimers = new WeakMap<HTMLButtonElement, number>()
+
+const previewHtml = computed(() => md.render(markdownValue.value))
+const canUndo = computed(() => historyIndex.value > 0)
+const canRedo = computed(() => historyIndex.value < historyStack.value.length - 1)
+const emojiItems = computed(() => EMOJI_ITEMS)
+const editorShellStyle = computed(() =>
+  editorMode.value === 'split'
+    ? { gridTemplateColumns: `${splitRatio.value}% 8px minmax(0, 1fr)` }
+    : undefined
+)
 
 watch(
   () => props.modelValue,
   (value) => {
-    if (value === lastEmittedValue.value) return
-    syncFromModel(value)
+    if (value === markdownValue.value) return
+    markdownValue.value = value
+    if (applyingHistory.value) return
+    historyStack.value = [value]
+    historyIndex.value = 0
   },
-  { immediate: true }
+  { flush: 'sync' }
 )
 
-onBeforeUnmount(() => {
-  editor.value?.destroy()
+watch(editorMode, (value) => {
+  writeEditorModePref(value)
+  closeAllMenus()
+  closeWikilinkSuggestions()
+  nextTick(() => {
+    void renderMermaid()
+  })
 })
+
+watch(previewHtml, async () => {
+  await nextTick()
+  await renderMermaid()
+})
+
+watch(
+  () => themeStore.isDark,
+  async () => {
+    await nextTick()
+    await renderMermaid()
+  }
+)
+
+function pushHistory(value: string) {
+  if (applyingHistory.value) return
+  if (historyStack.value[historyIndex.value] === value) return
+  const next = historyStack.value.slice(0, historyIndex.value + 1)
+  next.push(value)
+  historyStack.value = next.slice(-300)
+  historyIndex.value = historyStack.value.length - 1
+}
+
+function applyValue(value: string, options?: { keepHistory?: boolean }) {
+  markdownValue.value = value
+  emit('update:modelValue', value)
+  if (!options?.keepHistory) pushHistory(value)
+}
 
 function setMode(mode: 'editor' | 'split' | 'preview') {
   editorMode.value = mode
 }
 
-function isActive(name: string, attrs?: Record<string, unknown>) {
-  return editor.value?.isActive(name, attrs) ?? false
+function undo() {
+  if (!canUndo.value) return
+  applyingHistory.value = true
+  historyIndex.value -= 1
+  const value = historyStack.value[historyIndex.value]
+  markdownValue.value = value
+  emit('update:modelValue', value)
+  nextTick(() => {
+    applyingHistory.value = false
+  })
 }
 
-function run(command: (instance: NonNullable<typeof editor.value>) => boolean) {
-  const instance = editor.value
-  if (!instance) return
-  command(instance)
+function redo() {
+  if (!canRedo.value) return
+  applyingHistory.value = true
+  historyIndex.value += 1
+  const value = historyStack.value[historyIndex.value]
+  markdownValue.value = value
+  emit('update:modelValue', value)
+  nextTick(() => {
+    applyingHistory.value = false
+  })
 }
 
-function toggleLink() {
-  const instance = editor.value
-  if (!instance) return
-  const previous = instance.getAttributes('link').href as string | undefined
-  const url = window.prompt('URL', previous ?? 'https://')
-  if (url === null) return
-  if (!url.trim()) {
-    instance.chain().focus().unsetLink().run()
+function applySelection(transform: (selected: string) => { text: string; cursorOffset?: number }) {
+  const el = editorRef.value
+  if (!el) return
+  const start = el.selectionStart
+  const end = el.selectionEnd
+  const selected = markdownValue.value.slice(start, end)
+  const { text, cursorOffset } = transform(selected)
+  const nextValue = markdownValue.value.slice(0, start) + text + markdownValue.value.slice(end)
+  applyValue(nextValue)
+
+  nextTick(() => {
+    const nextPos = start + (cursorOffset ?? text.length)
+    el.focus()
+    el.setSelectionRange(nextPos, nextPos)
+    refreshWikilinkSuggestions()
+  })
+}
+
+function wrapSelection(prefix: string, suffix: string, fallback = 'text') {
+  applySelection((selected) => {
+    const content = selected || fallback
+    const text = `${prefix}${content}${suffix}`
+    return { text, cursorOffset: selected ? text.length : prefix.length + fallback.length }
+  })
+}
+
+function insertLinePrefix(prefix: string, fallback = 'item') {
+  applySelection((selected) => {
+    if (!selected) {
+      const text = `${prefix}${fallback}`
+      return { text, cursorOffset: text.length }
+    }
+    const text = selected
+      .split('\n')
+      .map((line) => `${prefix}${line}`)
+      .join('\n')
+    return { text, cursorOffset: text.length }
+  })
+}
+
+function insertText(text: string) {
+  applySelection(() => ({ text, cursorOffset: text.length }))
+}
+
+function applyHeading(level: number) {
+  headingMenuOpen.value = false
+  insertLinePrefix(`${'#'.repeat(level)} `, `Heading ${level}`)
+}
+
+function setTableHover(cols: number, rows: number) {
+  tableHoverCols.value = cols
+  tableHoverRows.value = rows
+}
+
+function applyTableSize(cols: number, rows: number) {
+  tableMenuOpen.value = false
+  const head = `| ${Array.from({ length: cols }, (_, idx) => `Col ${idx + 1}`).join(' | ')} |\n`
+  const sep = `|${Array.from({ length: cols }, () => '---').join('|')}|\n`
+  const body = Array.from({ length: rows - 1 }, (_, r) => `| ${Array.from({ length: cols }, (_, c) => `R${r + 1}C${c + 1}`).join(' | ')} |\n`).join('')
+  insertText(`\n${head}${sep}${body}`)
+}
+
+function applyEmoji(emoji: string) {
+  emojiMenuOpen.value = false
+  insertText(emoji)
+}
+
+function toggleHeadingMenu() {
+  headingMenuOpen.value = !headingMenuOpen.value
+  tableMenuOpen.value = false
+  emojiMenuOpen.value = false
+}
+
+function toggleTableMenu() {
+  tableMenuOpen.value = !tableMenuOpen.value
+  headingMenuOpen.value = false
+  emojiMenuOpen.value = false
+}
+
+function toggleEmojiMenu() {
+  emojiMenuOpen.value = !emojiMenuOpen.value
+  headingMenuOpen.value = false
+  tableMenuOpen.value = false
+}
+
+function closeAllMenus() {
+  headingMenuOpen.value = false
+  tableMenuOpen.value = false
+  emojiMenuOpen.value = false
+}
+
+function continueListOnEnter(): boolean {
+  const el = editorRef.value
+  if (!el) return false
+  if (el.selectionStart !== el.selectionEnd) return false
+
+  const pos = el.selectionStart
+  const src = markdownValue.value
+  const lineStart = src.lastIndexOf('\n', Math.max(0, pos - 1)) + 1
+  const nextNl = src.indexOf('\n', pos)
+  const lineEnd = nextNl === -1 ? src.length : nextNl
+  const before = src.slice(lineStart, pos)
+  const after = src.slice(pos, lineEnd)
+  if (after.trim().length > 0) return false
+
+  const task = before.match(/^(\s*)([-*+])\s\[( |x|X)\]\s(.*)$/)
+  if (task) {
+    const [, indent, bullet, state, text] = task
+    if (!text.trim()) {
+      const next = `${src.slice(0, lineStart)}${src.slice(lineEnd + 1)}`
+      applyValue(next)
+      nextTick(() => {
+        const p = lineStart
+        el.setSelectionRange(p, p)
+      })
+      return true
+    }
+    const insert = `\n${indent}${bullet} [${state === ' ' ? ' ' : ' '}] `
+    applyValue(`${src.slice(0, pos)}${insert}${src.slice(pos)}`)
+    nextTick(() => {
+      const p = pos + insert.length
+      el.setSelectionRange(p, p)
+    })
+    return true
+  }
+
+  const ordered = before.match(/^(\s*)(\d+)\.\s(.*)$/)
+  if (ordered) {
+    const [, indent, numRaw, text] = ordered
+    if (!text.trim()) {
+      const next = `${src.slice(0, lineStart)}${src.slice(lineEnd + 1)}`
+      applyValue(next)
+      nextTick(() => {
+        const p = lineStart
+        el.setSelectionRange(p, p)
+      })
+      return true
+    }
+    const insert = `\n${indent}${Number(numRaw) + 1}. `
+    applyValue(`${src.slice(0, pos)}${insert}${src.slice(pos)}`)
+    nextTick(() => {
+      const p = pos + insert.length
+      el.setSelectionRange(p, p)
+    })
+    return true
+  }
+
+  const bullet = before.match(/^(\s*)([-*+])\s(.*)$/)
+  if (bullet) {
+    const [, indent, marker, text] = bullet
+    if (!text.trim()) {
+      const next = `${src.slice(0, lineStart)}${src.slice(lineEnd + 1)}`
+      applyValue(next)
+      nextTick(() => {
+        const p = lineStart
+        el.setSelectionRange(p, p)
+      })
+      return true
+    }
+    const insert = `\n${indent}${marker} `
+    applyValue(`${src.slice(0, pos)}${insert}${src.slice(pos)}`)
+    nextTick(() => {
+      const p = pos + insert.length
+      el.setSelectionRange(p, p)
+    })
+    return true
+  }
+
+  return false
+}
+
+async function getCachedPages(): Promise<PageListItem[]> {
+  const now = Date.now()
+  const cached = readWikilinkPagesCache(now)
+  if (cached) return cached
+  const { data } = await listPages()
+  writeWikilinkPagesCache(data, now)
+  return data
+}
+
+function closeWikilinkSuggestions() {
+  wikilinkOpen.value = false
+  wikilinkItems.value = []
+  wikilinkSelected.value = 0
+}
+
+function caretCoordsInTextarea(el: HTMLTextAreaElement, pos: number) {
+  const mirror = document.createElement('div')
+  const style = window.getComputedStyle(el)
+  const props = [
+    'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+    'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+    'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+    'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
+    'fontFamily', 'lineHeight', 'letterSpacing', 'textTransform', 'textIndent',
+    'textDecoration', 'wordSpacing', 'tabSize'
+  ] as const
+  props.forEach((p) => {
+    ;(mirror.style as unknown as Record<string, string>)[p] = style.getPropertyValue(p)
+  })
+  mirror.style.position = 'absolute'
+  mirror.style.visibility = 'hidden'
+  mirror.style.whiteSpace = 'pre-wrap'
+  mirror.style.wordBreak = 'break-word'
+  mirror.style.pointerEvents = 'none'
+  mirror.textContent = el.value.slice(0, pos)
+  const marker = document.createElement('span')
+  marker.textContent = '\u200b'
+  mirror.appendChild(marker)
+  document.body.appendChild(mirror)
+  const markerRect = marker.getBoundingClientRect()
+  const mirrorRect = mirror.getBoundingClientRect()
+  const elRect = el.getBoundingClientRect()
+  const left = elRect.left + (markerRect.left - mirrorRect.left) - el.scrollLeft
+  const top = elRect.top + (markerRect.top - mirrorRect.top) - el.scrollTop
+  const height = markerRect.height || Number.parseFloat(style.lineHeight) || 18
+  document.body.removeChild(mirror)
+  return { left, top, height }
+}
+
+function updateWikilinkMenuPosition() {
+  const el = editorRef.value
+  if (!el) return
+  const pos = el.selectionStart
+  const caret = caretCoordsInTextarea(el, pos)
+  const shell = splitShellRef.value?.getBoundingClientRect()
+  const vw = window.innerWidth
+  const maxRight = shell ? shell.right - 8 : vw - 8
+  const minLeft = shell ? shell.left + 8 : 8
+  const width = 320
+  const left = Math.min(Math.max(caret.left, minLeft), Math.max(minLeft, maxRight - width))
+  const preferTop = caret.top + caret.height + 8
+  const maxBottom = shell ? shell.bottom - 8 : window.innerHeight - 8
+  const top = preferTop + 180 > maxBottom ? Math.max((shell?.top || 8) + 8, caret.top - 190) : preferTop
+  wikilinkMenuStyle.value = { left: `${left}px`, top: `${top}px`, width: `${width}px` }
+}
+
+async function refreshWikilinkSuggestions() {
+  const el = editorRef.value
+  if (!el) return
+  const cursor = el.selectionStart
+  const source = markdownValue.value.slice(0, cursor)
+  const open = source.lastIndexOf('[[')
+  if (open === -1) return closeWikilinkSuggestions()
+  const chunk = source.slice(open + 2)
+  if (chunk.includes(']') || chunk.includes('\n')) return closeWikilinkSuggestions()
+  wikilinkFrom.value = open
+  wikilinkTo.value = cursor
+  const query = chunk.trim().toLowerCase()
+  const reqId = ++wikilinkRequestId.value
+  const pages = await getCachedPages()
+  if (reqId !== wikilinkRequestId.value) return
+  const filtered = query
+    ? pages.filter((item) =>
+      item.title.toLowerCase().includes(query) ||
+      item.slug.toLowerCase().includes(query) ||
+      normalizePageSlug(item.title).includes(query)
+    )
+    : pages
+  wikilinkItems.value = filtered
+    .slice()
+    .sort((a, b) => a.title.localeCompare(b.title, 'ru', { sensitivity: 'base' }))
+    .slice(0, 8)
+  wikilinkSelected.value = 0
+  wikilinkOpen.value = wikilinkItems.value.length > 0
+  updateWikilinkMenuPosition()
+}
+
+function applyWikilinkSuggestion(index: number) {
+  const item = wikilinkItems.value[index]
+  if (!item) return
+  const el = editorRef.value
+  if (!el) return
+  const titleSlug = normalizePageSlug(item.title)
+  const inner = item.slug === titleSlug ? item.title : `${item.slug}|${item.title}`
+  const replacement = `[[${inner}]]`
+  const start = wikilinkFrom.value
+  const end = wikilinkTo.value
+  const next = markdownValue.value.slice(0, start) + replacement + markdownValue.value.slice(end)
+  applyValue(next)
+  closeWikilinkSuggestions()
+  nextTick(() => {
+    const pos = start + replacement.length
+    el.focus()
+    el.setSelectionRange(pos, pos)
+  })
+}
+
+function onEditorInput(event: Event) {
+  const target = event.target as HTMLTextAreaElement
+  applyValue(target.value)
+  refreshWikilinkSuggestions()
+}
+
+function onEditorKeydown(event: KeyboardEvent) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+    event.preventDefault()
+    emit('save')
     return
   }
-  instance.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
+  if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+    event.preventDefault()
+    undo()
+    return
+  }
+  if ((event.metaKey || event.ctrlKey) && ((event.shiftKey && event.key.toLowerCase() === 'z') || event.key.toLowerCase() === 'y')) {
+    event.preventDefault()
+    redo()
+    return
+  }
+  if (wikilinkOpen.value) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      wikilinkSelected.value = Math.min(wikilinkSelected.value + 1, wikilinkItems.value.length - 1)
+      return
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      wikilinkSelected.value = Math.max(wikilinkSelected.value - 1, 0)
+      return
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      applyWikilinkSuggestion(wikilinkSelected.value)
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeWikilinkSuggestions()
+      return
+    }
+  }
+  if (event.key === 'Enter' && continueListOnEnter()) {
+    event.preventDefault()
+  }
 }
 
 async function onUploadFiles(files: FileList | null) {
@@ -503,11 +640,8 @@ async function onUploadFiles(files: FileList | null) {
         return data.url
       })
     )
-    const instance = editor.value
-    if (!instance) return
-    urls.forEach((url) => {
-      instance.chain().focus().setImage({ src: url }).run()
-    })
+    const text = urls.map((url) => `![image](${url})`).join('\n')
+    insertText(text)
   } catch (error) {
     if (axios.isAxiosError(error)) {
       uploadError.value = error.response?.data?.message || 'Image upload failed'
@@ -522,46 +656,351 @@ async function onUploadFiles(files: FileList | null) {
 function triggerUpload() {
   uploadInput.value?.click()
 }
+
+function getSyncedScrollTop(source: HTMLElement, target: HTMLElement): number | null {
+  const sourceMax = source.scrollHeight - source.clientHeight
+  const targetMax = target.scrollHeight - target.clientHeight
+  if (sourceMax <= 0 || targetMax <= 0) return null
+  const ratio = source.scrollTop / sourceMax
+  return ratio * targetMax
+}
+
+function nowMs() {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now()
+}
+
+function isSuppressed(side: 'editor' | 'preview') {
+  const t = nowMs()
+  return side === 'editor' ? t < suppressEditorScrollUntil : t < suppressPreviewScrollUntil
+}
+
+function suppressSide(side: 'editor' | 'preview', ms = 140) {
+  const until = nowMs() + ms
+  if (side === 'editor') {
+    suppressEditorScrollUntil = Math.max(suppressEditorScrollUntil, until)
+  } else {
+    suppressPreviewScrollUntil = Math.max(suppressPreviewScrollUntil, until)
+  }
+}
+
+function setScrollTopSilently(target: HTMLElement, nextTop: number, side: 'editor' | 'preview') {
+  const current = target.scrollTop
+  // Ignore tiny deltas to avoid endless micro-adjustment drift.
+  if (Math.abs(current - nextTop) < 1.5) return
+  suppressSide(side)
+  target.scrollTop = nextTop
+  requestAnimationFrame(() => suppressSide(side, 80))
+}
+
+function onEditorScroll() {
+  if (editorMode.value !== 'split') return
+  if (isSuppressed('editor')) return
+  const editor = editorRef.value
+  const preview = previewPaneRef.value
+  if (!editor || !preview) return
+  const nextTop = getSyncedScrollTop(editor, preview)
+  if (nextTop !== null) setScrollTopSilently(preview, nextTop, 'preview')
+  updateWikilinkMenuPosition()
+}
+
+function onPreviewScroll() {
+  if (editorMode.value !== 'split') return
+  if (isSuppressed('preview')) return
+  const editor = editorRef.value
+  const preview = previewPaneRef.value
+  if (!editor || !preview) return
+  const nextTop = getSyncedScrollTop(preview, editor)
+  if (nextTop !== null) setScrollTopSilently(editor, nextTop, 'editor')
+}
+
+function startSplitDrag(event: MouseEvent) {
+  if (editorMode.value !== 'split') return
+  const shell = splitShellRef.value
+  if (!shell) return
+  splitDragging.value = true
+  const rect = shell.getBoundingClientRect()
+  pointerMoveHandler = (moveEvent: MouseEvent) => {
+    const raw = ((moveEvent.clientX - rect.left) / rect.width) * 100
+    splitRatio.value = Math.min(75, Math.max(25, raw))
+    writeSplitRatioPref(splitRatio.value)
+  }
+  pointerUpHandler = () => {
+    splitDragging.value = false
+    if (pointerMoveHandler) window.removeEventListener('mousemove', pointerMoveHandler)
+    if (pointerUpHandler) window.removeEventListener('mouseup', pointerUpHandler)
+    pointerMoveHandler = null
+    pointerUpHandler = null
+  }
+  window.addEventListener('mousemove', pointerMoveHandler)
+  window.addEventListener('mouseup', pointerUpHandler)
+  event.preventDefault()
+}
+
+function resetSplitRatio() {
+  splitRatio.value = 50
+  writeSplitRatioPref(50)
+}
+
+function normalizeTableColumnAlignment() {
+  const root = previewPaneRef.value
+  if (!root) return
+  const tables = root.querySelectorAll<HTMLTableElement>('table')
+  tables.forEach((table) => {
+    const headerCells = Array.from(table.querySelectorAll<HTMLTableCellElement>('thead th'))
+    if (!headerCells.length) return
+    const columnAlignments = headerCells.map((th) => (th.style.textAlign || th.getAttribute('align') || '').trim())
+    if (!columnAlignments.some(Boolean)) return
+    const rows = table.querySelectorAll<HTMLTableRowElement>('tbody tr')
+    rows.forEach((row) => {
+      const cells = Array.from(row.children) as HTMLElement[]
+      columnAlignments.forEach((align, idx) => {
+        if (!align) return
+        const cell = cells[idx]
+        if (!cell) return
+        cell.style.textAlign = align
+      })
+    })
+  })
+}
+
+async function renderMermaid() {
+  if (editorMode.value === 'editor') return
+  const root = previewPaneRef.value
+  if (!root) return
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: themeStore.isDark ? 'dark' : 'default',
+    securityLevel: 'strict'
+  })
+  const nodes = Array.from(root.querySelectorAll<HTMLElement>('.mermaid'))
+  for (const node of nodes) {
+    const source = node.dataset.source || node.textContent || ''
+    if (!node.dataset.source) node.dataset.source = source
+    const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`
+    try {
+      const { svg } = await mermaid.render(id, source)
+      node.innerHTML = svg
+    } catch {
+      // keep source code when render fails
+    }
+  }
+  normalizeTableColumnAlignment()
+  decorateHeadingAnchors()
+}
+
+function decorateHeadingAnchors() {
+  const root = previewPaneRef.value
+  if (!root) return
+  const headings = root.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]')
+  headings.forEach((heading) => {
+    if (heading.querySelector(':scope > .heading-copy-btn')) return
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'heading-copy-btn'
+    button.dataset.anchor = heading.id
+    button.title = 'Скопировать якорь раздела'
+    button.setAttribute('aria-label', 'Скопировать якорь раздела')
+    button.innerHTML = '<span class="material-symbols-outlined notranslate" translate="no">content_copy</span>'
+    heading.appendChild(button)
+  })
+}
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      return ok
+    } catch {
+      return false
+    }
+  }
+}
+
+async function onPreviewClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  const button = target?.closest<HTMLButtonElement>('.heading-copy-btn')
+  if (!button) return
+  event.preventDefault()
+  event.stopPropagation()
+
+  const anchor = button.dataset.anchor
+  if (!anchor) return
+
+  const link = `#${anchor}`
+  const copied = await copyTextToClipboard(link)
+
+  const previousTimer = copyFeedbackTimers.get(button)
+  if (previousTimer) window.clearTimeout(previousTimer)
+  button.classList.remove('copied', 'failed')
+  button.classList.add(copied ? 'copied' : 'failed')
+  button.title = copied ? 'Якорь скопирован' : 'Не удалось скопировать'
+  const timer = window.setTimeout(() => {
+    button.classList.remove('copied', 'failed')
+    button.title = 'Скопировать якорь раздела'
+  }, 1300)
+  copyFeedbackTimers.set(button, timer)
+}
+
+function onGlobalClick(event: MouseEvent) {
+  const target = event.target as Node | null
+  if (headingMenuRef.value && target && !headingMenuRef.value.contains(target)) headingMenuOpen.value = false
+  if (tableMenuRef.value && target && !tableMenuRef.value.contains(target)) tableMenuOpen.value = false
+  if (emojiMenuRef.value && target && !emojiMenuRef.value.contains(target)) emojiMenuOpen.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('click', onGlobalClick)
+  void renderMermaid()
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onGlobalClick)
+  if (pointerMoveHandler) window.removeEventListener('mousemove', pointerMoveHandler)
+  if (pointerUpHandler) window.removeEventListener('mouseup', pointerUpHandler)
+})
 </script>
 
 <template>
   <div class="markdown-editor-wrapper" :class="{ dark: themeStore.isDark }">
     <div class="toolbar">
-      <button type="button" :class="{ active: isActive('bold') }" @click="run((e) => e.chain().focus().toggleBold().run())">B</button>
-      <button type="button" :class="{ active: isActive('italic') }" @click="run((e) => e.chain().focus().toggleItalic().run())">I</button>
-      <button type="button" :class="{ active: isActive('underline') }" @click="run((e) => e.chain().focus().toggleUnderline().run())">U</button>
-      <button type="button" :class="{ active: isActive('strike') }" @click="run((e) => e.chain().focus().toggleStrike().run())">S</button>
-      <button type="button" :class="{ active: isActive('highlight') }" @click="run((e) => e.chain().focus().toggleHighlight().run())">Mark</button>
+      <button type="button" class="icon-btn" title="Bold" aria-label="Bold" @click="wrapSelection('**', '**')"><span class="material-symbols-outlined notranslate" translate="no">format_bold</span></button>
+      <button type="button" class="icon-btn" title="Italic" aria-label="Italic" @click="wrapSelection('*', '*')"><span class="material-symbols-outlined notranslate" translate="no">format_italic</span></button>
+      <button type="button" class="icon-btn" title="Underline" aria-label="Underline" @click="wrapSelection('<u>', '</u>')"><span class="material-symbols-outlined notranslate" translate="no">format_underlined</span></button>
+      <button type="button" class="icon-btn" title="Strikethrough" aria-label="Strikethrough" @click="wrapSelection('~~', '~~')"><span class="material-symbols-outlined notranslate" translate="no">strikethrough_s</span></button>
+      <button type="button" class="icon-btn" title="Highlight" aria-label="Highlight" @click="wrapSelection('==', '==')"><span class="material-symbols-outlined notranslate" translate="no">ink_highlighter</span></button>
+      <button type="button" class="icon-btn" title="Superscript" aria-label="Superscript" @click="wrapSelection('^', '^')"><span class="material-symbols-outlined notranslate" translate="no">superscript</span></button>
+      <button type="button" class="icon-btn" title="Subscript" aria-label="Subscript" @click="wrapSelection('~', '~')"><span class="material-symbols-outlined notranslate" translate="no">subscript</span></button>
+      <button type="button" class="icon-btn" title="Inline code" aria-label="Inline code" @click="wrapSelection('`', '`')"><span class="material-symbols-outlined notranslate" translate="no">code</span></button>
       <span class="sep" />
-      <button type="button" :class="{ active: isActive('bulletList') }" @click="run((e) => e.chain().focus().toggleBulletList().run())">UL</button>
-      <button type="button" :class="{ active: isActive('orderedList') }" @click="run((e) => e.chain().focus().toggleOrderedList().run())">OL</button>
-      <button type="button" :class="{ active: isActive('taskList') }" @click="run((e) => e.chain().focus().toggleTaskList().run())">Task</button>
-      <button type="button" :class="{ active: isActive('codeBlock') }" @click="run((e) => e.chain().focus().toggleCodeBlock().run())">Code</button>
-      <button type="button" :class="{ active: isActive('blockquote') }" @click="run((e) => e.chain().focus().toggleBlockquote().run())">Quote</button>
+      <div ref="headingMenuRef" class="heading-menu">
+        <button type="button" class="icon-btn" title="Heading levels" aria-label="Heading levels" @click.stop="toggleHeadingMenu">
+          <span class="material-symbols-outlined notranslate" translate="no">title</span>
+        </button>
+        <div v-if="headingMenuOpen" class="heading-menu-list">
+          <button type="button" class="heading-menu-item" @click="applyHeading(1)">H1</button>
+          <button type="button" class="heading-menu-item" @click="applyHeading(2)">H2</button>
+          <button type="button" class="heading-menu-item" @click="applyHeading(3)">H3</button>
+          <button type="button" class="heading-menu-item" @click="applyHeading(4)">H4</button>
+          <button type="button" class="heading-menu-item" @click="applyHeading(5)">H5</button>
+        </div>
+      </div>
+      <button type="button" class="icon-btn" title="Bulleted list" aria-label="Bulleted list" @click="insertLinePrefix('- ', 'list item')"><span class="material-symbols-outlined notranslate" translate="no">format_list_bulleted</span></button>
+      <button type="button" class="icon-btn" title="Numbered list" aria-label="Numbered list" @click="insertLinePrefix('1. ', 'list item')"><span class="material-symbols-outlined notranslate" translate="no">format_list_numbered</span></button>
+      <button type="button" class="icon-btn" title="Task list" aria-label="Task list" @click="insertLinePrefix('- [ ] ', 'task')"><span class="material-symbols-outlined notranslate" translate="no">checklist</span></button>
+      <button type="button" class="icon-btn" title="Quote" aria-label="Quote" @click="insertLinePrefix('> ', 'quote')"><span class="material-symbols-outlined notranslate" translate="no">format_quote</span></button>
+      <button type="button" class="icon-btn" title="Code block" aria-label="Code block" @click="insertText('\n```\ncode\n```\n')"><span class="material-symbols-outlined notranslate" translate="no">data_object</span></button>
       <span class="sep" />
-      <button type="button" :class="{ active: isActive('subscript') }" @click="run((e) => e.chain().focus().toggleSubscript().run())">Sub</button>
-      <button type="button" :class="{ active: isActive('superscript') }" @click="run((e) => e.chain().focus().toggleSuperscript().run())">Sup</button>
-      <button type="button" :class="{ active: isActive('link') }" @click="toggleLink">Link</button>
-      <button type="button" @click="triggerUpload">Image</button>
-      <button type="button" @click="run((e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())">Table</button>
+      <button type="button" class="icon-btn" title="Link" aria-label="Link" @click="wrapSelection('[', '](https://example.com)', 'link text')"><span class="material-symbols-outlined notranslate" translate="no">link</span></button>
+      <button type="button" class="icon-btn" title="Insert image" aria-label="Insert image" @click="triggerUpload"><span class="material-symbols-outlined notranslate" translate="no">image</span></button>
+      <div ref="tableMenuRef" class="table-menu">
+        <button type="button" class="icon-btn" title="Insert table" aria-label="Insert table" @click.stop="toggleTableMenu">
+          <span class="material-symbols-outlined notranslate" translate="no">grid_on</span>
+        </button>
+        <div v-if="tableMenuOpen" class="table-menu-list">
+          <div
+            class="table-grid"
+            :style="{ gridTemplateColumns: `repeat(${TABLE_GRID_MAX}, 16px)` }"
+            @mouseleave="setTableHover(1, 1)"
+          >
+            <button
+              v-for="idx in TABLE_GRID_MAX * TABLE_GRID_MAX"
+              :key="idx"
+              type="button"
+              class="table-grid-cell"
+              :class="{ active: ((idx - 1) % TABLE_GRID_MAX) + 1 <= tableHoverCols && Math.floor((idx - 1) / TABLE_GRID_MAX) + 1 <= tableHoverRows }"
+              @mouseenter="setTableHover(((idx - 1) % TABLE_GRID_MAX) + 1, Math.floor((idx - 1) / TABLE_GRID_MAX) + 1)"
+              @click="applyTableSize(((idx - 1) % TABLE_GRID_MAX) + 1, Math.floor((idx - 1) / TABLE_GRID_MAX) + 1)"
+            />
+          </div>
+          <div class="table-grid-label">{{ tableHoverCols }} × {{ tableHoverRows }}</div>
+        </div>
+      </div>
+      <button type="button" class="icon-btn" title="Wiki link" aria-label="Wiki link" @click="wrapSelection('[[', ']]', 'Page Title')"><span class="material-symbols-outlined notranslate" translate="no">article_shortcut</span></button>
+      <button type="button" class="icon-btn" title="Tag" aria-label="Tag" @click="insertText(' #tag')"><span class="material-symbols-outlined notranslate" translate="no">sell</span></button>
+      <div ref="emojiMenuRef" class="emoji-menu">
+        <button type="button" class="icon-btn" title="Insert emoji" aria-label="Insert emoji" @click.stop="toggleEmojiMenu">
+          <span class="material-symbols-outlined notranslate" translate="no">sentiment_satisfied</span>
+        </button>
+        <div v-if="emojiMenuOpen" class="emoji-menu-list">
+          <button
+            v-for="emoji in emojiItems"
+            :key="emoji"
+            type="button"
+            class="emoji-item"
+            :title="emoji"
+            @click="applyEmoji(emoji)"
+          >
+            {{ emoji }}
+          </button>
+        </div>
+      </div>
       <span class="sep" />
-      <button type="button" @click="run((e) => e.chain().focus().undo().run())">Undo</button>
-      <button type="button" @click="run((e) => e.chain().focus().redo().run())">Redo</button>
-      <button type="button" @click="emit('save')">Save</button>
+      <button type="button" class="icon-btn" title="Undo" aria-label="Undo" :disabled="!canUndo" @click="undo"><span class="material-symbols-outlined notranslate" translate="no">undo</span></button>
+      <button type="button" class="icon-btn" title="Redo" aria-label="Redo" :disabled="!canRedo" @click="redo"><span class="material-symbols-outlined notranslate" translate="no">redo</span></button>
+      <button type="button" class="icon-btn" title="Save" aria-label="Save" @click="emit('save')"><span class="material-symbols-outlined notranslate" translate="no">save</span></button>
       <span class="mode-switch">
-        <button type="button" :class="{ active: editorMode === 'editor' }" @click="setMode('editor')">Editor</button>
-        <button type="button" :class="{ active: editorMode === 'split' }" @click="setMode('split')">Split</button>
-        <button type="button" :class="{ active: editorMode === 'preview' }" @click="setMode('preview')">Preview</button>
+        <button type="button" class="icon-btn" title="Editor" aria-label="Editor" :class="{ active: editorMode === 'editor' }" @click="setMode('editor')"><span class="material-symbols-outlined notranslate" translate="no">edit_note</span></button>
+        <button type="button" class="icon-btn" title="Split" aria-label="Split" :class="{ active: editorMode === 'split' }" @click="setMode('split')"><span class="material-symbols-outlined notranslate" translate="no">split_scene</span></button>
+        <button type="button" class="icon-btn" title="Preview" aria-label="Preview" :class="{ active: editorMode === 'preview' }" @click="setMode('preview')"><span class="material-symbols-outlined notranslate" translate="no">preview</span></button>
       </span>
     </div>
-
-    <div class="editor-shell" :class="`mode-${editorMode}`">
+    <div ref="splitShellRef" class="editor-shell" :class="`mode-${editorMode}`" :style="editorShellStyle">
       <div v-if="editorMode !== 'preview'" class="editor-pane">
-        <EditorContent :editor="editor" class="tiptap-content" />
+        <textarea
+          ref="editorRef"
+          class="markdown-input"
+          :value="markdownValue"
+          spellcheck="false"
+          @input="onEditorInput"
+          @keydown="onEditorKeydown"
+          @click="refreshWikilinkSuggestions"
+          @keyup="refreshWikilinkSuggestions"
+          @scroll="onEditorScroll"
+          @blur="closeWikilinkSuggestions"
+        />
+        <div v-if="wikilinkOpen" class="wikilink-suggestions" :style="wikilinkMenuStyle">
+          <button
+            v-for="(item, idx) in wikilinkItems"
+            :key="item.slug"
+            type="button"
+            class="wikilink-suggestion-item"
+            :class="{ active: idx === wikilinkSelected }"
+            @mousedown.prevent="applyWikilinkSuggestion(idx)"
+          >
+            <span>{{ item.title }}</span>
+            <small>{{ item.slug }}</small>
+          </button>
+        </div>
       </div>
-      <div v-if="editorMode !== 'editor'" class="preview-pane markdown-body" v-html="previewHtml" />
+      <div
+        v-if="editorMode === 'split'"
+        class="split-resizer"
+        :class="{ dragging: splitDragging }"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize split panes"
+        @mousedown="startSplitDrag"
+        @dblclick="resetSplitRatio"
+      />
+      <div
+        v-if="editorMode !== 'editor'"
+        ref="previewPaneRef"
+        class="preview-pane markdown-body"
+        v-html="previewHtml"
+        @click="onPreviewClick"
+        @scroll="onPreviewScroll"
+      />
     </div>
-
     <input
       ref="uploadInput"
       type="file"
@@ -596,20 +1035,34 @@ function triggerUpload() {
   padding: 8px;
 }
 
-.toolbar button {
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text);
   border-radius: 6px;
-  height: 30px;
-  padding: 0 10px;
-  font-size: 12px;
-  cursor: pointer;
+  padding: 0;
 }
 
-.toolbar button.active {
+.icon-btn .material-symbols-outlined {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.icon-btn.active {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+.icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .sep {
@@ -625,79 +1078,220 @@ function triggerUpload() {
   gap: 4px;
 }
 
+.heading-menu,
+.table-menu,
+.emoji-menu {
+  position: relative;
+}
+
+.heading-menu-list,
+.table-menu-list,
+.emoji-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  z-index: 30;
+}
+
+.heading-menu-list {
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  min-width: 64px;
+}
+
+.heading-menu-item {
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.heading-menu-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.table-menu-list {
+  padding: 8px;
+  width: max-content;
+}
+
+.table-grid {
+  display: grid;
+  gap: 3px;
+}
+
+.toolbar .table-grid-cell {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  border-radius: 2px;
+  padding: 0;
+}
+
+.toolbar .table-grid-cell.active {
+  background: color-mix(in srgb, var(--color-primary) 26%, var(--color-bg-secondary));
+  border-color: color-mix(in srgb, var(--color-primary) 54%, var(--color-border));
+}
+
+.table-grid-label {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.emoji-menu-list {
+  width: 284px;
+  max-height: 210px;
+  overflow: auto;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.emoji-item {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 18px;
+}
+
+.emoji-item:hover {
+  border-color: var(--color-border);
+  background: var(--color-bg-hover);
+}
+
 .editor-shell {
   flex: 1;
   min-height: 0;
   display: grid;
-  gap: 8px;
+  gap: 0;
 }
 
 .editor-shell.mode-editor {
-  grid-template-columns: 1fr;
-}
-
-.editor-shell.mode-split {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .editor-shell.mode-preview {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.editor-shell.mode-split {
+  grid-template-columns: 1fr 8px minmax(0, 1fr);
 }
 
 .editor-pane,
 .preview-pane {
   min-height: 0;
   height: 100%;
-  overflow: auto;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg);
 }
 
+.editor-pane {
+  overflow: hidden;
+  position: relative;
+}
+
 .preview-pane {
+  overflow: auto;
   padding: 14px;
 }
 
-.tiptap-content :deep(.ProseMirror) {
-  min-height: 100%;
-  padding: 14px;
-  outline: none;
-  color: var(--color-text);
-}
-
-.tiptap-content :deep(.ProseMirror p.is-editor-empty:first-child::before) {
-  color: var(--color-text-faint);
-  content: attr(data-placeholder);
-  float: left;
-  height: 0;
-  pointer-events: none;
-}
-
-.tiptap-content :deep(.ProseMirror a.wikilink) {
-  color: var(--color-wikilink);
-  text-decoration: underline;
-  text-decoration-style: dotted;
-}
-
-.tiptap-content :deep(.ProseMirror .hashtag) {
-  color: var(--color-tag);
-  font-weight: 500;
-}
-
-.tiptap-content :deep(.ProseMirror table) {
-  border-collapse: collapse;
+.markdown-input {
   width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  padding: 14px;
+  overflow: auto;
 }
 
-.tiptap-content :deep(.ProseMirror table td),
-.tiptap-content :deep(.ProseMirror table th) {
+.split-resizer {
+  width: 8px;
+  cursor: col-resize;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.split-resizer::before {
+  content: '';
+  width: 4px;
+  height: 56px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border) 85%, transparent);
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.split-resizer:hover::before,
+.split-resizer.dragging::before {
+  background: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  transform: scaleX(1.15);
+}
+
+.wikilink-suggestions {
+  position: fixed;
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
-  padding: 6px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  z-index: 40;
+  max-height: 240px;
+  overflow: auto;
+  padding: 4px;
 }
 
-.tiptap-content :deep(.ProseMirror img) {
-  max-width: 100%;
-  border-radius: 4px;
+.wikilink-suggestion-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+
+.wikilink-suggestion-item small {
+  color: var(--color-text-muted);
+}
+
+.wikilink-suggestion-item.active,
+.wikilink-suggestion-item:hover {
+  background: var(--color-bg-hover);
 }
 
 .visually-hidden {
@@ -725,45 +1319,148 @@ function triggerUpload() {
   padding: 6px 8px;
 }
 
-:global(.wikilink-suggestion) {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  width: 280px;
-  max-height: 260px;
+:deep(.markdown-body > *:first-child) {
+  margin-top: 0;
+}
+
+:deep(.markdown-body h1),
+:deep(.markdown-body h2),
+:deep(.markdown-body h3),
+:deep(.markdown-body h4),
+:deep(.markdown-body h5) {
+  margin: 1rem 0 0.55rem;
+}
+
+:deep(.markdown-body p),
+:deep(.markdown-body ul),
+:deep(.markdown-body ol),
+:deep(.markdown-body pre),
+:deep(.markdown-body table),
+:deep(.markdown-body blockquote) {
+  margin: 0.55rem 0;
+}
+
+:deep(.markdown-body ul),
+:deep(.markdown-body ol) {
+  padding-left: 1.1rem;
+}
+
+:deep(.markdown-body code) {
+  font-family: var(--font-mono);
+}
+
+:deep(.markdown-body pre) {
   overflow: auto;
-  z-index: 30000;
-  position: absolute;
-  padding: 4px;
+  border-radius: 8px;
 }
 
-:global(.wikilink-suggestion-item) {
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  border-radius: 6px;
-  padding: 8px;
-  text-align: left;
+:deep(.markdown-body pre code.hljs) {
+  display: block;
+  padding: 12px;
+}
+
+:deep(.markdown-body .task-list-item) {
+  list-style: none;
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  cursor: pointer;
+  align-items: flex-start;
+  gap: 0.55rem;
 }
 
-:global(.wikilink-suggestion-item small) {
-  color: var(--color-text-muted);
+:deep(.markdown-body .task-list-item input[type='checkbox']) {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin: 0.22rem 0 0;
 }
 
-:global(.wikilink-suggestion-item.is-active),
-:global(.wikilink-suggestion-item:hover) {
+:deep(.markdown-body .wikilink) {
+  color: var(--color-wikilink);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+:deep(.markdown-body .hashtag) {
+  color: var(--color-tag);
+  font-weight: 500;
+}
+
+:deep(.markdown-body .heading-anchor) {
+  margin-left: 0;
+  font-size: 0.9em;
+  color: inherit;
+  text-decoration: none;
+  opacity: 1;
+}
+
+:deep(.markdown-body .heading-copy-btn) {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  margin-left: 0.2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-faint);
+  opacity: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+:deep(.markdown-body .heading-copy-btn .material-symbols-outlined) {
+  font-size: 17px;
+  line-height: 1;
+}
+
+:deep(.markdown-body h1:hover .heading-anchor),
+:deep(.markdown-body h2:hover .heading-anchor),
+:deep(.markdown-body h3:hover .heading-anchor),
+:deep(.markdown-body h4:hover .heading-anchor),
+:deep(.markdown-body h5:hover .heading-anchor),
+:deep(.markdown-body h6:hover .heading-anchor) {
+  opacity: 1;
+}
+
+:deep(.markdown-body h1:hover .heading-copy-btn),
+:deep(.markdown-body h2:hover .heading-copy-btn),
+:deep(.markdown-body h3:hover .heading-copy-btn),
+:deep(.markdown-body h4:hover .heading-copy-btn),
+:deep(.markdown-body h5:hover .heading-copy-btn),
+:deep(.markdown-body h6:hover .heading-copy-btn) {
+  opacity: 1;
+}
+
+:deep(.markdown-body .heading-copy-btn:hover) {
+  border-color: var(--color-border);
   background: var(--color-bg-hover);
 }
 
-:global(.wikilink-suggestion-empty) {
-  padding: 8px;
-  color: var(--color-text-muted);
-  font-size: 12px;
+:deep(.markdown-body .heading-copy-btn.copied) {
+  opacity: 1;
+  color: var(--color-success);
+}
+
+:deep(.markdown-body .heading-copy-btn.failed) {
+  opacity: 1;
+  color: var(--color-danger);
+}
+
+::deep(.markdown-body .mermaid) {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+::deep(.markdown-body .mermaid svg) {
+  max-width: 100%;
+  height: auto;
+}
+
+[data-theme='dark'] :deep(.markdown-body pre code.hljs) {
+  background: #272822;
+  color: #f8f8f2;
 }
 </style>
