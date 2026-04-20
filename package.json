@@ -11,7 +11,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@fontsource/material-symbols-outlined": "^5.2.42",
     "axios": "^1.15.1",
     "d3": "^7.9.0",
     "highlight.js": "^11.11.1",
@@ -32,8 +31,6 @@
     "@types/d3": "^7.4.3",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^25.6.0",
-    "@typescript-eslint/eslint-plugin": "^8.58.2",
-    "@typescript-eslint/parser": "^8.58.2",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/tsconfig": "^0.9.1",
     "eslint": "^10.2.1",

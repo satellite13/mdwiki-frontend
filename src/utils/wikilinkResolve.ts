@@ -10,10 +10,6 @@ export function clearWikilinkPreviewPages(): void {
   previewPages = []
 }
 
-export function setWikilinkPreviewPages(pages: PageListItem[]): void {
-  previewPages = pages
-}
-
 export function getWikilinkPreviewPages(): PageListItem[] {
   return previewPages
 }

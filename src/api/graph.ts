@@ -12,7 +12,7 @@ export interface GraphEdge {
   target: string
 }
 
-export interface GraphResponse {
+interface GraphResponse {
   nodes: GraphNode[]
   edges: GraphEdge[]
 }

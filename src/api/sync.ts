@@ -2,7 +2,7 @@ import client from './client'
 import { invalidateWikilinkPageListCache } from '@/utils/wikilinkPageListCache'
 import { clearWikilinkPreviewPages } from '@/utils/wikilinkResolve'
 
-export interface WikiSyncResult {
+interface WikiSyncResult {
   added: number
   updated: number
   removed: number

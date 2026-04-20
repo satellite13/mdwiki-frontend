@@ -3,7 +3,7 @@ import type { PageListItem } from '@/types'
 let pagesCache: PageListItem[] | null = null
 let pagesFetchedAt = 0
 
-export const CACHE_TTL_MS = 30_000
+const CACHE_TTL_MS = 30_000
 
 /** Сброс кэша списка страниц (после создания/удаления и т.п.). */
 export function invalidateWikilinkPageListCache(): void {

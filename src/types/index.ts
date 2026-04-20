@@ -16,9 +16,6 @@ export interface Page {
   slug: string
   title: string
   contentMd: string | null
-  contentHtml: string | null
-  /** Распарсенный YAML frontmatter (с сервера), опционально. */
-  frontmatterMeta?: Record<string, unknown> | null
   tags: string[]
   createdBy: string | null
   updatedBy: string | null
