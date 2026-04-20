@@ -53,16 +53,34 @@ export function useTreeActions(options: UseTreeActionsOptions) {
   }
 
   async function deleteNode(node: FolderTreeNode) {
-    const ok = await dialog.confirm(t.tree.confirmDelete(node.name), {
-      danger: true,
-      confirmLabel: t.tree.delete
-    })
-    if (!ok) return
     try {
       if (node.type === 'folder') {
+        const ok = await dialog.confirm(t.tree.confirmDelete(node.name), {
+          danger: true,
+          confirmLabel: t.tree.delete
+        })
+        if (!ok) return
         await folderStore.deleteFolder(node.id)
       } else if (node.slug) {
-        await pagesApi.deletePage(node.slug)
+        const mode = await dialog.choice(
+          t.tree.chooseDeleteMode(node.name),
+          [
+            {
+              value: 'soft',
+              label: t.tree.softDeleteLabel,
+              description: t.tree.softDeleteHint
+            },
+            {
+              value: 'hard',
+              label: t.tree.hardDeleteLabel,
+              description: t.tree.hardDeleteHint,
+              danger: true
+            }
+          ],
+          { title: t.tree.deletePage }
+        )
+        if (!mode) return
+        await pagesApi.deletePage(node.slug, mode === 'hard' ? 'hard' : 'soft')
         if (options.getActiveSlug() === node.slug) router.push('/')
         await folderStore.fetchTree(true)
       }

@@ -1,6 +1,6 @@
 import { readString, writeString } from '@/utils/localPreferences'
 
-export type EditorMode = 'editor' | 'split' | 'preview'
+export type EditorMode = 'editor' | 'split' | 'preview' | 'reading'
 
 const EDITOR_MODE_LS_KEY = 'mdwiki-editor-mode'
 const SPLIT_RATIO_LS_KEY = 'mdwiki-editor-split-ratio'
@@ -11,7 +11,7 @@ const DEFAULT_RATIO = 50
 
 export function readEditorModePref(): EditorMode {
   const value = readString(EDITOR_MODE_LS_KEY)
-  if (value === 'editor' || value === 'split' || value === 'preview') return value
+  if (value === 'editor' || value === 'split' || value === 'preview' || value === 'reading') return value
   return 'split'
 }
 

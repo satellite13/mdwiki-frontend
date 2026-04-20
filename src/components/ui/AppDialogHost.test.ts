@@ -11,7 +11,11 @@ function buttons(): HTMLButtonElement[] {
 }
 
 function clickByText(label: string) {
-  const btn = buttons().find((b) => b.textContent?.trim() === label)
+  const btn = buttons().find((b) => {
+    const explicit = b.querySelector('.dialog-choice-label')?.textContent?.trim()
+    if (explicit) return explicit === label
+    return b.textContent?.trim() === label
+  })
   if (!btn) throw new Error(`button "${label}" not found`)
   btn.click()
 }
@@ -95,5 +99,23 @@ describe('AppDialogHost', () => {
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     await expect(promise).resolves.toBe(false)
+  })
+
+  it('choice returns selected value and null on escape', async () => {
+    const store = useDialogStore()
+
+    const selected = store.choice('Delete mode?', [
+      { value: 'soft', label: 'Soft' },
+      { value: 'hard', label: 'Hard', danger: true }
+    ])
+    await flushPromises()
+    clickByText('Hard')
+    await expect(selected).resolves.toBe('hard')
+    await flushPromises()
+
+    const cancelled = store.choice('Delete mode?', [{ value: 'soft', label: 'Soft' }])
+    await flushPromises()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await expect(cancelled).resolves.toBeNull()
   })
 })

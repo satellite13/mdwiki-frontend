@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
+import { storeToRefs } from 'pinia'
 import AppHeader from './AppHeader.vue'
 import AppSidebar from './AppSidebar.vue'
+import { useEditorUiStore } from '@/stores/editorUi'
+
+const editorUi = useEditorUiStore()
+const { isReadingMode } = storeToRefs(editorUi)
 
 function onKeydown(e: KeyboardEvent) {
   // Ctrl+K or Cmd+K → focus search
@@ -17,10 +22,10 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="app-layout">
-    <AppHeader />
+  <div class="app-layout" :class="{ 'reading-mode': isReadingMode }">
+    <AppHeader v-if="!isReadingMode" />
     <div class="app-body">
-      <AppSidebar />
+      <AppSidebar v-if="!isReadingMode" />
       <main class="app-main">
         <router-view />
       </main>
@@ -49,5 +54,10 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
   overflow-y: auto;
   height: calc(100vh - 49px);
   background: var(--color-bg);
+}
+
+.app-layout.reading-mode .app-main {
+  padding: 0;
+  height: 100vh;
 }
 </style>

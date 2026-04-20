@@ -35,9 +35,9 @@ export async function updatePage(
 }
 
 /** Idempotent delete: 404 is treated as success — the page is already gone. */
-export async function deletePage(slug: string): Promise<void> {
+export async function deletePage(slug: string, mode: 'soft' | 'hard' = 'soft'): Promise<void> {
   try {
-    await client.delete(`/pages/${slug}`)
+    await client.delete(`/pages/${slug}`, { params: { mode: mode.toUpperCase() } })
   } catch (e) {
     if (!isApiErrorWithStatus(e, 404)) throw e
   } finally {

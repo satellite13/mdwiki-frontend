@@ -40,6 +40,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   'save': []
+  'mode-change': [mode: EditorMode]
 }>()
 
 const themeStore = useThemeStore()
@@ -65,6 +66,7 @@ const tableMenuOpen = ref(false)
 const emojiMenuOpen = ref(false)
 const tableHoverCols = ref(1)
 const tableHoverRows = ref(1)
+const lastNonReadingMode = ref<EditorMode>('split')
 
 const wikilink = useWikilinkAutocomplete({
   getEditor: () => editorRef.value,
@@ -104,7 +106,11 @@ watch(
 )
 
 watch(editorMode, (value) => {
+  if (value !== 'reading') {
+    lastNonReadingMode.value = value
+  }
   writeEditorModePref(value)
+  emit('mode-change', value)
   closeAllMenus()
   wikilink.close()
   nextTick(() => {
@@ -133,6 +139,10 @@ function applyValue(value: string, options?: { keepHistory?: boolean }) {
 
 function setMode(mode: EditorMode) {
   editorMode.value = mode
+}
+
+function exitReadingMode() {
+  setMode(lastNonReadingMode.value === 'reading' ? 'preview' : lastNonReadingMode.value)
 }
 
 function undo() {
@@ -633,6 +643,7 @@ function onGlobalClick(event: MouseEvent) {
 }
 
 onMounted(() => {
+  emit('mode-change', editorMode.value)
   document.addEventListener('click', onGlobalClick)
   void renderMermaid()
 })
@@ -645,8 +656,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="markdown-editor-wrapper" :class="{ dark: themeStore.isDark }">
+  <div class="markdown-editor-wrapper" :class="{ dark: themeStore.isDark, 'reading-mode': editorMode === 'reading' }">
     <div class="toolbar">
+      <template v-if="editorMode !== 'reading'">
       <button type="button" class="icon-btn" title="Bold" aria-label="Bold" @click="wrapSelection('**', '**')"><span class="material-symbols-outlined notranslate" translate="no">format_bold</span></button>
       <button type="button" class="icon-btn" title="Italic" aria-label="Italic" @click="wrapSelection('*', '*')"><span class="material-symbols-outlined notranslate" translate="no">format_italic</span></button>
       <button type="button" class="icon-btn" title="Underline" aria-label="Underline" @click="wrapSelection('<u>', '</u>')"><span class="material-symbols-outlined notranslate" translate="no">format_underlined</span></button>
@@ -731,10 +743,12 @@ onBeforeUnmount(() => {
       <button type="button" class="icon-btn" title="Undo" aria-label="Undo" :disabled="!canUndo" @click="undo"><span class="material-symbols-outlined notranslate" translate="no">undo</span></button>
       <button type="button" class="icon-btn" title="Redo" aria-label="Redo" :disabled="!canRedo" @click="redo"><span class="material-symbols-outlined notranslate" translate="no">redo</span></button>
       <button type="button" class="icon-btn" title="Save" aria-label="Save" @click="emit('save')"><span class="material-symbols-outlined notranslate" translate="no">save</span></button>
+      </template>
       <span class="mode-switch">
         <button type="button" class="icon-btn" title="Editor" aria-label="Editor" :class="{ active: editorMode === 'editor' }" @click="setMode('editor')"><span class="material-symbols-outlined notranslate" translate="no">edit_note</span></button>
         <button type="button" class="icon-btn" title="Split" aria-label="Split" :class="{ active: editorMode === 'split' }" @click="setMode('split')"><span class="material-symbols-outlined notranslate" translate="no">split_scene</span></button>
         <button type="button" class="icon-btn" title="Preview" aria-label="Preview" :class="{ active: editorMode === 'preview' }" @click="setMode('preview')"><span class="material-symbols-outlined notranslate" translate="no">preview</span></button>
+        <button type="button" class="icon-btn" title="Reading" aria-label="Reading" :class="{ active: editorMode === 'reading' }" @click="setMode('reading')"><span class="material-symbols-outlined notranslate" translate="no">menu_book</span></button>
       </span>
     </div>
     <div ref="splitShellRef" class="editor-shell" :class="`mode-${editorMode}`" :style="editorShellStyle">
@@ -778,11 +792,22 @@ onBeforeUnmount(() => {
       <div
         v-if="editorMode !== 'editor'"
         ref="previewPaneRef"
-        class="preview-pane markdown-body"
-        v-html="previewHtml"
+        class="preview-pane"
         @click="onPreviewClick"
         @scroll="onPreviewScroll"
-      />
+      >
+        <button
+          v-if="editorMode === 'reading'"
+          type="button"
+          class="reading-exit-btn"
+          title="Exit reading mode"
+          aria-label="Exit reading mode"
+          @click="exitReadingMode"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no">close_fullscreen</span>
+        </button>
+        <div class="preview-content markdown-body" v-html="previewHtml" />
+      </div>
     </div>
     <input
       ref="uploadInput"
@@ -816,6 +841,10 @@ onBeforeUnmount(() => {
   background: var(--color-bg-secondary);
   border-radius: 8px;
   padding: 8px;
+}
+
+.reading-mode .toolbar {
+  justify-content: flex-end;
 }
 
 .icon-btn {
@@ -979,6 +1008,10 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.editor-shell.mode-reading {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .editor-shell.mode-split {
   grid-template-columns: 1fr 8px minmax(0, 1fr);
 }
@@ -1000,6 +1033,45 @@ onBeforeUnmount(() => {
 .preview-pane {
   overflow: auto;
   padding: 14px;
+}
+
+.preview-content {
+  width: 100%;
+}
+
+.editor-shell.mode-reading .preview-pane {
+  border: none;
+  border-radius: 0;
+  padding: 28px clamp(56px, 10vw, 220px);
+  background: var(--color-bg);
+  position: relative;
+}
+
+.editor-shell.mode-reading .preview-content {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.reading-exit-btn {
+  position: sticky;
+  top: 10px;
+  margin-left: auto;
+  z-index: 6;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 92%, transparent);
+  color: var(--color-text);
+  border-radius: 50%;
+  padding: 0;
+}
+
+.reading-exit-btn .material-symbols-outlined {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .markdown-input {

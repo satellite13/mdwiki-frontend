@@ -29,6 +29,7 @@ function onKeydown(e: KeyboardEvent) {
     e.preventDefault()
     if (active.value.kind === 'confirm') store.submitConfirm(false)
     else if (active.value.kind === 'prompt') store.submitPrompt(null)
+    else if (active.value.kind === 'choice') store.submitChoice(null)
     else store.submitAlert()
   }
 }
@@ -45,6 +46,7 @@ function onOverlayMouseDown(e: MouseEvent) {
   if (!active.value) return
   if (active.value.kind === 'alert') store.submitAlert()
   else if (active.value.kind === 'confirm') store.submitConfirm(false)
+  else if (active.value.kind === 'choice') store.submitChoice(null)
   else store.submitPrompt(null)
 }
 </script>
@@ -97,12 +99,29 @@ function onOverlayMouseDown(e: MouseEvent) {
               {{ active.confirmLabel ?? t.common.confirm }}
             </button>
           </template>
-          <template v-else>
+          <template v-else-if="active.kind === 'prompt'">
             <button type="button" class="btn-secondary" @click="store.submitPrompt(null)">
               {{ t.common.cancel }}
             </button>
             <button type="button" class="btn-primary" @click="onPromptSubmit">
               {{ t.dialog.ok }}
+            </button>
+          </template>
+          <template v-else>
+            <button type="button" class="btn-secondary" @click="store.submitChoice(null)">
+              {{ active.cancelLabel ?? t.common.cancel }}
+            </button>
+            <button
+              v-for="option in active.options"
+              :key="option.value"
+              type="button"
+              :class="['dialog-choice-btn', option.danger ? 'btn-danger-solid' : 'btn-primary']"
+              @click="store.submitChoice(option.value)"
+            >
+              <span class="dialog-choice-label">{{ option.label }}</span>
+              <small v-if="option.description" class="dialog-choice-description">
+                {{ option.description }}
+              </small>
             </button>
           </template>
         </div>
@@ -162,6 +181,23 @@ function onOverlayMouseDown(e: MouseEvent) {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.dialog-choice-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.dialog-choice-label {
+  line-height: 1.15;
+}
+
+.dialog-choice-description {
+  font-size: 11px;
+  line-height: 1.2;
+  opacity: 0.9;
 }
 
 .btn-danger-solid {

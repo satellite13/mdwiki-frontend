@@ -26,7 +26,23 @@ export type PromptPayload = {
   resolve: (value: string | null) => void
 }
 
-export type DialogPayload = AlertPayload | ConfirmPayload | PromptPayload
+export type ChoiceOption = {
+  value: string
+  label: string
+  description?: string
+  danger?: boolean
+}
+
+export type ChoicePayload = {
+  kind: 'choice'
+  message: string
+  title?: string
+  options: ChoiceOption[]
+  cancelLabel?: string
+  resolve: (value: string | null) => void
+}
+
+export type DialogPayload = AlertPayload | ConfirmPayload | PromptPayload | ChoicePayload
 
 export const useDialogStore = defineStore('dialog', () => {
   const queue = ref<DialogPayload[]>([])
@@ -99,6 +115,26 @@ export const useDialogStore = defineStore('dialog', () => {
     })
   }
 
+  function choice(
+    message: string,
+    options: ChoiceOption[],
+    config?: { title?: string; cancelLabel?: string }
+  ): Promise<string | null> {
+    return new Promise((resolve) => {
+      enqueue({
+        kind: 'choice',
+        message,
+        title: config?.title,
+        options,
+        cancelLabel: config?.cancelLabel,
+        resolve: (value: string | null) => {
+          resolve(value)
+          closeCurrent()
+        }
+      })
+    })
+  }
+
   /** Закрыть alert (кнопка OK). */
   function submitAlert() {
     if (active.value?.kind !== 'alert') return
@@ -115,13 +151,20 @@ export const useDialogStore = defineStore('dialog', () => {
     active.value.resolve(value)
   }
 
+  function submitChoice(value: string | null) {
+    if (active.value?.kind !== 'choice') return
+    active.value.resolve(value)
+  }
+
   return {
     active,
     alert,
     confirm,
     prompt,
+    choice,
     submitAlert,
     submitConfirm,
-    submitPrompt
+    submitPrompt,
+    submitChoice
   }
 })

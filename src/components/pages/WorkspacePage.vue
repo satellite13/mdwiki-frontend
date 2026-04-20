@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { onBeforeUnmount, watch } from 'vue'
 import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
 import GraphPanel from '@/components/graph/GraphPanel.vue'
 import { useWorkspacePage } from '@/composables/useWorkspacePage'
+import { useEditorUiStore } from '@/stores/editorUi'
+import type { EditorMode } from '@/components/editor/editorPreferences'
 
 const {
   page,
@@ -19,11 +22,27 @@ const {
   clearSaveError,
   toggleGraph
 } = useWorkspacePage()
+
+const editorUi = useEditorUiStore()
+
+function onEditorModeChange(mode: EditorMode) {
+  editorUi.setReadingMode(mode === 'reading')
+}
+
+onBeforeUnmount(() => {
+  editorUi.setReadingMode(false)
+})
+
+watch(page, (nextPage) => {
+  if (!nextPage) {
+    editorUi.setReadingMode(false)
+  }
+})
 </script>
 
 <template>
-  <div class="workspace" v-if="page">
-    <nav v-if="page.folderPath && page.folderPath.length" class="breadcrumbs">
+  <div class="workspace" :class="{ 'reading-mode': editorUi.isReadingMode }" v-if="page">
+    <nav v-if="!editorUi.isReadingMode && page.folderPath && page.folderPath.length" class="breadcrumbs">
       <router-link to="/" class="breadcrumb-item">Root</router-link>
       <span class="breadcrumb-sep">/</span>
       <template v-for="folder in page.folderPath" :key="folder.id">
@@ -33,7 +52,7 @@ const {
       <span class="breadcrumb-current">{{ page.title }}</span>
     </nav>
     <div v-if="loading" class="workspace-loading">Loading...</div>
-    <div class="workspace-header">
+    <div v-if="!editorUi.isReadingMode" class="workspace-header">
       <input
         class="title-input"
         :value="title"
@@ -63,14 +82,15 @@ const {
         :modelValue="content"
         @update:modelValue="onContentChange"
         @save="onEditorSave"
+        @mode-change="onEditorModeChange"
       />
     </div>
 
-    <div v-if="showGraph && page" class="graph-area">
+    <div v-if="!editorUi.isReadingMode && showGraph && page" class="graph-area">
       <GraphPanel :slug="page.slug" />
     </div>
 
-    <div class="backlinks-panel" v-if="backlinks.length">
+    <div class="backlinks-panel" v-if="!editorUi.isReadingMode && backlinks.length">
       <details>
         <summary>Backlinks ({{ backlinks.length }})</summary>
         <ul>
@@ -184,6 +204,10 @@ const {
 .editor-area {
   flex: 1;
   min-height: 0;
+}
+
+.workspace.reading-mode .editor-area {
+  height: 100%;
 }
 
 .backlinks-panel {

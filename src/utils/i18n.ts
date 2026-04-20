@@ -23,6 +23,12 @@ export const t = {
     addSubfolder: 'Add subfolder',
     deleteFolder: 'Delete folder',
     deletePage: 'Delete page',
+    chooseDeleteMode: (name: string) =>
+      `How to delete "${name}"?\nSoft delete keeps the file and allows restore. Hard delete removes page and markdown file permanently.`,
+    softDeleteLabel: 'Soft delete',
+    softDeleteHint: 'Can be restored later',
+    hardDeleteLabel: 'Hard delete',
+    hardDeleteHint: 'Permanent removal, cannot be undone',
     pageNamePrompt: 'Page name:',
     folderNamePrompt: 'Folder name:',
     newNamePrompt: 'New name:',

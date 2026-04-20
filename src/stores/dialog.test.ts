@@ -47,11 +47,26 @@ describe('useDialogStore', () => {
     await expect(p2).resolves.toBeNull()
   })
 
+  it('choice resolves selected option and supports cancellation', async () => {
+    const store = useDialogStore()
+    const p1 = store.choice('Delete mode?', [
+      { value: 'soft', label: 'Soft' },
+      { value: 'hard', label: 'Hard', danger: true }
+    ])
+    store.submitChoice('hard')
+    await expect(p1).resolves.toBe('hard')
+
+    const p2 = store.choice('Delete mode?', [{ value: 'soft', label: 'Soft' }])
+    store.submitChoice(null)
+    await expect(p2).resolves.toBeNull()
+  })
+
   it('submit functions are no-op when mismatched dialog kind is active', async () => {
     const store = useDialogStore()
     const promise = store.alert('hi')
     store.submitConfirm(true)
     store.submitPrompt('x')
+    store.submitChoice('hard')
     expect(store.active?.kind).toBe('alert')
     store.submitAlert()
     await expect(promise).resolves.toBeUndefined()
