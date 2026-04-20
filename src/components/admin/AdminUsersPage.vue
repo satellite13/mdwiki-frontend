@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import * as usersApi from '@/api/users'
-import type { User } from '@/types'
+import type { User, UserRole } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import { t } from '@/utils/i18n'
@@ -11,6 +11,12 @@ const dialog = useDialogStore()
 const users = ref<User[]>([])
 const loading = ref(true)
 
+const VALID_ROLES: readonly UserRole[] = ['READER', 'EDITOR', 'ADMIN']
+
+function toUserRole(value: string): UserRole | null {
+  return (VALID_ROLES as readonly string[]).includes(value) ? (value as UserRole) : null
+}
+
 async function fetchUsers() {
   loading.value = true
   try { const { data } = await usersApi.listUsers(); users.value = data }
@@ -18,7 +24,9 @@ async function fetchUsers() {
 }
 
 async function changeRole(user: User, newRole: string) {
-  await usersApi.updateUserRole(user.id, newRole)
+  const role = toUserRole(newRole)
+  if (!role) return
+  await usersApi.updateUserRole(user.id, role)
   fetchUsers()
 }
 

@@ -6,17 +6,17 @@ export function getFolderTree() {
 }
 
 export function createFolder(name: string, parentId?: string) {
-  return client.post('/folders', { name, parentId })
+  return client.post<void>('/folders', { name, parentId })
 }
 
 export function renameFolder(id: string, name: string) {
-  return client.put(`/folders/${id}`, { name })
+  return client.put<void>(`/folders/${id}`, { name })
 }
 
 export function moveFolder(id: string, parentId: string | null) {
-  return client.put(`/folders/${id}/move`, { parentId })
+  return client.put<void>(`/folders/${id}/move`, { parentId })
 }
 
 export function deleteFolder(id: string) {
-  return client.delete(`/folders/${id}`)
+  return client.delete<void>(`/folders/${id}`)
 }

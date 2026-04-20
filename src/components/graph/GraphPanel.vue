@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as d3 from 'd3'
-import { getPageGraph, getWikiGraph, type GraphNode, type GraphEdge } from '@/api/graph'
+import { getPageGraph, getWikiGraph } from '@/api/graph'
+import type { GraphNode, GraphEdge } from '@/api/graph'
 import { useRouter } from 'vue-router'
 
 const props = withDefaults(
@@ -12,17 +13,6 @@ const props = withDefaults(
   }>(),
   { variant: 'page', slug: '', highlightSlug: null }
 )
-
-const router = useRouter()
-const depth = ref(1)
-const loading = ref(false)
-const svgRef = ref<SVGSVGElement | null>(null)
-const canvasRef = ref<HTMLElement | null>(null)
-let simulation: d3.Simulation<any, any> | null = null
-let resizeObserver: ResizeObserver | null = null
-/** Последние данные для перерисовки при смене размера панели */
-let lastNodes: GraphNode[] = []
-let lastEdges: GraphEdge[] = []
 
 interface SimNode extends d3.SimulationNodeDatum {
   slug: string
@@ -35,6 +25,17 @@ interface SimLink extends d3.SimulationLinkDatum<SimNode> {
   source: SimNode | string
   target: SimNode | string
 }
+
+const router = useRouter()
+const depth = ref(1)
+const loading = ref(false)
+const svgRef = ref<SVGSVGElement | null>(null)
+const canvasRef = ref<HTMLElement | null>(null)
+let simulation: d3.Simulation<SimNode, SimLink> | null = null
+let resizeObserver: ResizeObserver | null = null
+/** Последние данные для перерисовки при смене размера панели */
+let lastNodes: GraphNode[] = []
+let lastEdges: GraphEdge[] = []
 
 function measureSvg(): { width: number; height: number } {
   const el = svgRef.value
@@ -150,7 +151,7 @@ function alignEdgesToNodes(nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[] 
 function renderGraph(nodes: GraphNode[], edges: GraphEdge[]) {
   if (!svgRef.value) return
 
-  const svg = d3.select(svgRef.value)
+  const svg = d3.select<SVGSVGElement, unknown>(svgRef.value)
   svg.selectAll('*').remove()
 
   const wiki = props.variant === 'wiki'
@@ -222,7 +223,7 @@ function renderGraph(nodes: GraphNode[], edges: GraphEdge[]) {
     .zoom<SVGSVGElement, unknown>()
     .scaleExtent([0.04, 4])
     .on('zoom', (event) => rootG.attr('transform', event.transform))
-  svg.call(zoom as any)
+  svg.call(zoom)
 
   const markerKey =
     props.variant === 'wiki'
@@ -319,7 +320,7 @@ function renderGraph(nodes: GraphNode[], edges: GraphEdge[]) {
       d3.select(this).attr('x1', x1).attr('y1', y1).attr('x2', x2).attr('y2', y2)
     })
 
-    node.attr('transform', (d: any) => `translate(${d.x ?? 0},${d.y ?? 0})`)
+    node.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`)
   })
 
   simulation.alpha(1).restart()
@@ -328,7 +329,7 @@ function renderGraph(nodes: GraphNode[], edges: GraphEdge[]) {
     simulation.tick()
   }
 
-  svg.call(zoom.transform as any, fitBoundsTransform(simNodes, width, height))
+  svg.call(zoom.transform, fitBoundsTransform(simNodes, width, height))
 
   if (wiki) {
     simulation.alpha(0)

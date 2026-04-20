@@ -1,14 +1,16 @@
+export type UserRole = 'READER' | 'EDITOR' | 'ADMIN'
+
 export interface User {
   id: string
   username: string
   email: string
-  role: 'READER' | 'EDITOR' | 'ADMIN'
+  role: UserRole
 }
 
 export interface AuthResponse {
   token: string
   username: string
-  role: string
+  role: UserRole
 }
 
 export interface Page {
