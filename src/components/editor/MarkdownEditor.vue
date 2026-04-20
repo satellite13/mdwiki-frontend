@@ -5,6 +5,7 @@ import { useThemeStore } from '@/stores/theme'
 import { uploadAttachment } from '@/api/attachments'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
+import { readString, writeString } from '@/utils/localPreferences'
 import { useEditorHistory } from '@/composables/useEditorHistory'
 import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
 import { normalizePageSlug } from '@/utils/pageSlug'
@@ -21,6 +22,12 @@ import {
 } from './editorPreferences'
 
 const TABLE_GRID_MAX = 8
+const READING_FONT_SIZE_KEY = 'mdwiki-reading-font-size'
+const READING_THEME_KEY = 'mdwiki-reading-theme'
+const READING_FONT_MIN = 14
+const READING_FONT_MAX = 28
+
+type ReadingTheme = 'white' | 'paper' | 'dark'
 
 const EMOJI_ITEMS = [
   '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
@@ -68,6 +75,8 @@ const emojiMenuOpen = ref(false)
 const tableHoverCols = ref(1)
 const tableHoverRows = ref(1)
 const lastNonReadingMode = ref<EditorMode>('split')
+const readingFontSize = ref(readReadingFontSizePref())
+const readingTheme = ref<ReadingTheme>(readReadingThemePref())
 
 const wikilink = useWikilinkAutocomplete({
   getEditor: () => editorRef.value,
@@ -94,6 +103,23 @@ const editorShellStyle = computed(() =>
     ? { gridTemplateColumns: `${splitRatio.value}% 8px minmax(0, 1fr)` }
     : undefined
 )
+const readingPreviewStyle = computed(() =>
+  editorMode.value === 'reading'
+    ? { fontSize: `${readingFontSize.value}px` }
+    : undefined
+)
+
+function readReadingThemePref(): ReadingTheme {
+  const value = readString(READING_THEME_KEY)
+  if (value === 'white' || value === 'paper' || value === 'dark') return value
+  return 'white'
+}
+
+function readReadingFontSizePref(): number {
+  const raw = Number(readString(READING_FONT_SIZE_KEY) || '19')
+  if (!Number.isFinite(raw)) return 18
+  return Math.max(READING_FONT_MIN, Math.min(READING_FONT_MAX, Math.round(raw)))
+}
 
 watch(
   () => props.modelValue,
@@ -122,6 +148,14 @@ watch(editorMode, (value) => {
 watch(previewHtml, async () => {
   await nextTick()
   await renderMermaid()
+})
+
+watch(readingTheme, (value) => {
+  writeString(READING_THEME_KEY, value)
+})
+
+watch(readingFontSize, (value) => {
+  writeString(READING_FONT_SIZE_KEY, String(value))
 })
 
 watch(
@@ -571,6 +605,7 @@ async function renderMermaid() {
   }
   normalizeTableColumnAlignment()
   decorateHeadingAnchors()
+  decorateCodeCopyButtons()
 }
 
 function decorateHeadingAnchors() {
@@ -587,6 +622,24 @@ function decorateHeadingAnchors() {
     button.setAttribute('aria-label', 'Скопировать якорь раздела')
     button.innerHTML = '<span class="material-symbols-outlined notranslate" translate="no">content_copy</span>'
     heading.appendChild(button)
+  })
+}
+
+function decorateCodeCopyButtons() {
+  const root = previewPaneRef.value
+  if (!root) return
+  const blocks = root.querySelectorAll<HTMLElement>('pre')
+  blocks.forEach((block) => {
+    if (block.querySelector(':scope > .code-copy-btn')) return
+    const code = block.querySelector('code')
+    if (!code) return
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'code-copy-btn'
+    button.title = 'Скопировать код'
+    button.setAttribute('aria-label', 'Скопировать код')
+    button.innerHTML = '<span class="material-symbols-outlined notranslate" translate="no">content_copy</span>'
+    block.appendChild(button)
   })
 }
 
@@ -611,29 +664,59 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   }
 }
 
-async function onPreviewClick(event: MouseEvent) {
-  const target = event.target as HTMLElement | null
-  const button = target?.closest<HTMLButtonElement>('.heading-copy-btn')
-  if (!button) return
-  event.preventDefault()
-  event.stopPropagation()
-
-  const anchor = button.dataset.anchor
-  if (!anchor) return
-
-  const link = `#${anchor}`
-  const copied = await copyTextToClipboard(link)
-
+function applyCopyFeedback(
+  button: HTMLButtonElement,
+  copied: boolean,
+  okTitle: string,
+  failTitle: string,
+  resetTitle: string
+) {
   const previousTimer = copyFeedbackTimers.get(button)
   if (previousTimer) window.clearTimeout(previousTimer)
   button.classList.remove('copied', 'failed')
   button.classList.add(copied ? 'copied' : 'failed')
-  button.title = copied ? 'Якорь скопирован' : 'Не удалось скопировать'
+  button.title = copied ? okTitle : failTitle
   const timer = window.setTimeout(() => {
     button.classList.remove('copied', 'failed')
-    button.title = 'Скопировать якорь раздела'
+    button.title = resetTitle
   }, 1300)
   copyFeedbackTimers.set(button, timer)
+}
+
+async function onPreviewClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  const headingButton = target?.closest<HTMLButtonElement>('.heading-copy-btn')
+  if (headingButton) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const anchor = headingButton.dataset.anchor
+    if (!anchor) return
+    const link = `#${anchor}`
+    const copied = await copyTextToClipboard(link)
+    applyCopyFeedback(
+      headingButton,
+      copied,
+      'Якорь скопирован',
+      'Не удалось скопировать',
+      'Скопировать якорь раздела'
+    )
+    return
+  }
+
+  const codeButton = target?.closest<HTMLButtonElement>('.code-copy-btn')
+  if (!codeButton) return
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  const codeHost = codeButton.closest('pre')
+  const code = codeHost?.querySelector('code')
+  const codeText = code?.textContent ?? ''
+  if (!codeText.trim()) return
+
+  const copied = await copyTextToClipboard(codeText)
+  applyCopyFeedback(codeButton, copied, 'Код скопирован', 'Не удалось скопировать', 'Скопировать код')
 }
 
 function onGlobalClick(event: MouseEvent) {
@@ -657,11 +740,59 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="markdown-editor-wrapper" :class="{ dark: themeStore.isDark, 'reading-mode': editorMode === 'reading' }">
+  <div
+    class="markdown-editor-wrapper"
+    :class="{
+      dark: themeStore.isDark,
+      'reading-mode': editorMode === 'reading',
+      'reading-theme-white': editorMode === 'reading' && readingTheme === 'white',
+      'reading-theme-paper': editorMode === 'reading' && readingTheme === 'paper',
+      'reading-theme-dark': editorMode === 'reading' && readingTheme === 'dark'
+    }"
+  >
     <div class="toolbar">
       <template v-if="editorMode === 'reading'">
         <router-link to="/" class="reading-logo">MDWiki</router-link>
         <div class="reading-title" :title="props.readingTitle || ''">{{ props.readingTitle || 'Untitled' }}</div>
+        <div class="reading-controls">
+          <input
+            v-model.number="readingFontSize"
+            class="reading-font-slider"
+            type="range"
+            :min="READING_FONT_MIN"
+            :max="READING_FONT_MAX"
+            step="1"
+            aria-label="Reading font size"
+            title="Reading font size"
+          />
+          <span class="reading-font-size">{{ readingFontSize }}px</span>
+          <div class="reading-theme-swatches" role="radiogroup" aria-label="Reading background style">
+            <button
+              type="button"
+              class="reading-theme-dot theme-white"
+              :class="{ active: readingTheme === 'white' }"
+              aria-label="White background"
+              title="White"
+              @click="readingTheme = 'white'"
+            />
+            <button
+              type="button"
+              class="reading-theme-dot theme-paper"
+              :class="{ active: readingTheme === 'paper' }"
+              aria-label="Paper background"
+              title="Paper"
+              @click="readingTheme = 'paper'"
+            />
+            <button
+              type="button"
+              class="reading-theme-dot theme-dark"
+              :class="{ active: readingTheme === 'dark' }"
+              aria-label="Dark background"
+              title="Dark"
+              @click="readingTheme = 'dark'"
+            />
+          </div>
+        </div>
         <button
           type="button"
           class="reading-exit-btn"
@@ -807,10 +938,15 @@ onBeforeUnmount(() => {
         v-if="editorMode !== 'editor'"
         ref="previewPaneRef"
         class="preview-pane"
+        :class="[
+          { 'reading-theme-white': editorMode === 'reading' && readingTheme === 'white' },
+          { 'reading-theme-paper': editorMode === 'reading' && readingTheme === 'paper' },
+          { 'reading-theme-dark': editorMode === 'reading' && readingTheme === 'dark' }
+        ]"
         @click="onPreviewClick"
         @scroll="onPreviewScroll"
       >
-        <div class="preview-content markdown-body" v-html="previewHtml" />
+        <div class="preview-content markdown-body" :style="readingPreviewStyle" v-html="previewHtml" />
       </div>
     </div>
     <input
@@ -836,6 +972,10 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+.markdown-editor-wrapper.reading-mode {
+  gap: 0;
+}
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -849,10 +989,13 @@ onBeforeUnmount(() => {
 
 .reading-mode .toolbar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+  border-radius: 0;
 }
 
 .reading-logo {
@@ -876,6 +1019,54 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
+}
+
+.reading-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reading-font-slider {
+  width: 130px;
+}
+
+.reading-font-size {
+  min-width: 42px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.reading-theme-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reading-theme-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  padding: 0;
+}
+
+.reading-theme-dot.theme-white {
+  background: #ffffff;
+}
+
+.reading-theme-dot.theme-paper {
+  background: #f6f1e3;
+}
+
+.reading-theme-dot.theme-dark {
+  background: #0f1115;
+}
+
+.reading-theme-dot.active {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 
 .icon-btn {
@@ -1081,6 +1272,54 @@ onBeforeUnmount(() => {
 .editor-shell.mode-reading .preview-content {
   max-width: 920px;
   margin: 0 auto;
+  line-height: 1.75;
+}
+
+.markdown-editor-wrapper.reading-theme-white .toolbar,
+.editor-shell.mode-reading .preview-pane.reading-theme-white {
+  background: #ffffff;
+}
+
+.markdown-editor-wrapper.reading-theme-paper .toolbar,
+.editor-shell.mode-reading .preview-pane.reading-theme-paper {
+  background: #f6f1e3;
+}
+
+.markdown-editor-wrapper.reading-theme-dark .toolbar,
+.editor-shell.mode-reading .preview-pane.reading-theme-dark {
+  background: #0f1115;
+  color: #e7ecf3;
+}
+
+.markdown-editor-wrapper.reading-theme-dark .reading-logo,
+.markdown-editor-wrapper.reading-theme-dark .reading-title {
+  color: #f3f7ff;
+}
+
+.markdown-editor-wrapper.reading-theme-dark .reading-font-size {
+  color: #aeb8c7;
+}
+
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h1),
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h2),
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h3),
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h4),
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h5),
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h6) {
+  color: #f7fbff;
+}
+
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .wikilink) {
+  color: #8ac5ff;
+}
+
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .hashtag) {
+  color: #f4bf73;
+}
+
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body code:not(pre code)) {
+  background: #273243;
+  color: #f5fbff;
 }
 
 .reading-exit-btn {
@@ -1227,18 +1466,32 @@ onBeforeUnmount(() => {
   padding-left: 1.1rem;
 }
 
+:deep(.markdown-body li) {
+  line-height: 1.9;
+  margin: 0.18rem 0;
+}
+
 :deep(.markdown-body code) {
   font-family: var(--font-mono);
+}
+
+:deep(.markdown-body code:not(pre code)) {
+  background: color-mix(in srgb, var(--color-bg-secondary) 88%, var(--color-border));
+  color: var(--color-text);
+  border-radius: 4px;
+  padding: 0.08em 0.36em;
 }
 
 :deep(.markdown-body pre) {
   overflow: auto;
   border-radius: 8px;
+  position: relative;
 }
 
 :deep(.markdown-body pre code.hljs) {
   display: block;
-  padding: 12px;
+  padding: 12px 42px 12px 12px;
+  border-radius: inherit;
 }
 
 :deep(.markdown-body .task-list-item) {
@@ -1330,6 +1583,49 @@ onBeforeUnmount(() => {
   color: var(--color-danger);
 }
 
+:deep(.markdown-body .code-copy-btn) {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-faint);
+  opacity: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.markdown-body .code-copy-btn .material-symbols-outlined) {
+  font-size: 16px;
+  line-height: 1;
+}
+
+:deep(.markdown-body pre:hover .code-copy-btn) {
+  opacity: 1;
+}
+
+:deep(.markdown-body .code-copy-btn:hover) {
+  border-color: var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+}
+
+:deep(.markdown-body .code-copy-btn.copied) {
+  opacity: 1;
+  color: var(--color-success);
+}
+
+:deep(.markdown-body .code-copy-btn.failed) {
+  opacity: 1;
+  color: var(--color-danger);
+}
+
 ::deep(.markdown-body .mermaid) {
   display: flex;
   justify-content: center;
@@ -1344,5 +1640,10 @@ onBeforeUnmount(() => {
 [data-theme='dark'] :deep(.markdown-body pre code.hljs) {
   background: #272822;
   color: #f8f8f2;
+}
+
+[data-theme='dark'] :deep(.markdown-body code:not(pre code)) {
+  background: #273243;
+  color: #f5fbff;
 }
 </style>
