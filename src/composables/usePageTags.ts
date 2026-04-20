@@ -7,7 +7,7 @@ export function usePageTags() {
   const tagStore = useTagStore()
 
   const tagsLoading = ref(false)
-  const selectedTag = ref<string | null>(null)
+  const selectedTags = ref<string[]>([])
   const pageTagsBySlug = ref<Record<string, string[]>>({})
   const tagsCollapsed = ref(false)
   const tagQuery = ref('')
@@ -18,25 +18,29 @@ export function usePageTags() {
     return tagStore.tags.filter((tag) => tag.name.toLowerCase().includes(query))
   })
 
-  function filterTreeByTag(nodes: FolderTreeNode[], tag: string): FolderTreeNode[] {
+  function filterTreeByTags(nodes: FolderTreeNode[], tags: string[]): FolderTreeNode[] {
     return nodes.reduce<FolderTreeNode[]>((acc, node) => {
       if (node.type === 'page') {
         const tagNames = node.slug ? pageTagsBySlug.value[node.slug] || [] : []
-        if (tagNames.includes(tag)) acc.push(node)
+        if (tags.every((tag) => tagNames.includes(tag))) acc.push(node)
         return acc
       }
-      const children = filterTreeByTag(node.children, tag)
+      const children = filterTreeByTags(node.children, tags)
       if (children.length > 0) acc.push({ ...node, children })
       return acc
     }, [])
   }
 
   function toggleTagFilter(tagName: string) {
-    selectedTag.value = selectedTag.value === tagName ? null : tagName
+    if (selectedTags.value.includes(tagName)) {
+      selectedTags.value = selectedTags.value.filter((tag) => tag !== tagName)
+      return
+    }
+    selectedTags.value = [...selectedTags.value, tagName]
   }
 
   function clearTagFilter() {
-    selectedTag.value = null
+    selectedTags.value = []
   }
 
   function toggleTagsPanel() {
@@ -57,19 +61,18 @@ export function usePageTags() {
     } finally {
       tagsLoading.value = false
     }
-    if (selectedTag.value && !tagStore.tags.some((tag) => tag.name === selectedTag.value)) {
-      selectedTag.value = null
-    }
+    const existingTagNames = new Set(tagStore.tags.map((tag) => tag.name))
+    selectedTags.value = selectedTags.value.filter((tagName) => existingTagNames.has(tagName))
   }
 
   return {
     tagStore,
     tagsLoading,
-    selectedTag,
+    selectedTags,
     tagsCollapsed,
     tagQuery,
     filteredTags,
-    filterTreeByTag,
+    filterTreeByTags,
     toggleTagFilter,
     clearTagFilter,
     toggleTagsPanel,

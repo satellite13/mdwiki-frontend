@@ -29,11 +29,11 @@ const activeSlug = computed(() => (route.params.slug as string) || null)
 const {
   tagStore,
   tagsLoading,
-  selectedTag,
+  selectedTags,
   tagsCollapsed,
   tagQuery,
   filteredTags,
-  filterTreeByTag,
+  filterTreeByTags,
   toggleTagFilter,
   clearTagFilter,
   toggleTagsPanel,
@@ -63,8 +63,8 @@ const contextMenuItems = computed(() => {
 })
 
 const visibleTree = computed(() => {
-  if (!selectedTag.value) return folderStore.tree
-  return filterTreeByTag(folderStore.tree, selectedTag.value)
+  if (selectedTags.value.length === 0) return folderStore.tree
+  return filterTreeByTags(folderStore.tree, selectedTags.value)
 })
 const rootFolders = computed(() => visibleTree.value.filter((n) => n.type === 'folder'))
 const rootPages = computed(() => visibleTree.value.filter((n) => n.type === 'page'))
@@ -98,6 +98,7 @@ async function onContextAction(action: string) {
       await treeActions.renameFolderNode(ctx.node)
     } else if (action === 'delete' && ctx.node) {
       await treeActions.deleteNode(ctx.node)
+      await refreshTagData(true)
     }
   } catch (e) {
     console.error('Context action failed:', e)
@@ -109,6 +110,7 @@ async function onContextAction(action: string) {
 
 async function onDeleteNode(node: FolderTreeNode) {
   await treeActions.deleteNode(node)
+  await refreshTagData(true)
 }
 
 async function onAddPageToFolder(folderId: string) {
@@ -222,7 +224,7 @@ onMounted(async () => {
           <span :class="['tags-chevron', { collapsed: tagsCollapsed }]">▾</span>
         </button>
         <button
-          v-if="selectedTag"
+          v-if="selectedTags.length > 0"
           class="clear-tag-btn"
           type="button"
           @click="clearTagFilter"
@@ -244,7 +246,7 @@ onMounted(async () => {
           <button
             v-for="tag in filteredTags"
             :key="tag.id"
-            :class="['tag-chip', { active: selectedTag === tag.name }]"
+            :class="['tag-chip', { active: selectedTags.includes(tag.name) }]"
             type="button"
             @click="toggleTagFilter(tag.name)"
           >
@@ -281,7 +283,7 @@ onMounted(async () => {
       />
 
       <div v-if="!folderStore.loading && visibleTree.length === 0" class="tree-empty">
-        <template v-if="selectedTag">{{ t.tree.noDocumentsWithTag(selectedTag) }}</template>
+        <template v-if="selectedTags.length > 0">{{ t.tree.noDocumentsWithTag(selectedTags) }}</template>
         <template v-else>{{ t.tree.noDocuments }}</template>
       </div>
     </div>

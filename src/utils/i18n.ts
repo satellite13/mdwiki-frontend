@@ -12,7 +12,12 @@ export const t = {
     loadingTags: 'Loading tags...',
     noTags: 'No tags',
     tagsNotFound: 'No tags found',
-    noDocumentsWithTag: (tag: string) => `No documents with tag #${tag}`,
+    noDocumentsWithTag: (tags: string | string[]) => {
+      if (Array.isArray(tags)) {
+        return `No documents with tags ${tags.map((tag) => `#${tag}`).join(', ')}`
+      }
+      return `No documents with tag #${tags}`
+    },
     noDocuments: 'No documents',
     addPage: 'Add page',
     addSubfolder: 'Add subfolder',
