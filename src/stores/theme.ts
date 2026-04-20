@@ -1,10 +1,18 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { readString, writeString } from '@/utils/localPreferences'
+
+type Theme = 'light' | 'dark'
+
+const THEME_KEY = 'theme'
+
+function readStoredTheme(): Theme {
+  const raw = readString(THEME_KEY)
+  return raw === 'dark' ? 'dark' : 'light'
+}
 
 export const useThemeStore = defineStore('theme', () => {
-  const theme = ref<'light' | 'dark'>(
-    (localStorage.getItem('theme') as 'light' | 'dark') || 'light'
-  )
+  const theme = ref<Theme>(readStoredTheme())
 
   const isDark = computed(() => theme.value === 'dark')
 
@@ -15,10 +23,9 @@ export const useThemeStore = defineStore('theme', () => {
 
   function apply() {
     document.documentElement.dataset.theme = theme.value === 'dark' ? 'dark' : ''
-    localStorage.setItem('theme', theme.value)
+    writeString(THEME_KEY, theme.value)
   }
 
-  // Apply on creation
   apply()
 
   return { theme, isDark, toggle, apply }

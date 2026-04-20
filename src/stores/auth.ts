@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import * as authApi from '@/api/auth'
 import type { UserRole } from '@/types'
+import { readString, writeString, removePref } from '@/utils/localPreferences'
+
+const TOKEN_KEY = 'token'
+const USERNAME_KEY = 'username'
+const ROLE_KEY = 'role'
 
 const VALID_ROLES: readonly UserRole[] = ['READER', 'EDITOR', 'ADMIN']
 
@@ -10,13 +15,13 @@ function isUserRole(value: unknown): value is UserRole {
 }
 
 function readStoredRole(): UserRole | null {
-  const raw = localStorage.getItem('role')
+  const raw = readString(ROLE_KEY)
   return isUserRole(raw) ? raw : null
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('token'))
-  const username = ref<string | null>(localStorage.getItem('username'))
+  const token = ref<string | null>(readString(TOKEN_KEY))
+  const username = ref<string | null>(readString(USERNAME_KEY))
   const role = ref<UserRole | null>(readStoredRole())
 
   const isAuthenticated = computed(() => !!token.value)
@@ -24,8 +29,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isEditor = computed(() => role.value === 'EDITOR' || role.value === 'ADMIN')
 
   function setAuth(t: string, u: string, r: UserRole) {
-    token.value = t; username.value = u; role.value = r
-    localStorage.setItem('token', t); localStorage.setItem('username', u); localStorage.setItem('role', r)
+    token.value = t
+    username.value = u
+    role.value = r
+    writeString(TOKEN_KEY, t)
+    writeString(USERNAME_KEY, u)
+    writeString(ROLE_KEY, r)
   }
 
   async function login(user: string, password: string) {
@@ -39,8 +48,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout() {
-    token.value = null; username.value = null; role.value = null
-    localStorage.removeItem('token'); localStorage.removeItem('username'); localStorage.removeItem('role')
+    token.value = null
+    username.value = null
+    role.value = null
+    removePref(TOKEN_KEY)
+    removePref(USERNAME_KEY)
+    removePref(ROLE_KEY)
   }
 
   return { token, username, role, isAuthenticated, isAdmin, isEditor, login, register, logout }
