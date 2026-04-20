@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import axios from 'axios'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFolderStore } from '@/stores/folders'
@@ -10,6 +9,7 @@ import type { FolderTreeNode } from '@/types'
 import { createTreeEventsSource } from '@/api/events'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { refreshWikilinkPreviewIndex } from '@/utils/wikilinkResolve'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
 import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
 import { useDialogStore } from '@/stores/dialog'
@@ -157,13 +157,7 @@ async function createNewFolder(parentId?: string) {
   try {
     await folderStore.createFolder(nameRaw.trim(), parentId || undefined)
   } catch (error) {
-    const message =
-      axios.isAxiosError(error) &&
-      error.response?.data &&
-      typeof (error.response.data as { message?: string }).message === 'string'
-        ? (error.response.data as { message: string }).message
-        : t.errors.createFolderFailed
-    await dialog.alert(message)
+    await dialog.alert(getApiErrorMessage(error, t.errors.createFolderFailed))
   }
 }
 

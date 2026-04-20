@@ -1,5 +1,4 @@
 import type { Ref } from 'vue'
-import axios from 'axios'
 import type { Router } from 'vue-router'
 import * as pagesApi from '@/api/pages'
 import {
@@ -7,6 +6,7 @@ import {
   getWikilinkPreviewPages,
   slugCandidatesForNavigation
 } from '@/utils/wikilinkResolve'
+import { isApiErrorWithStatus } from '@/utils/apiError'
 import type { Backlink, Page } from '@/types'
 
 type LoaderState = {
@@ -54,7 +54,7 @@ export function usePageLoader(
         }
         break
       } catch (e) {
-        if (!axios.isAxiosError(e) || e.response?.status !== 404) {
+        if (!isApiErrorWithStatus(e, 404)) {
           state.loading.value = false
           return
         }

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import axios from 'axios'
 import MarkdownIt from 'markdown-it'
 import markdownItMark from 'markdown-it-mark'
 import markdownItTaskLists from 'markdown-it-task-lists'
@@ -16,6 +15,8 @@ import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { readWikilinkPagesCache, writeWikilinkPagesCache } from '@/utils/wikilinkPageListCache'
 import { wikilinkPreviewHref } from '@/utils/wikilinkResolve'
+import { getApiErrorMessage } from '@/utils/apiError'
+import { t } from '@/utils/i18n'
 import type { PageListItem } from '@/types'
 
 const EDITOR_MODE_LS_KEY = 'mdwiki-editor-mode'
@@ -643,11 +644,7 @@ async function onUploadFiles(files: FileList | null) {
     const text = urls.map((url) => `![image](${url})`).join('\n')
     insertText(text)
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      uploadError.value = error.response?.data?.message || 'Image upload failed'
-    } else {
-      uploadError.value = 'Image upload failed'
-    }
+    uploadError.value = getApiErrorMessage(error, t.errors.imageUploadFailed)
   } finally {
     if (uploadInput.value) uploadInput.value.value = ''
   }

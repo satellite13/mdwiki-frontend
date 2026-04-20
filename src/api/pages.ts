@@ -1,7 +1,7 @@
-import axios from 'axios'
 import client from './client'
 import type { Page, PageListItem, Backlink } from '@/types'
 import { stripFolderPrefix } from '@/utils/folderId'
+import { isApiErrorWithStatus } from '@/utils/apiError'
 import { invalidateWikilinkPageListCache } from '@/utils/wikilinkPageListCache'
 import { clearWikilinkPreviewPages } from '@/utils/wikilinkResolve'
 
@@ -45,9 +45,7 @@ export async function deletePage(slug: string): Promise<void> {
   try {
     await client.delete(`/pages/${slug}`)
   } catch (e) {
-    if (!axios.isAxiosError(e) || e.response?.status !== 404) {
-      throw e
-    }
+    if (!isApiErrorWithStatus(e, 404)) throw e
   } finally {
     invalidatePageCaches()
   }

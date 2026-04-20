@@ -4,6 +4,7 @@ import * as usersApi from '@/api/users'
 import type { User, UserRole } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
 
 const auth = useAuthStore()
@@ -19,15 +20,25 @@ function toUserRole(value: string): UserRole | null {
 
 async function fetchUsers() {
   loading.value = true
-  try { const { data } = await usersApi.listUsers(); users.value = data }
-  finally { loading.value = false }
+  try {
+    const { data } = await usersApi.listUsers()
+    users.value = data
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t.errors.loadUsersFailed))
+  } finally {
+    loading.value = false
+  }
 }
 
 async function changeRole(user: User, newRole: string) {
   const role = toUserRole(newRole)
   if (!role) return
-  await usersApi.updateUserRole(user.id, role)
-  fetchUsers()
+  try {
+    await usersApi.updateUserRole(user.id, role)
+    await fetchUsers()
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t.errors.updateRoleFailed))
+  }
 }
 
 async function removeUser(user: User) {
@@ -37,8 +48,12 @@ async function removeUser(user: User) {
     confirmLabel: t.admin.delete
   })
   if (!ok) return
-  await usersApi.deleteUser(user.id)
-  fetchUsers()
+  try {
+    await usersApi.deleteUser(user.id)
+    await fetchUsers()
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t.errors.deleteUserFailed))
+  }
 }
 
 onMounted(fetchUsers)
