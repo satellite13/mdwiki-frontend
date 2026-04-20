@@ -1,6 +1,5 @@
 import client from './client'
-import { invalidateWikilinkPageListCache } from '@/utils/wikilinkPageListCache'
-import { clearWikilinkPreviewPages } from '@/utils/wikilinkResolve'
+import { invalidatePageIndex } from '@/services/pageIndex'
 
 interface WikiSyncResult {
   added: number
@@ -11,7 +10,6 @@ interface WikiSyncResult {
 /** Полная синхронизация markdown из wiki-content ↔ БД (только ADMIN на API). */
 export async function postWikiFullSync() {
   const res = await client.post<WikiSyncResult>('/sync')
-  invalidateWikilinkPageListCache()
-  clearWikilinkPreviewPages()
+  invalidatePageIndex()
   return res
 }

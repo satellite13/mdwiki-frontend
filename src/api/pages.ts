@@ -2,13 +2,7 @@ import client from './client'
 import type { Page, PageListItem, Backlink } from '@/types'
 import { stripFolderPrefix } from '@/utils/folderId'
 import { isApiErrorWithStatus } from '@/utils/apiError'
-import { invalidateWikilinkPageListCache } from '@/utils/wikilinkPageListCache'
-import { clearWikilinkPreviewPages } from '@/utils/wikilinkResolve'
-
-function invalidatePageCaches(): void {
-  invalidateWikilinkPageListCache()
-  clearWikilinkPreviewPages()
-}
+import { invalidatePageIndex } from '@/services/pageIndex'
 
 export function listPages() {
   return client.get<PageListItem[]>('/pages')
@@ -25,7 +19,7 @@ export function getBacklinks(slug: string) {
 export async function createPage(slug: string, title: string, contentMd: string, folderId?: string) {
   const cleanFolderId = folderId ? stripFolderPrefix(folderId) : undefined
   const res = await client.post<Page>('/pages', { slug, title, contentMd, folderId: cleanFolderId })
-  invalidatePageCaches()
+  invalidatePageIndex()
   return res
 }
 
@@ -36,7 +30,7 @@ export async function updatePage(
   const folderId = data.folderId
   const payload = folderId != null ? { ...data, folderId: stripFolderPrefix(folderId) } : data
   const res = await client.put<Page>(`/pages/${slug}`, payload)
-  invalidatePageCaches()
+  invalidatePageIndex()
   return res
 }
 
@@ -47,6 +41,6 @@ export async function deletePage(slug: string): Promise<void> {
   } catch (e) {
     if (!isApiErrorWithStatus(e, 404)) throw e
   } finally {
-    invalidatePageCaches()
+    invalidatePageIndex()
   }
 }

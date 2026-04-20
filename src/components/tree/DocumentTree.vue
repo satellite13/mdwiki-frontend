@@ -8,7 +8,7 @@ import * as pagesApi from '@/api/pages'
 import type { FolderTreeNode } from '@/types'
 import { createTreeEventsSource } from '@/api/events'
 import { normalizePageSlug } from '@/utils/pageSlug'
-import { refreshWikilinkPreviewIndex } from '@/utils/wikilinkResolve'
+import { invalidatePageIndex } from '@/services/pageIndex'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
 import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
@@ -302,7 +302,6 @@ async function onRootDrop(e: DragEvent) {
 
 onMounted(async () => {
   await folderStore.fetchTree()
-  void refreshWikilinkPreviewIndex()
   await refreshTagData()
   connectTreeEvents()
 })
@@ -324,9 +323,9 @@ async function refreshTree() {
   if (treeRefreshInFlight) return
   treeRefreshInFlight = true
   try {
+    invalidatePageIndex()
     await Promise.all([
       folderStore.fetchTree(true),
-      refreshWikilinkPreviewIndex(true),
       refreshTagData(true)
     ])
   } catch (error) {

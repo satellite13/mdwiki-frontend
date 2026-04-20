@@ -10,11 +10,9 @@ import hljs from 'highlight.js'
 import mermaid from 'mermaid'
 import { useThemeStore } from '@/stores/theme'
 import { uploadAttachment } from '@/api/attachments'
-import { listPages } from '@/api/pages'
 import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
 import { normalizePageSlug } from '@/utils/pageSlug'
-import { readWikilinkPagesCache, writeWikilinkPagesCache } from '@/utils/wikilinkPageListCache'
-import { wikilinkPreviewHref } from '@/utils/wikilinkResolve'
+import { getPages, wikilinkPreviewHref } from '@/services/pageIndex'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
 import type { PageListItem } from '@/types'
@@ -466,12 +464,7 @@ function continueListOnEnter(): boolean {
 }
 
 async function getCachedPages(): Promise<PageListItem[]> {
-  const now = Date.now()
-  const cached = readWikilinkPagesCache(now)
-  if (cached) return cached
-  const { data } = await listPages()
-  writeWikilinkPagesCache(data, now)
-  return data
+  return getPages()
 }
 
 function closeWikilinkSuggestions() {
