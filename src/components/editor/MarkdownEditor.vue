@@ -1,27 +1,25 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import MarkdownIt from 'markdown-it'
-import markdownItMark from 'markdown-it-mark'
-import markdownItTaskLists from 'markdown-it-task-lists'
-import markdownItAnchor from 'markdown-it-anchor'
-import markdownItSub from 'markdown-it-sub'
-import markdownItSup from 'markdown-it-sup'
-import hljs from 'highlight.js'
 import mermaid from 'mermaid'
 import { useThemeStore } from '@/stores/theme'
 import { uploadAttachment } from '@/api/attachments'
-import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
-import { normalizePageSlug } from '@/utils/pageSlug'
-import { getPages, wikilinkPreviewHref } from '@/services/pageIndex'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
-import type { PageListItem } from '@/types'
+import { useEditorHistory } from '@/composables/useEditorHistory'
+import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
+import { normalizePageSlug } from '@/utils/pageSlug'
+import { createMarkdownRenderer } from './markdown'
+import {
+  clampSplitRatio,
+  DEFAULT_SPLIT_RATIO,
+  readEditorModePref,
+  readSplitRatioPref,
+  writeEditorModePref,
+  writeSplitRatioPref,
+  type EditorMode
+} from './editorPreferences'
 
-const EDITOR_MODE_LS_KEY = 'mdwiki-editor-mode'
-const SPLIT_RATIO_LS_KEY = 'mdwiki-editor-split-ratio'
 const TABLE_GRID_MAX = 8
-const WIKI_REGEX = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g
-const TAG_REGEX = /(?:^|\s)#([\w\u0400-\u04FF-]+)/g
 
 const EMOJI_ITEMS = [
   '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
@@ -32,125 +30,7 @@ const EMOJI_ITEMS = [
   '📎', '📷', '🧠', '🔧', '📝', '💬', '🌟', '💯'
 ]
 
-function readEditorModePref(): 'editor' | 'split' | 'preview' {
-  try {
-    const value = localStorage.getItem(EDITOR_MODE_LS_KEY)
-    if (value === 'editor' || value === 'split' || value === 'preview') return value
-  } catch {
-    // ignore
-  }
-  return 'split'
-}
-
-function writeEditorModePref(value: 'editor' | 'split' | 'preview') {
-  try {
-    localStorage.setItem(EDITOR_MODE_LS_KEY, value)
-  } catch {
-    // ignore
-  }
-}
-
-function readSplitRatioPref(): number {
-  try {
-    const raw = Number(localStorage.getItem(SPLIT_RATIO_LS_KEY) || '50')
-    if (Number.isFinite(raw)) return Math.min(75, Math.max(25, raw))
-  } catch {
-    // ignore
-  }
-  return 50
-}
-
-function writeSplitRatioPref(value: number) {
-  try {
-    localStorage.setItem(SPLIT_RATIO_LS_KEY, String(Math.round(value)))
-  } catch {
-    // ignore
-  }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function frontmatterStripPlugin(md: MarkdownIt) {
-  md.core.ruler.before('normalize', 'mdwiki_strip_frontmatter', (state) => {
-    state.src = stripMarkdownFrontmatter(state.src)
-  })
-}
-
-function wikilinkPlugin(md: MarkdownIt) {
-  const prev = md.renderer.rules.text
-  md.renderer.rules.text = (tokens, idx, options, env, self) => {
-    const source = prev ? prev(tokens, idx, options, env, self) : tokens[idx].content
-    return source.replace(WIKI_REGEX, (_m, slugRaw: string, labelRaw?: string) => {
-      const slug = slugRaw.trim()
-      const label = (labelRaw?.trim() || slug).trim()
-      const href = wikilinkPreviewHref(slug)
-      return `<a href="${escapeHtml(href)}" class="wikilink" data-wikilink="1" data-slug="${escapeHtml(slug)}">${escapeHtml(label)}</a>`
-    })
-  }
-}
-
-function tagPlugin(md: MarkdownIt) {
-  const prev = md.renderer.rules.text
-  md.renderer.rules.text = (tokens, idx, options, env, self) => {
-    const source = prev ? prev(tokens, idx, options, env, self) : tokens[idx].content
-    return source.replace(TAG_REGEX, (full: string, tag: string) => {
-      const prefix = full.startsWith(' ') ? ' ' : ''
-      return `${prefix}<span class="hashtag">#${escapeHtml(tag)}</span>`
-    })
-  }
-}
-
-function mermaidFencePlugin(md: MarkdownIt) {
-  const defaultFence = md.renderer.rules.fence
-  md.renderer.rules.fence = (tokens, idx, options, env, self) => {
-    const token = tokens[idx]
-    const info = (token.info || '').trim().toLowerCase()
-    if (info === 'mermaid') {
-      return `<div class="mermaid">${escapeHtml(token.content)}</div>`
-    }
-    if (defaultFence) return defaultFence(tokens, idx, options, env, self)
-    return self.renderToken(tokens, idx, options)
-  }
-}
-
-const md = new MarkdownIt({
-  html: true,
-  breaks: true,
-  linkify: true,
-  highlight(code: string, lang: string) {
-    const hasLanguage = !!lang && hljs.getLanguage(lang)
-    const highlighted = hasLanguage
-      ? hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
-      : hljs.highlightAuto(code).value
-    return `<pre><code class="hljs${lang ? ` language-${escapeHtml(lang)}` : ''}">${highlighted}</code></pre>`
-  }
-})
-  .use(markdownItMark)
-  .use(markdownItTaskLists, { enabled: false, label: true, labelAfter: true })
-  .use(markdownItSub)
-  .use(markdownItSup)
-  .use(markdownItAnchor, {
-    level: [1, 2, 3, 4, 5, 6],
-    slugify: (s) => normalizePageSlug(s) || 'section',
-    permalink: markdownItAnchor.permalink.headerLink({
-      safariReaderFix: true,
-      symbol: '#',
-      renderAttrs: () => ({
-        class: 'heading-anchor',
-        'aria-label': 'Ссылка на раздел'
-      })
-    })
-  })
-  .use(frontmatterStripPlugin)
-  .use(wikilinkPlugin)
-  .use(tagPlugin)
-  .use(mermaidFencePlugin)
+const md = createMarkdownRenderer()
 
 const props = defineProps<{
   modelValue: string
@@ -172,14 +52,12 @@ const headingMenuRef = ref<HTMLElement | null>(null)
 const tableMenuRef = ref<HTMLElement | null>(null)
 const emojiMenuRef = ref<HTMLElement | null>(null)
 
-const editorMode = ref<'editor' | 'split' | 'preview'>(readEditorModePref())
+const editorMode = ref<EditorMode>(readEditorModePref())
 const splitRatio = ref(readSplitRatioPref())
 const splitDragging = ref(false)
 const markdownValue = ref(props.modelValue)
 
-const historyStack = ref<string[]>([props.modelValue])
-const historyIndex = ref(0)
-const applyingHistory = ref(false)
+const history = useEditorHistory(props.modelValue)
 
 const headingMenuOpen = ref(false)
 const tableMenuOpen = ref(false)
@@ -187,17 +65,15 @@ const emojiMenuOpen = ref(false)
 const tableHoverCols = ref(1)
 const tableHoverRows = ref(1)
 
-const wikilinkOpen = ref(false)
-const wikilinkItems = ref<PageListItem[]>([])
-const wikilinkSelected = ref(0)
-const wikilinkFrom = ref(0)
-const wikilinkTo = ref(0)
-const wikilinkRequestId = ref(0)
-const wikilinkMenuStyle = ref<Record<string, string>>({
-  left: '8px',
-  top: '8px',
-  width: '320px'
+const wikilink = useWikilinkAutocomplete({
+  getEditor: () => editorRef.value,
+  getSource: () => markdownValue.value,
+  getContainerRect: () => splitShellRef.value?.getBoundingClientRect() ?? null
 })
+const wikilinkOpen = wikilink.open
+const wikilinkItems = wikilink.items
+const wikilinkSelected = wikilink.selected
+const wikilinkMenuStyle = wikilink.menuStyle
 
 let suppressEditorScrollUntil = 0
 let suppressPreviewScrollUntil = 0
@@ -206,8 +82,8 @@ let pointerUpHandler: (() => void) | null = null
 const copyFeedbackTimers = new WeakMap<HTMLButtonElement, number>()
 
 const previewHtml = computed(() => md.render(markdownValue.value))
-const canUndo = computed(() => historyIndex.value > 0)
-const canRedo = computed(() => historyIndex.value < historyStack.value.length - 1)
+const canUndo = history.canUndo
+const canRedo = history.canRedo
 const emojiItems = computed(() => EMOJI_ITEMS)
 const editorShellStyle = computed(() =>
   editorMode.value === 'split'
@@ -220,9 +96,8 @@ watch(
   (value) => {
     if (value === markdownValue.value) return
     markdownValue.value = value
-    if (applyingHistory.value) return
-    historyStack.value = [value]
-    historyIndex.value = 0
+    if (history.isApplying()) return
+    history.reset(value)
   },
   { flush: 'sync' }
 )
@@ -230,7 +105,7 @@ watch(
 watch(editorMode, (value) => {
   writeEditorModePref(value)
   closeAllMenus()
-  closeWikilinkSuggestions()
+  wikilink.close()
   nextTick(() => {
     void renderMermaid()
   })
@@ -249,47 +124,28 @@ watch(
   }
 )
 
-function pushHistory(value: string) {
-  if (applyingHistory.value) return
-  if (historyStack.value[historyIndex.value] === value) return
-  const next = historyStack.value.slice(0, historyIndex.value + 1)
-  next.push(value)
-  historyStack.value = next.slice(-300)
-  historyIndex.value = historyStack.value.length - 1
-}
-
 function applyValue(value: string, options?: { keepHistory?: boolean }) {
   markdownValue.value = value
   emit('update:modelValue', value)
-  if (!options?.keepHistory) pushHistory(value)
+  if (!options?.keepHistory) history.push(value)
 }
 
-function setMode(mode: 'editor' | 'split' | 'preview') {
+function setMode(mode: EditorMode) {
   editorMode.value = mode
 }
 
 function undo() {
-  if (!canUndo.value) return
-  applyingHistory.value = true
-  historyIndex.value -= 1
-  const value = historyStack.value[historyIndex.value]
+  const value = history.undo()
+  if (value === null) return
   markdownValue.value = value
   emit('update:modelValue', value)
-  nextTick(() => {
-    applyingHistory.value = false
-  })
 }
 
 function redo() {
-  if (!canRedo.value) return
-  applyingHistory.value = true
-  historyIndex.value += 1
-  const value = historyStack.value[historyIndex.value]
+  const value = history.redo()
+  if (value === null) return
   markdownValue.value = value
   emit('update:modelValue', value)
-  nextTick(() => {
-    applyingHistory.value = false
-  })
 }
 
 function applySelection(transform: (selected: string) => { text: string; cursorOffset?: number }) {
@@ -463,111 +319,23 @@ function continueListOnEnter(): boolean {
   return false
 }
 
-async function getCachedPages(): Promise<PageListItem[]> {
-  return getPages()
-}
-
-function closeWikilinkSuggestions() {
-  wikilinkOpen.value = false
-  wikilinkItems.value = []
-  wikilinkSelected.value = 0
-}
-
-function caretCoordsInTextarea(el: HTMLTextAreaElement, pos: number) {
-  const mirror = document.createElement('div')
-  const style = window.getComputedStyle(el)
-  const props = [
-    'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
-    'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
-    'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-    'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
-    'fontFamily', 'lineHeight', 'letterSpacing', 'textTransform', 'textIndent',
-    'textDecoration', 'wordSpacing', 'tabSize'
-  ] as const
-  props.forEach((p) => {
-    ;(mirror.style as unknown as Record<string, string>)[p] = style.getPropertyValue(p)
-  })
-  mirror.style.position = 'absolute'
-  mirror.style.visibility = 'hidden'
-  mirror.style.whiteSpace = 'pre-wrap'
-  mirror.style.wordBreak = 'break-word'
-  mirror.style.pointerEvents = 'none'
-  mirror.textContent = el.value.slice(0, pos)
-  const marker = document.createElement('span')
-  marker.textContent = '\u200b'
-  mirror.appendChild(marker)
-  document.body.appendChild(mirror)
-  const markerRect = marker.getBoundingClientRect()
-  const mirrorRect = mirror.getBoundingClientRect()
-  const elRect = el.getBoundingClientRect()
-  const left = elRect.left + (markerRect.left - mirrorRect.left) - el.scrollLeft
-  const top = elRect.top + (markerRect.top - mirrorRect.top) - el.scrollTop
-  const height = markerRect.height || Number.parseFloat(style.lineHeight) || 18
-  document.body.removeChild(mirror)
-  return { left, top, height }
-}
-
-function updateWikilinkMenuPosition() {
-  const el = editorRef.value
-  if (!el) return
-  const pos = el.selectionStart
-  const caret = caretCoordsInTextarea(el, pos)
-  const shell = splitShellRef.value?.getBoundingClientRect()
-  const vw = window.innerWidth
-  const maxRight = shell ? shell.right - 8 : vw - 8
-  const minLeft = shell ? shell.left + 8 : 8
-  const width = 320
-  const left = Math.min(Math.max(caret.left, minLeft), Math.max(minLeft, maxRight - width))
-  const preferTop = caret.top + caret.height + 8
-  const maxBottom = shell ? shell.bottom - 8 : window.innerHeight - 8
-  const top = preferTop + 180 > maxBottom ? Math.max((shell?.top || 8) + 8, caret.top - 190) : preferTop
-  wikilinkMenuStyle.value = { left: `${left}px`, top: `${top}px`, width: `${width}px` }
-}
-
-async function refreshWikilinkSuggestions() {
-  const el = editorRef.value
-  if (!el) return
-  const cursor = el.selectionStart
-  const source = markdownValue.value.slice(0, cursor)
-  const open = source.lastIndexOf('[[')
-  if (open === -1) return closeWikilinkSuggestions()
-  const chunk = source.slice(open + 2)
-  if (chunk.includes(']') || chunk.includes('\n')) return closeWikilinkSuggestions()
-  wikilinkFrom.value = open
-  wikilinkTo.value = cursor
-  const query = chunk.trim().toLowerCase()
-  const reqId = ++wikilinkRequestId.value
-  const pages = await getCachedPages()
-  if (reqId !== wikilinkRequestId.value) return
-  const filtered = query
-    ? pages.filter((item) =>
-      item.title.toLowerCase().includes(query) ||
-      item.slug.toLowerCase().includes(query) ||
-      normalizePageSlug(item.title).includes(query)
-    )
-    : pages
-  wikilinkItems.value = filtered
-    .slice()
-    .sort((a, b) => a.title.localeCompare(b.title, 'ru', { sensitivity: 'base' }))
-    .slice(0, 8)
-  wikilinkSelected.value = 0
-  wikilinkOpen.value = wikilinkItems.value.length > 0
-  updateWikilinkMenuPosition()
+function refreshWikilinkSuggestions() {
+  void wikilink.refresh()
 }
 
 function applyWikilinkSuggestion(index: number) {
-  const item = wikilinkItems.value[index]
+  const item = wikilink.selectIndex(index)
   if (!item) return
   const el = editorRef.value
   if (!el) return
   const titleSlug = normalizePageSlug(item.title)
   const inner = item.slug === titleSlug ? item.title : `${item.slug}|${item.title}`
   const replacement = `[[${inner}]]`
-  const start = wikilinkFrom.value
-  const end = wikilinkTo.value
+  const start = wikilink.from.value
+  const end = wikilink.to.value
   const next = markdownValue.value.slice(0, start) + replacement + markdownValue.value.slice(end)
   applyValue(next)
-  closeWikilinkSuggestions()
+  wikilink.close()
   nextTick(() => {
     const pos = start + replacement.length
     el.focus()
@@ -597,25 +365,25 @@ function onEditorKeydown(event: KeyboardEvent) {
     redo()
     return
   }
-  if (wikilinkOpen.value) {
+  if (wikilink.open.value) {
     if (event.key === 'ArrowDown') {
       event.preventDefault()
-      wikilinkSelected.value = Math.min(wikilinkSelected.value + 1, wikilinkItems.value.length - 1)
+      wikilink.moveDown()
       return
     }
     if (event.key === 'ArrowUp') {
       event.preventDefault()
-      wikilinkSelected.value = Math.max(wikilinkSelected.value - 1, 0)
+      wikilink.moveUp()
       return
     }
     if (event.key === 'Enter') {
       event.preventDefault()
-      applyWikilinkSuggestion(wikilinkSelected.value)
+      applyWikilinkSuggestion(wikilink.selected.value)
       return
     }
     if (event.key === 'Escape') {
       event.preventDefault()
-      closeWikilinkSuggestions()
+      wikilink.close()
       return
     }
   }
@@ -690,7 +458,7 @@ function onEditorScroll() {
   if (!editor || !preview) return
   const nextTop = getSyncedScrollTop(editor, preview)
   if (nextTop !== null) setScrollTopSilently(preview, nextTop, 'preview')
-  updateWikilinkMenuPosition()
+  wikilink.updatePosition()
 }
 
 function onPreviewScroll() {
@@ -711,7 +479,7 @@ function startSplitDrag(event: MouseEvent) {
   const rect = shell.getBoundingClientRect()
   pointerMoveHandler = (moveEvent: MouseEvent) => {
     const raw = ((moveEvent.clientX - rect.left) / rect.width) * 100
-    splitRatio.value = Math.min(75, Math.max(25, raw))
+    splitRatio.value = clampSplitRatio(raw)
     writeSplitRatioPref(splitRatio.value)
   }
   pointerUpHandler = () => {
@@ -727,8 +495,8 @@ function startSplitDrag(event: MouseEvent) {
 }
 
 function resetSplitRatio() {
-  splitRatio.value = 50
-  writeSplitRatioPref(50)
+  splitRatio.value = DEFAULT_SPLIT_RATIO
+  writeSplitRatioPref(DEFAULT_SPLIT_RATIO)
 }
 
 function normalizeTableColumnAlignment() {
@@ -956,7 +724,7 @@ onBeforeUnmount(() => {
           @click="refreshWikilinkSuggestions"
           @keyup="refreshWikilinkSuggestions"
           @scroll="onEditorScroll"
-          @blur="closeWikilinkSuggestions"
+          @blur="wikilink.close()"
         />
         <div v-if="wikilinkOpen" class="wikilink-suggestions" :style="wikilinkMenuStyle">
           <button
