@@ -8,6 +8,7 @@ import { t } from '@/utils/i18n'
 import { useEditorHistory } from '@/composables/useEditorHistory'
 import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
 import { normalizePageSlug } from '@/utils/pageSlug'
+import { formatPipeTableAtCursor } from '@/utils/formatMarkdownTable'
 import { createMarkdownRenderer } from './markdown'
 import {
   clampSplitRatio,
@@ -225,6 +226,21 @@ function toggleTableMenu() {
   tableMenuOpen.value = !tableMenuOpen.value
   headingMenuOpen.value = false
   emojiMenuOpen.value = false
+}
+
+function formatMarkdownTableAtCursor() {
+  closeAllMenus()
+  const el = editorRef.value
+  if (!el) return
+  const cursor = Math.min(el.selectionStart, el.selectionEnd)
+  const result = formatPipeTableAtCursor(markdownValue.value, cursor)
+  if (!result) return
+  applyValue(result.text)
+  nextTick(() => {
+    el.focus()
+    el.setSelectionRange(result.cursor, result.cursor)
+    refreshWikilinkSuggestions()
+  })
 }
 
 function toggleEmojiMenu() {
@@ -683,6 +699,15 @@ onBeforeUnmount(() => {
           <div class="table-grid-label">{{ tableHoverCols }} × {{ tableHoverRows }}</div>
         </div>
       </div>
+      <button
+        type="button"
+        class="icon-btn"
+        title="Выровнять markdown-таблицу под курсором"
+        aria-label="Выровнять markdown-таблицу под курсором"
+        @click="formatMarkdownTableAtCursor"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no">format_align_justify</span>
+      </button>
       <button type="button" class="icon-btn" title="Wiki link" aria-label="Wiki link" @click="wrapSelection('[[', ']]', 'Page Title')"><span class="material-symbols-outlined notranslate" translate="no">article_shortcut</span></button>
       <button type="button" class="icon-btn" title="Tag" aria-label="Tag" @click="insertText(' #tag')"><span class="material-symbols-outlined notranslate" translate="no">sell</span></button>
       <div ref="emojiMenuRef" class="emoji-menu">

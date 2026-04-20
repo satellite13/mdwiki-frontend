@@ -32,4 +32,38 @@ describe('stripMarkdownFrontmatter', () => {
     // @ts-expect-error — runtime guard check
     expect(stripMarkdownFrontmatter(undefined)).toBe('')
   })
+
+  it('does not strip up to a horizontal rule in the body when YAML was never closed', () => {
+    const src = [
+      '---',
+      'title: Перевод',
+      'source: prompting-best-practices',
+      '',
+      '# Основной текст статьи',
+      '',
+      'Параграфы идут здесь.',
+      '',
+      '---',
+      '',
+      '## Оригинал',
+      '',
+      'Перевод выполнен с документа [[prompting-best-practices]].'
+    ].join('\n')
+    expect(stripMarkdownFrontmatter(src)).toBe(src)
+  })
+
+  it('still strips when a real closing fence exists before markdown body', () => {
+    const src = [
+      '---',
+      'title: OK',
+      '---',
+      '',
+      '# После фронтматтера',
+      '',
+      '---',
+      '',
+      '## Хвост'
+    ].join('\n')
+    expect(stripMarkdownFrontmatter(src)).toBe('# После фронтматтера\n\n---\n\n## Хвост')
+  })
 })
