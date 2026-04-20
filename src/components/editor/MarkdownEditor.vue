@@ -28,6 +28,7 @@ const READING_FONT_MIN = 14
 const READING_FONT_MAX = 28
 
 type ReadingTheme = 'white' | 'paper' | 'dark'
+type TocItem = { id: string; text: string; level: number }
 
 const EMOJI_ITEMS = [
   '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
@@ -77,6 +78,8 @@ const tableHoverRows = ref(1)
 const lastNonReadingMode = ref<EditorMode>('split')
 const readingFontSize = ref(readReadingFontSizePref())
 const readingTheme = ref<ReadingTheme>(readReadingThemePref())
+const readingTocVisible = ref(true)
+const readingTocItems = ref<TocItem[]>([])
 
 const wikilink = useWikilinkAutocomplete({
   getEditor: () => editorRef.value,
@@ -606,6 +609,7 @@ async function renderMermaid() {
   normalizeTableColumnAlignment()
   decorateHeadingAnchors()
   decorateCodeCopyButtons()
+  buildReadingToc()
 }
 
 function decorateHeadingAnchors() {
@@ -641,6 +645,38 @@ function decorateCodeCopyButtons() {
     button.innerHTML = '<span class="material-symbols-outlined notranslate" translate="no">content_copy</span>'
     block.appendChild(button)
   })
+}
+
+function buildReadingToc() {
+  const root = previewPaneRef.value
+  if (!root) {
+    readingTocItems.value = []
+    return
+  }
+  const headings = Array.from(root.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]'))
+  const items = headings.map((heading) => {
+    const clone = heading.cloneNode(true) as HTMLElement
+    clone.querySelectorAll('.heading-copy-btn').forEach((node) => node.remove())
+    const permalink = clone.querySelector<HTMLElement>(':scope > .heading-anchor')
+    let rawText = permalink?.textContent ?? clone.textContent ?? ''
+    rawText = rawText.replace(/\s+/g, ' ').trim()
+    // markdown-it-anchor permalink symbol is '#'; strip only the leading marker.
+    const text = rawText.replace(/^#\s*/, '').trim() || heading.id
+    const level = Number(heading.tagName[1])
+    return { id: heading.id, text, level: Number.isFinite(level) ? level : 2 }
+  })
+  readingTocItems.value = items
+}
+
+function scrollToHeading(id: string) {
+  const root = previewPaneRef.value
+  if (!root) return
+  const escaped = (globalThis.CSS && 'escape' in globalThis.CSS)
+    ? globalThis.CSS.escape(id)
+    : id.replace(/"/g, '\\"')
+  const heading = root.querySelector<HTMLElement>(`#${escaped}`)
+  if (!heading) return
+  heading.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 async function copyTextToClipboard(text: string): Promise<boolean> {
@@ -792,6 +828,16 @@ onBeforeUnmount(() => {
               @click="readingTheme = 'dark'"
             />
           </div>
+          <button
+            type="button"
+            class="reading-toc-toggle"
+            :class="{ active: readingTocVisible }"
+            title="Оглавление"
+            aria-label="Оглавление"
+            @click="readingTocVisible = !readingTocVisible"
+          >
+            <span class="material-symbols-outlined notranslate" translate="no">toc</span>
+          </button>
         </div>
         <button
           type="button"
@@ -946,7 +992,25 @@ onBeforeUnmount(() => {
         @click="onPreviewClick"
         @scroll="onPreviewScroll"
       >
-        <div class="preview-content markdown-body" :style="readingPreviewStyle" v-html="previewHtml" />
+        <div class="reading-layout" :class="{ 'with-toc': editorMode === 'reading' && readingTocVisible && readingTocItems.length > 0 }">
+          <div class="preview-content markdown-body" :style="readingPreviewStyle" v-html="previewHtml" />
+          <aside
+            v-if="editorMode === 'reading' && readingTocVisible && readingTocItems.length > 0"
+            class="reading-toc"
+          >
+            <div class="reading-toc-title">Оглавление</div>
+            <button
+              v-for="item in readingTocItems"
+              :key="item.id"
+              type="button"
+              class="reading-toc-item"
+              :style="{ paddingLeft: `${Math.max(0, item.level - 1) * 10 + 8}px` }"
+              @click="scrollToHeading(item.id)"
+            >
+              {{ item.text }}
+            </button>
+          </aside>
+        </div>
       </div>
     </div>
     <input
@@ -1067,6 +1131,29 @@ onBeforeUnmount(() => {
 .reading-theme-dot.active {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
+}
+
+.reading-toc-toggle {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.reading-toc-toggle.active {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.reading-toc-toggle .material-symbols-outlined {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .icon-btn {
@@ -1261,6 +1348,18 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+.reading-layout {
+  width: 100%;
+}
+
+.reading-layout.with-toc {
+  display: grid;
+  grid-template-columns: minmax(0, 920px) 240px;
+  gap: 24px;
+  align-items: start;
+  justify-content: center;
+}
+
 .editor-shell.mode-reading .preview-pane {
   border: none;
   border-radius: 0;
@@ -1273,6 +1372,55 @@ onBeforeUnmount(() => {
   max-width: 920px;
   margin: 0 auto;
   line-height: 1.75;
+}
+
+.reading-toc {
+  position: sticky;
+  top: 12px;
+  align-self: start;
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-bg) 92%, transparent);
+  padding: 8px;
+}
+
+.reading-toc-title {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 2px 6px 8px;
+}
+
+.reading-toc-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.3;
+  border-radius: 6px;
+  padding: 5px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reading-toc-item:hover {
+  background: var(--color-bg-hover);
+}
+
+@media (max-width: 1100px) {
+  .reading-layout.with-toc {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reading-toc {
+    position: static;
+    max-height: 220px;
+    margin-top: 8px;
+  }
 }
 
 .markdown-editor-wrapper.reading-theme-white .toolbar,
@@ -1298,6 +1446,19 @@ onBeforeUnmount(() => {
 
 .markdown-editor-wrapper.reading-theme-dark .reading-font-size {
   color: #aeb8c7;
+}
+
+.markdown-editor-wrapper.reading-theme-dark .reading-toc {
+  background: #171b22;
+  border-color: #2b3442;
+}
+
+.markdown-editor-wrapper.reading-theme-dark .reading-toc-title {
+  color: #9ca8bb;
+}
+
+.markdown-editor-wrapper.reading-theme-dark .reading-toc-item {
+  color: #e7ecf3;
 }
 
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h1),

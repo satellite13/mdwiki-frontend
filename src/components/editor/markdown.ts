@@ -77,7 +77,7 @@ export function createMarkdownRenderer(): MarkdownIt {
     }
   })
     .use(markdownItMark)
-    .use(markdownItTaskLists, { enabled: false, label: true, labelAfter: true })
+    .use(markdownItTaskLists, { enabled: false })
     .use(markdownItSub)
     .use(markdownItSup)
     .use(markdownItAnchor, {

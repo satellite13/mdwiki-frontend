@@ -209,10 +209,10 @@ onMounted(async () => {
       <span class="tree-title">{{ t.tree.documents }}</span>
       <div v-if="auth.isEditor" class="tree-actions">
         <button class="tree-action-btn" :title="t.tree.newPage" @click.stop="treeActions.createNewPage()">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 1h7l3 3v11H3V1z" stroke="currentColor" stroke-width="1.3"/><path d="M5 9h6M8 6v6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <span class="material-symbols-outlined tree-action-icon notranslate" translate="no">note_add</span>
         </button>
         <button class="tree-action-btn" :title="t.tree.newFolder" @click.stop="treeActions.createNewFolder()">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 3h5l2 2h7v9H1V3z" stroke="currentColor" stroke-width="1.3"/><path d="M5 9h6M8 6.5v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <span class="material-symbols-outlined tree-action-icon notranslate" translate="no">create_new_folder</span>
         </button>
       </div>
     </div>
@@ -346,6 +346,10 @@ onMounted(async () => {
 .tree-action-btn:hover {
   background: var(--color-bg-hover);
   color: var(--color-text);
+}
+
+.tree-action-icon {
+  font-size: 18px;
 }
 
 .tags-panel {

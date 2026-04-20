@@ -3,6 +3,7 @@ import type { Router } from 'vue-router'
 import * as pagesApi from '@/api/pages'
 import { getPages, slugCandidatesForNavigation } from '@/services/pageIndex'
 import { isApiErrorWithStatus } from '@/utils/apiError'
+import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
 import type { Backlink, Page } from '@/types'
 
 type LoaderState = {
@@ -28,6 +29,14 @@ export function usePageLoader(
   state: LoaderState,
   deps: LoaderDependencies
 ) {
+  function decodeRouteSlug(slugParam: string): string {
+    try {
+      return decodeURIComponent(slugParam)
+    } catch {
+      return slugParam
+    }
+  }
+
   async function loadPage(slugParam: string) {
     deps.stopPendingSave()
     state.loading.value = true
@@ -58,8 +67,40 @@ export function usePageLoader(
     }
 
     if (!loaded) {
-      state.loading.value = false
-      return
+      const routeSlug = decodeRouteSlug(slugParam).trim()
+      const normalizedSlug = normalizePageSlug(routeSlug)
+
+      if (!normalizedSlug) {
+        state.loading.value = false
+        return
+      }
+
+      const title = titleForStubPage(routeSlug, normalizedSlug)
+
+      try {
+        const { data } = await pagesApi.createPage(normalizedSlug, title, '')
+        loaded = data
+        resolvedSlug = data.slug
+        if (data.slug !== slugParam) {
+          await deps.router.replace(`/page/${data.slug}`)
+        }
+      } catch (e) {
+        if (!isApiErrorWithStatus(e, 409)) {
+          state.loading.value = false
+          return
+        }
+        try {
+          const { data } = await pagesApi.getPage(normalizedSlug)
+          loaded = data
+          resolvedSlug = data.slug
+          if (data.slug !== slugParam) {
+            await deps.router.replace(`/page/${data.slug}`)
+          }
+        } catch {
+          state.loading.value = false
+          return
+        }
+      }
     }
 
     state.page.value = loaded

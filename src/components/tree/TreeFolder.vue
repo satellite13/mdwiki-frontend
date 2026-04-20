@@ -144,13 +144,13 @@ function onContextMenu(e: MouseEvent) {
 
       <span v-if="auth.isEditor" class="folder-actions" @click.stop>
         <button class="node-action" :title="t.tree.addPage" @click="emit('addPage', node.id)">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M5 8h6M8 5v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span class="material-symbols-outlined node-action-icon notranslate" translate="no">note_add</span>
         </button>
         <button class="node-action" :title="t.tree.addSubfolder" @click="emit('addSubfolder', node.id)">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M1 4h5l1.5 1.5H14v7H1V4z" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 8.5h5M8 6v5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <span class="material-symbols-outlined node-action-icon notranslate" translate="no">create_new_folder</span>
         </button>
         <button class="node-action danger" :title="t.tree.deleteFolder" @click="emit('delete', node)">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span class="material-symbols-outlined node-action-icon notranslate" translate="no">delete</span>
         </button>
       </span>
     </div>
@@ -278,5 +278,9 @@ function onContextMenu(e: MouseEvent) {
 .node-action.danger:hover {
   background: rgba(207, 34, 46, 0.08);
   color: var(--color-danger);
+}
+
+.node-action-icon {
+  font-size: 16px;
 }
 </style>

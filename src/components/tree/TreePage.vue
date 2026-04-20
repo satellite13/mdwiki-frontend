@@ -75,7 +75,7 @@ function onContextMenu(e: MouseEvent) {
 
     <span v-if="auth.isEditor" class="page-actions" @click.stop>
       <button class="node-action danger" :title="t.tree.deletePage" @click="emit('delete', node)">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="material-symbols-outlined node-action-icon notranslate" translate="no">delete</span>
       </button>
     </span>
   </div>
@@ -156,5 +156,9 @@ function onContextMenu(e: MouseEvent) {
 .node-action.danger:hover {
   background: rgba(207, 34, 46, 0.08);
   color: var(--color-danger);
+}
+
+.node-action-icon {
+  font-size: 16px;
 }
 </style>
