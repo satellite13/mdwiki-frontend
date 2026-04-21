@@ -131,6 +131,7 @@ watch(
 )
 
 function onRootDragOver(e: DragEvent) {
+  if (!auth.isEditor) return
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
   rootDragOver.value = true
@@ -141,6 +142,7 @@ function onRootDragOver(e: DragEvent) {
 }
 
 function onRootDragLeave(e: DragEvent) {
+  if (!auth.isEditor) return
   const cur = e.currentTarget as HTMLElement
   const rel = e.relatedTarget as Node | null
   if (rel && cur.contains(rel)) return
@@ -152,6 +154,7 @@ function onRootDragLeave(e: DragEvent) {
 }
 
 async function onRootDrop(e: DragEvent) {
+  if (!auth.isEditor) return
   e.preventDefault()
   rootDragOver.value = false
   const raw = e.dataTransfer?.getData('text/plain') ?? ''

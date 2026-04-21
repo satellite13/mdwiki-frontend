@@ -44,6 +44,7 @@ function toggle() {
 }
 
 function onDragStart(e: DragEvent) {
+  if (!auth.isEditor) return
   e.dataTransfer!.setData('text/plain', serializeDndPayload({ type: 'folder', id: props.node.id }))
   e.dataTransfer!.effectAllowed = 'move'
   dndLog('folder dragstart', {
@@ -54,6 +55,7 @@ function onDragStart(e: DragEvent) {
 }
 
 function onDragOver(e: DragEvent) {
+  if (!auth.isEditor) return
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
   isDragOver.value = true
@@ -81,6 +83,7 @@ function onDragLeave(e: DragEvent) {
 }
 
 async function onDrop(e: DragEvent) {
+  if (!auth.isEditor) return
   e.preventDefault()
   e.stopPropagation()
   isDragOver.value = false
@@ -100,6 +103,13 @@ async function onDrop(e: DragEvent) {
       dndLog('folder drop → movePage', { slug: data.slug, toFolderId: props.node.id })
       await movePage(data.slug, props.node.id)
     } else if (data.type === 'folder' && data.id !== props.node.id) {
+      if (folderStore.isFolderDescendant(data.id, props.node.id)) {
+        dndLog('folder drop (skip descendant move)', {
+          folderId: data.id,
+          attemptedParentId: props.node.id,
+        })
+        return
+      }
       dndLog('folder drop → moveFolder', { folderId: data.id, toParentId: props.node.id })
       await folderStore.moveFolder(data.id, props.node.id)
     }
@@ -128,7 +138,7 @@ function onContextMenu(e: MouseEvent) {
     <div
       :class="['folder-header', { 'drag-over': isDragOver }]"
       :style="{ paddingLeft: `${depth * 16 + 8}px` }"
-      draggable="true"
+      :draggable="auth.isEditor"
       @dragstart="onDragStart"
       @dragend="onFolderDragEnd"
       @contextmenu="onContextMenu"

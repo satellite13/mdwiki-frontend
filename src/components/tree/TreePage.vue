@@ -22,6 +22,7 @@ const auth = useAuthStore()
 const folderStore = useFolderStore()
 
 function onDragStart(e: DragEvent) {
+  if (!auth.isEditor) return
   if (!props.node.slug) return
   e.dataTransfer!.setData('text/plain', serializeDndPayload({ type: 'page', slug: props.node.slug }))
   e.dataTransfer!.effectAllowed = 'move'
@@ -58,7 +59,7 @@ function onContextMenu(e: MouseEvent) {
   <div
     :class="['tree-page', { active }]"
     :style="{ paddingLeft: `${depth * 16 + 24}px` }"
-    draggable="true"
+    :draggable="auth.isEditor"
     @dragstart="onDragStart"
     @dragover="onDragOverPage"
     @dragend="onDragEnd"

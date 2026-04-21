@@ -42,6 +42,31 @@ export const useFolderStore = defineStore('folders', () => {
     treeDragGeneration.value++
   }
 
+  function findNodeById(nodes: FolderTreeNode[], id: string): FolderTreeNode | null {
+    for (const node of nodes) {
+      if (node.id === id) return node
+      if (node.type === 'folder' && node.children.length > 0) {
+        const match = findNodeById(node.children, id)
+        if (match) return match
+      }
+    }
+    return null
+  }
+
+  function folderContainsId(folder: FolderTreeNode, id: string): boolean {
+    for (const child of folder.children) {
+      if (child.id === id) return true
+      if (child.type === 'folder' && folderContainsId(child, id)) return true
+    }
+    return false
+  }
+
+  function isFolderDescendant(ancestorId: string, candidateId: string): boolean {
+    const ancestor = findNodeById(tree.value, ancestorId)
+    if (!ancestor || ancestor.type !== 'folder') return false
+    return folderContainsId(ancestor, candidateId)
+  }
+
   async function fetchTree(force = false) {
     if (!force && tree.value.length > 0) return
     loading.value = true
@@ -111,6 +136,7 @@ export const useFolderStore = defineStore('folders', () => {
     isExpanded,
     fetchTree,
     notifyTreeDragEnd,
+    isFolderDescendant,
     createFolder,
     renameFolder,
     moveFolder,

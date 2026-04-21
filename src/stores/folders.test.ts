@@ -102,4 +102,28 @@ describe('useFolderStore', () => {
     store.notifyTreeDragEnd()
     expect(store.treeDragGeneration).toBe(before + 1)
   })
+
+  it('detects descendant folders in current tree', async () => {
+    mockTreeResponse([
+      {
+        id: 'folder-parent',
+        name: 'Parent',
+        type: 'folder',
+        children: [
+          {
+            id: 'folder-child',
+            name: 'Child',
+            type: 'folder',
+            children: [{ id: 'page-a', name: 'Page A', type: 'page', slug: 'a', children: [] }]
+          }
+        ]
+      }
+    ])
+    const store = useFolderStore()
+    await store.fetchTree(true)
+
+    expect(store.isFolderDescendant('folder-parent', 'folder-child')).toBe(true)
+    expect(store.isFolderDescendant('folder-child', 'folder-parent')).toBe(false)
+    expect(store.isFolderDescendant('folder-missing', 'folder-child')).toBe(false)
+  })
 })
