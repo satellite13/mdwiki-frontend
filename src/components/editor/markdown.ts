@@ -80,7 +80,7 @@ export function createMarkdownRenderer(): MarkdownIt {
     }
   })
     .use(markdownItMark)
-    .use(markdownItTaskLists, { enabled: false })
+    .use(markdownItTaskLists, { enabled: false, label: false, labelAfter: false })
     .use(markdownItSub)
     .use(markdownItSup)
     .use(markdownItAnchor, {

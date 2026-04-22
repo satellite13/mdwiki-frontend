@@ -1679,16 +1679,15 @@ onBeforeUnmount(() => {
 
 :deep(.markdown-body .task-list-item) {
   list-style: none;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
+  padding-left: 0;
 }
 
 :deep(.markdown-body .task-list-item input[type='checkbox']) {
   width: 16px;
   min-width: 16px;
   height: 16px;
-  margin: 0.22rem 0 0;
+  margin: 0.22rem 0.55rem 0 0;
+  vertical-align: top;
 }
 
 :deep(.markdown-body .wikilink) {

@@ -87,7 +87,9 @@ export function useTreeActions(options: UseTreeActionsOptions) {
     } catch (e) {
       console.error('Delete node failed:', e)
       await dialog.alert(
-        node.type === 'folder' ? t.errors.deleteFolderFailed : t.errors.deletePageFailed
+        node.type === 'folder'
+          ? getApiErrorMessage(e, t.errors.deleteFolderFailed)
+          : getApiErrorMessage(e, t.errors.deletePageFailed)
       )
     }
   }
