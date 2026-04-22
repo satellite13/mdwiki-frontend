@@ -11,4 +11,13 @@ describe('createMarkdownRenderer task lists', () => {
     expect((html.match(/<code/g) ?? []).length).toBe(1)
     expect(html).not.toContain('`OpenCode`')
   })
+
+  it('renders structurizr fence as escaped structurizr container', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('```structurizr\nperson = person "<Admin>"\n```')
+
+    expect(html).toContain('<div class="structurizr">')
+    expect(html).toContain('&lt;Admin&gt;')
+    expect(html).not.toContain('<Admin>')
+  })
 })

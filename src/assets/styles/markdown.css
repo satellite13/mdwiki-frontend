@@ -31,12 +31,14 @@
   background: var(--color-bg-secondary);
 }
 
-.markdown-body .mermaid {
+.markdown-body .mermaid,
+.markdown-body .structurizr {
   text-align: center;
   overflow-x: auto;
 }
 
-.markdown-body .mermaid svg {
+.markdown-body .mermaid svg,
+.markdown-body .structurizr svg {
   display: block;
   margin: 0 auto;
 }

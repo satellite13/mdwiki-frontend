@@ -58,6 +58,9 @@ function mermaidFencePlugin(md: MarkdownIt) {
     if (info === 'mermaid') {
       return `<div class="mermaid">${escapeHtml(token.content)}</div>`
     }
+    if (info === 'structurizr' || info === 'structurizer') {
+      return `<div class="structurizr">${escapeHtml(token.content)}</div>`
+    }
     if (defaultFence) return defaultFence(tokens, idx, options, env, self)
     return self.renderToken(tokens, idx, options)
   }

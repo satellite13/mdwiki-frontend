@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onBeforeUnmount, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import * as apiKeysApi from '@/api/apiKeys'
@@ -13,6 +13,8 @@ const keys = ref<ApiKey[]>([])
 const newKeyName = ref('')
 const createdKey = ref<string | null>(null)
 const loading = ref(true)
+const copyState = ref<'idle' | 'ok' | 'fail'>('idle')
+let copyFeedbackTimer: number | null = null
 
 async function fetchKeys() {
   loading.value = true
@@ -52,11 +54,49 @@ async function deleteKey(id: string) {
   }
 }
 
-function copyKey() {
-  if (createdKey.value) navigator.clipboard.writeText(createdKey.value)
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    try {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      const copied = document.execCommand('copy')
+      document.body.removeChild(textarea)
+      return copied
+    } catch {
+      return false
+    }
+  }
+}
+
+function setCopyFeedback(state: 'ok' | 'fail') {
+  if (copyFeedbackTimer) window.clearTimeout(copyFeedbackTimer)
+  copyState.value = state
+  copyFeedbackTimer = window.setTimeout(() => {
+    copyState.value = 'idle'
+  }, 1300)
+}
+
+async function copyKey() {
+  if (!createdKey.value) return
+  const copied = await copyTextToClipboard(createdKey.value)
+  setCopyFeedback(copied ? 'ok' : 'fail')
+  if (!copied) {
+    await dialog.alert('Unable to copy key automatically. Please copy it manually.')
+  }
 }
 
 onMounted(fetchKeys)
+
+onBeforeUnmount(() => {
+  if (copyFeedbackTimer) window.clearTimeout(copyFeedbackTimer)
+})
 </script>
 
 <template>
@@ -74,7 +114,9 @@ onMounted(fetchKeys)
       <p><strong>New key created!</strong> Copy it now — it won't be shown again.</p>
       <div class="key-display">
         <code>{{ createdKey }}</code>
-        <button class="btn-secondary" @click="copyKey">Copy</button>
+        <button class="btn-secondary" :class="{ copied: copyState === 'ok', failed: copyState === 'fail' }" @click="copyKey">
+          {{ copyState === 'ok' ? 'Copied' : copyState === 'fail' ? 'Failed' : 'Copy' }}
+        </button>
       </div>
       <button class="btn-secondary" @click="createdKey = null">Dismiss</button>
     </div>
@@ -203,6 +245,16 @@ onMounted(fetchKeys)
 .btn-sm {
   padding: 4px 12px;
   font-size: 12px;
+}
+
+.key-display .btn-secondary.copied {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.key-display .btn-secondary.failed {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 </style>

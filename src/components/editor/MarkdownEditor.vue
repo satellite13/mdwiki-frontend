@@ -11,6 +11,7 @@ import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { formatPipeTableAtCursor } from '@/utils/formatMarkdownTable'
 import { createMarkdownRenderer } from './markdown'
+import { renderStructurizrSvg } from './structurizr'
 import {
   clampSplitRatio,
   DEFAULT_SPLIT_RATIO,
@@ -144,13 +145,13 @@ watch(editorMode, (value) => {
   closeAllMenus()
   wikilink.close()
   nextTick(() => {
-    void renderMermaid()
+    void renderPreviewDiagrams()
   })
 })
 
 watch(previewHtml, async () => {
   await nextTick()
-  await renderMermaid()
+  await renderPreviewDiagrams()
 })
 
 watch(readingTheme, (value) => {
@@ -165,7 +166,7 @@ watch(
   () => themeStore.isDark,
   async () => {
     await nextTick()
-    await renderMermaid()
+    await renderPreviewDiagrams()
   }
 )
 
@@ -606,6 +607,27 @@ async function renderMermaid() {
       // keep source code when render fails
     }
   }
+}
+
+function renderStructurizr() {
+  if (editorMode.value === 'editor') return
+  const root = previewPaneRef.value
+  if (!root) return
+  const nodes = Array.from(root.querySelectorAll<HTMLElement>('.structurizr'))
+  for (const node of nodes) {
+    const source = node.dataset.source || node.textContent || ''
+    if (!node.dataset.source) node.dataset.source = source
+    try {
+      node.innerHTML = renderStructurizrSvg(source, themeStore.isDark)
+    } catch {
+      // keep source code when render fails
+    }
+  }
+}
+
+async function renderPreviewDiagrams() {
+  await renderMermaid()
+  renderStructurizr()
   normalizeTableColumnAlignment()
   decorateHeadingAnchors()
   decorateCodeCopyButtons()
@@ -765,7 +787,7 @@ function onGlobalClick(event: MouseEvent) {
 onMounted(() => {
   emit('mode-change', editorMode.value)
   document.addEventListener('click', onGlobalClick)
-  void renderMermaid()
+  void renderPreviewDiagrams()
 })
 
 onBeforeUnmount(() => {
@@ -1794,6 +1816,17 @@ onBeforeUnmount(() => {
 }
 
 ::deep(.markdown-body .mermaid svg) {
+  max-width: 100%;
+  height: auto;
+}
+
+::deep(.markdown-body .structurizr) {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+::deep(.markdown-body .structurizr svg) {
   max-width: 100%;
   height: auto;
 }
