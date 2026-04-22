@@ -37,6 +37,18 @@ export const t = {
   admin: {
     confirmDeleteUser: (username: string) => `Delete user "${username}"?`,
     delete: 'Delete',
+    usersTitle: 'User Management',
+    embeddingTitle: 'Embedding settings',
+    embeddingProviderLabel: 'Provider',
+    embeddingModelLabel: 'Model',
+    embeddingExpectedDimensionLabel: 'Expected dimension (read-only)',
+    embeddingSaveSuccess: 'Embedding settings saved and applied.',
+    embeddingReindexHint: 'Search index is not reindexed automatically. Run reindex manually if needed.',
+    embeddingMismatchTitle: 'Embedding dimension mismatch',
+    embeddingMismatchDetails: (actual: number, expected: number) =>
+      `Provider returned ${actual} dimensions, but this instance expects ${expected}. Settings were applied, but you should run reindex.`,
+    openEmbeddingSettings: 'Embedding',
+    openUsersSettings: 'Users',
     syncWikiTitle: 'Sync wiki from disk',
     syncWikiConfirm:
       'Run full sync: import all .md files from wiki-content into the database and remove pages whose files no longer exist on disk?',
@@ -70,6 +82,8 @@ export const t = {
     loadUsersFailed: 'Failed to load users',
     updateRoleFailed: 'Failed to update role',
     deleteUserFailed: 'Failed to delete user',
+    loadEmbeddingSettingsFailed: 'Failed to load embedding settings',
+    updateEmbeddingSettingsFailed: 'Failed to update embedding settings',
     loadApiKeysFailed: 'Failed to load API keys',
     createApiKeyFailed: 'Failed to create API key',
     deleteApiKeyFailed: 'Failed to delete API key',

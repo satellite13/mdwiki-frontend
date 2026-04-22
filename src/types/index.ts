@@ -93,3 +93,17 @@ export interface Attachment {
   url: string
   createdAt: string
 }
+
+export interface EmbeddingSettingsWarning {
+  code: string
+  message: string
+  expectedDimension: number
+  actualDimension: number
+}
+
+export interface EmbeddingSettings {
+  provider: 'openai' | 'ollama' | 'lmstudio'
+  model: string
+  expectedDimension: number
+  warning?: EmbeddingSettingsWarning | null
+}

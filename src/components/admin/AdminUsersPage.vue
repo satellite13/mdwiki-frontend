@@ -61,7 +61,11 @@ onMounted(fetchUsers)
 
 <template>
   <div class="admin-users">
-    <h1>User Management</h1>
+    <div class="admin-nav">
+      <router-link to="/admin/users" class="admin-nav-link active">{{ t.admin.openUsersSettings }}</router-link>
+      <router-link to="/admin/embedding" class="admin-nav-link">{{ t.admin.openEmbeddingSettings }}</router-link>
+    </div>
+    <h1>{{ t.admin.usersTitle }}</h1>
     <div v-if="loading" class="state-placeholder">Loading...</div>
     <table v-else class="data-table users-table">
       <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
@@ -92,6 +96,23 @@ onMounted(fetchUsers)
 </template>
 
 <style scoped>
+.admin-nav {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.admin-nav-link {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.admin-nav-link.active {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
 .admin-users h1 {
   font-family: var(--font-body);
   margin-bottom: 28px;

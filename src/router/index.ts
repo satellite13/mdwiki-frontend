@@ -17,7 +17,8 @@ const router = createRouter({
         { path: 'graph', name: 'wiki-graph', component: () => import('@/components/graph/WikiGraphPage.vue') },
         { path: 'attachments', name: 'attachments', component: () => import('@/components/attachments/AttachmentsPage.vue') },
         { path: 'profile', name: 'profile', component: () => import('@/components/profile/ProfilePage.vue') },
-        { path: 'admin/users', name: 'admin-users', component: () => import('@/components/admin/AdminUsersPage.vue'), meta: { requiresAdmin: true } }
+        { path: 'admin/users', name: 'admin-users', component: () => import('@/components/admin/AdminUsersPage.vue'), meta: { requiresAdmin: true } },
+        { path: 'admin/embedding', name: 'admin-embedding', component: () => import('@/components/admin/AdminEmbeddingSettingsPage.vue'), meta: { requiresAdmin: true } }
       ]
     }
   ]
