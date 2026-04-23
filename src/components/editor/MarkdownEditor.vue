@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import mermaid from 'mermaid'
 import { useThemeStore } from '@/stores/theme'
 import { uploadAttachment } from '@/api/attachments'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -8,8 +7,19 @@ import { t } from '@/utils/i18n'
 import { readString, writeString } from '@/utils/localPreferences'
 import { useEditorHistory } from '@/composables/useEditorHistory'
 import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
+import { useHorizontalDragResize } from '@/composables/useHorizontalDragResize'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { formatPipeTableAtCursor } from '@/utils/formatMarkdownTable'
+import VerticalPaneResizer from '@/components/ui/VerticalPaneResizer.vue'
+import ReadingToolbar from '@/components/editor/ReadingToolbar.vue'
+import EditorToolbar from '@/components/editor/EditorToolbar.vue'
+import EditorPreviewPane from '@/components/editor/EditorPreviewPane.vue'
+import EditorInputPane from '@/components/editor/EditorInputPane.vue'
+import { usePreviewCopyDecorations } from '@/components/editor/usePreviewCopyDecorations'
+import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPipeline'
+import { useReadingToc } from '@/components/editor/useReadingToc'
+import { useSplitScrollSync } from '@/components/editor/useSplitScrollSync'
+import type { ToolbarAction } from './toolbarTypes'
 import { createMarkdownRenderer } from './markdown'
 import { renderStructurizrSvg } from './structurizr'
 import {
@@ -22,14 +32,12 @@ import {
   type EditorMode
 } from './editorPreferences'
 
-const TABLE_GRID_MAX = 8
 const READING_FONT_SIZE_KEY = 'mdwiki-reading-font-size'
 const READING_THEME_KEY = 'mdwiki-reading-theme'
 const READING_FONT_MIN = 14
 const READING_FONT_MAX = 28
 
 type ReadingTheme = 'white' | 'paper' | 'dark'
-type TocItem = { id: string; text: string; level: number }
 
 const EMOJI_ITEMS = [
   '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
@@ -57,12 +65,9 @@ const themeStore = useThemeStore()
 
 const uploadError = ref('')
 const uploadInput = ref<HTMLInputElement | null>(null)
-const editorRef = ref<HTMLTextAreaElement | null>(null)
+const editorRef = ref<InstanceType<typeof EditorInputPane> | null>(null)
 const splitShellRef = ref<HTMLElement | null>(null)
-const previewPaneRef = ref<HTMLElement | null>(null)
-const headingMenuRef = ref<HTMLElement | null>(null)
-const tableMenuRef = ref<HTMLElement | null>(null)
-const emojiMenuRef = ref<HTMLElement | null>(null)
+const previewPaneRef = ref<InstanceType<typeof EditorPreviewPane> | null>(null)
 
 const editorMode = ref<EditorMode>(readEditorModePref())
 const splitRatio = ref(readSplitRatioPref())
@@ -71,19 +76,13 @@ const markdownValue = ref(props.modelValue)
 
 const history = useEditorHistory(props.modelValue)
 
-const headingMenuOpen = ref(false)
-const tableMenuOpen = ref(false)
-const emojiMenuOpen = ref(false)
-const tableHoverCols = ref(1)
-const tableHoverRows = ref(1)
 const lastNonReadingMode = ref<EditorMode>('split')
 const readingFontSize = ref(readReadingFontSizePref())
 const readingTheme = ref<ReadingTheme>(readReadingThemePref())
 const readingTocVisible = ref(true)
-const readingTocItems = ref<TocItem[]>([])
 
 const wikilink = useWikilinkAutocomplete({
-  getEditor: () => editorRef.value,
+  getEditor: () => getEditorElement(),
   getSource: () => markdownValue.value,
   getContainerRect: () => splitShellRef.value?.getBoundingClientRect() ?? null
 })
@@ -92,11 +91,7 @@ const wikilinkItems = wikilink.items
 const wikilinkSelected = wikilink.selected
 const wikilinkMenuStyle = wikilink.menuStyle
 
-let suppressEditorScrollUntil = 0
-let suppressPreviewScrollUntil = 0
-let pointerMoveHandler: ((event: MouseEvent) => void) | null = null
-let pointerUpHandler: (() => void) | null = null
-const copyFeedbackTimers = new WeakMap<HTMLButtonElement, number>()
+const { startResizeDrag, clearDragListeners } = useHorizontalDragResize()
 
 const previewHtml = computed(() => md.render(markdownValue.value))
 const canUndo = history.canUndo
@@ -112,6 +107,66 @@ const readingPreviewStyle = computed(() =>
     ? { fontSize: `${readingFontSize.value}px` }
     : undefined
 )
+const previewHasToc = computed(() => editorMode.value === 'reading' && readingTocVisible.value && readingTocItems.value.length > 0)
+const previewCopyDecorations = usePreviewCopyDecorations(() => getPreviewPaneElement())
+const previewRenderPipeline = usePreviewRenderPipeline({
+  getRoot: () => getPreviewPaneElement(),
+  shouldRender: () => editorMode.value !== 'editor',
+  isDark: () => themeStore.isDark,
+  renderStructurizrSvg
+})
+const readingToc = useReadingToc(() => getPreviewPaneElement())
+const readingTocItems = readingToc.readingTocItems
+const splitScrollSync = useSplitScrollSync({
+  getEditor: () => getEditorElement(),
+  getPreview: () => getPreviewPaneElement()
+})
+
+const inlineFormatActions: ToolbarAction[] = [
+  { key: 'bold', title: 'Bold', ariaLabel: 'Bold', icon: 'format_bold', onClick: () => wrapSelection('**', '**') },
+  { key: 'italic', title: 'Italic', ariaLabel: 'Italic', icon: 'format_italic', onClick: () => wrapSelection('*', '*') },
+  { key: 'underline', title: 'Underline', ariaLabel: 'Underline', icon: 'format_underlined', onClick: () => wrapSelection('<u>', '</u>') },
+  { key: 'strikethrough', title: 'Strikethrough', ariaLabel: 'Strikethrough', icon: 'strikethrough_s', onClick: () => wrapSelection('~~', '~~') },
+  { key: 'highlight', title: 'Highlight', ariaLabel: 'Highlight', icon: 'ink_highlighter', onClick: () => wrapSelection('==', '==') },
+  { key: 'superscript', title: 'Superscript', ariaLabel: 'Superscript', icon: 'superscript', onClick: () => wrapSelection('^', '^') },
+  { key: 'subscript', title: 'Subscript', ariaLabel: 'Subscript', icon: 'subscript', onClick: () => wrapSelection('~', '~') },
+  { key: 'inline-code', title: 'Inline code', ariaLabel: 'Inline code', icon: 'code', onClick: () => wrapSelection('`', '`') }
+]
+
+const listAndBlockActions: ToolbarAction[] = [
+  { key: 'bulleted', title: 'Bulleted list', ariaLabel: 'Bulleted list', icon: 'format_list_bulleted', onClick: () => insertLinePrefix('- ', 'list item') },
+  { key: 'numbered', title: 'Numbered list', ariaLabel: 'Numbered list', icon: 'format_list_numbered', onClick: () => insertLinePrefix('1. ', 'list item') },
+  { key: 'task', title: 'Task list', ariaLabel: 'Task list', icon: 'checklist', onClick: () => insertLinePrefix('- [ ] ', 'task') },
+  { key: 'quote', title: 'Quote', ariaLabel: 'Quote', icon: 'format_quote', onClick: () => insertLinePrefix('> ', 'quote') },
+  { key: 'code-block', title: 'Code block', ariaLabel: 'Code block', icon: 'data_object', onClick: () => insertText('\n```\ncode\n```\n') }
+]
+
+const quickInsertActions: ToolbarAction[] = [
+  { key: 'link', title: 'Link', ariaLabel: 'Link', icon: 'link', onClick: () => wrapSelection('[', '](https://example.com)', 'link text') },
+  { key: 'upload-image', title: 'Insert image', ariaLabel: 'Insert image', icon: 'image', onClick: triggerUpload },
+  {
+    key: 'format-table',
+    title: 'Выровнять markdown-таблицу под курсором',
+    ariaLabel: 'Выровнять markdown-таблицу под курсором',
+    icon: 'format_align_justify',
+    onClick: formatMarkdownTableAtCursor
+  },
+  { key: 'wiki-link', title: 'Wiki link', ariaLabel: 'Wiki link', icon: 'article_shortcut', onClick: () => wrapSelection('[[', ']]', 'Page Title') },
+  { key: 'tag', title: 'Tag', ariaLabel: 'Tag', icon: 'sell', onClick: () => insertText(' #tag') }
+]
+
+const historyActions = computed<ToolbarAction[]>(() => [
+  { key: 'undo', title: 'Undo', ariaLabel: 'Undo', icon: 'undo', onClick: undo, disabled: !canUndo.value },
+  { key: 'redo', title: 'Redo', ariaLabel: 'Redo', icon: 'redo', onClick: redo, disabled: !canRedo.value },
+  { key: 'save', title: 'Save', ariaLabel: 'Save', icon: 'save', onClick: () => emit('save') }
+])
+
+const modeSwitchActions = computed<ToolbarAction[]>(() => [
+  { key: 'mode-editor', title: 'Editor', ariaLabel: 'Editor', icon: 'edit_note', active: editorMode.value === 'editor', onClick: () => setMode('editor') },
+  { key: 'mode-split', title: 'Split', ariaLabel: 'Split', icon: 'split_scene', active: editorMode.value === 'split', onClick: () => setMode('split') },
+  { key: 'mode-preview', title: 'Preview', ariaLabel: 'Preview', icon: 'preview', active: editorMode.value === 'preview', onClick: () => setMode('preview') },
+  { key: 'mode-reading', title: 'Reading', ariaLabel: 'Reading', icon: 'menu_book', onClick: () => setMode('reading') }
+])
 
 function readReadingThemePref(): ReadingTheme {
   const value = readString(READING_THEME_KEY)
@@ -142,7 +197,6 @@ watch(editorMode, (value) => {
   }
   writeEditorModePref(value)
   emit('mode-change', value)
-  closeAllMenus()
   wikilink.close()
   nextTick(() => {
     void renderPreviewDiagrams()
@@ -199,7 +253,7 @@ function redo() {
 }
 
 function applySelection(transform: (selected: string) => { text: string; cursorOffset?: number }) {
-  const el = editorRef.value
+  const el = getEditorElement()
   if (!el) return
   const start = el.selectionStart
   const end = el.selectionEnd
@@ -243,17 +297,10 @@ function insertText(text: string) {
 }
 
 function applyHeading(level: number) {
-  headingMenuOpen.value = false
   insertLinePrefix(`${'#'.repeat(level)} `, `Heading ${level}`)
 }
 
-function setTableHover(cols: number, rows: number) {
-  tableHoverCols.value = cols
-  tableHoverRows.value = rows
-}
-
 function applyTableSize(cols: number, rows: number) {
-  tableMenuOpen.value = false
   const head = `| ${Array.from({ length: cols }, (_, idx) => `Col ${idx + 1}`).join(' | ')} |\n`
   const sep = `|${Array.from({ length: cols }, () => '---').join('|')}|\n`
   const body = Array.from({ length: rows - 1 }, (_, r) => `| ${Array.from({ length: cols }, (_, c) => `R${r + 1}C${c + 1}`).join(' | ')} |\n`).join('')
@@ -261,25 +308,12 @@ function applyTableSize(cols: number, rows: number) {
 }
 
 function applyEmoji(emoji: string) {
-  emojiMenuOpen.value = false
   insertText(emoji)
 }
 
-function toggleHeadingMenu() {
-  headingMenuOpen.value = !headingMenuOpen.value
-  tableMenuOpen.value = false
-  emojiMenuOpen.value = false
-}
-
-function toggleTableMenu() {
-  tableMenuOpen.value = !tableMenuOpen.value
-  headingMenuOpen.value = false
-  emojiMenuOpen.value = false
-}
-
 function formatMarkdownTableAtCursor() {
-  closeAllMenus()
-  const el = editorRef.value
+  wikilink.close()
+  const el = getEditorElement()
   if (!el) return
   const cursor = Math.min(el.selectionStart, el.selectionEnd)
   const result = formatPipeTableAtCursor(markdownValue.value, cursor)
@@ -292,20 +326,8 @@ function formatMarkdownTableAtCursor() {
   })
 }
 
-function toggleEmojiMenu() {
-  emojiMenuOpen.value = !emojiMenuOpen.value
-  headingMenuOpen.value = false
-  tableMenuOpen.value = false
-}
-
-function closeAllMenus() {
-  headingMenuOpen.value = false
-  tableMenuOpen.value = false
-  emojiMenuOpen.value = false
-}
-
 function continueListOnEnter(): boolean {
-  const el = editorRef.value
+  const el = getEditorElement()
   if (!el) return false
   if (el.selectionStart !== el.selectionEnd) return false
 
@@ -391,7 +413,7 @@ function refreshWikilinkSuggestions() {
 function applyWikilinkSuggestion(index: number) {
   const item = wikilink.selectIndex(index)
   if (!item) return
-  const el = editorRef.value
+  const el = getEditorElement()
   if (!el) return
   const titleSlug = normalizePageSlug(item.title)
   const inner = item.slug === titleSlug ? item.title : `${item.slug}|${item.title}`
@@ -480,83 +502,43 @@ function triggerUpload() {
   uploadInput.value?.click()
 }
 
-function getSyncedScrollTop(source: HTMLElement, target: HTMLElement): number | null {
-  const sourceMax = source.scrollHeight - source.clientHeight
-  const targetMax = target.scrollHeight - target.clientHeight
-  if (sourceMax <= 0 || targetMax <= 0) return null
-  const ratio = source.scrollTop / sourceMax
-  return ratio * targetMax
-}
-
-function nowMs() {
-  return typeof performance !== 'undefined' ? performance.now() : Date.now()
-}
-
-function isSuppressed(side: 'editor' | 'preview') {
-  const t = nowMs()
-  return side === 'editor' ? t < suppressEditorScrollUntil : t < suppressPreviewScrollUntil
-}
-
-function suppressSide(side: 'editor' | 'preview', ms = 140) {
-  const until = nowMs() + ms
-  if (side === 'editor') {
-    suppressEditorScrollUntil = Math.max(suppressEditorScrollUntil, until)
-  } else {
-    suppressPreviewScrollUntil = Math.max(suppressPreviewScrollUntil, until)
-  }
-}
-
-function setScrollTopSilently(target: HTMLElement, nextTop: number, side: 'editor' | 'preview') {
-  const current = target.scrollTop
-  // Ignore tiny deltas to avoid endless micro-adjustment drift.
-  if (Math.abs(current - nextTop) < 1.5) return
-  suppressSide(side)
-  target.scrollTop = nextTop
-  requestAnimationFrame(() => suppressSide(side, 80))
-}
-
 function onEditorScroll() {
   if (editorMode.value !== 'split') return
-  if (isSuppressed('editor')) return
-  const editor = editorRef.value
-  const preview = previewPaneRef.value
-  if (!editor || !preview) return
-  const nextTop = getSyncedScrollTop(editor, preview)
-  if (nextTop !== null) setScrollTopSilently(preview, nextTop, 'preview')
+  splitScrollSync.syncEditorToPreview()
   wikilink.updatePosition()
+}
+
+function getEditorElement(): HTMLTextAreaElement | null {
+  return editorRef.value?.textareaEl ?? null
+}
+
+function getPreviewPaneElement(): HTMLElement | null {
+  return previewPaneRef.value?.rootEl ?? null
 }
 
 function onPreviewScroll() {
   if (editorMode.value !== 'split') return
-  if (isSuppressed('preview')) return
-  const editor = editorRef.value
-  const preview = previewPaneRef.value
-  if (!editor || !preview) return
-  const nextTop = getSyncedScrollTop(preview, editor)
-  if (nextTop !== null) setScrollTopSilently(editor, nextTop, 'editor')
+  splitScrollSync.syncPreviewToEditor()
 }
 
 function startSplitDrag(event: MouseEvent) {
   if (editorMode.value !== 'split') return
   const shell = splitShellRef.value
   if (!shell) return
-  splitDragging.value = true
   const rect = shell.getBoundingClientRect()
-  pointerMoveHandler = (moveEvent: MouseEvent) => {
-    const raw = ((moveEvent.clientX - rect.left) / rect.width) * 100
-    splitRatio.value = clampSplitRatio(raw)
-    writeSplitRatioPref(splitRatio.value)
-  }
-  pointerUpHandler = () => {
-    splitDragging.value = false
-    if (pointerMoveHandler) window.removeEventListener('mousemove', pointerMoveHandler)
-    if (pointerUpHandler) window.removeEventListener('mouseup', pointerUpHandler)
-    pointerMoveHandler = null
-    pointerUpHandler = null
-  }
-  window.addEventListener('mousemove', pointerMoveHandler)
-  window.addEventListener('mouseup', pointerUpHandler)
-  event.preventDefault()
+  startResizeDrag(event, {
+    onStart: () => {
+      splitDragging.value = true
+    },
+    onMove: (moveEvent) => {
+      const raw = ((moveEvent.clientX - rect.left) / rect.width) * 100
+      splitRatio.value = clampSplitRatio(raw)
+      writeSplitRatioPref(splitRatio.value)
+    },
+    onEnd: () => {
+      splitDragging.value = false
+    }
+  })
 }
 
 function resetSplitRatio() {
@@ -564,236 +546,24 @@ function resetSplitRatio() {
   writeSplitRatioPref(DEFAULT_SPLIT_RATIO)
 }
 
-function normalizeTableColumnAlignment() {
-  const root = previewPaneRef.value
-  if (!root) return
-  const tables = root.querySelectorAll<HTMLTableElement>('table')
-  tables.forEach((table) => {
-    const headerCells = Array.from(table.querySelectorAll<HTMLTableCellElement>('thead th'))
-    if (!headerCells.length) return
-    const columnAlignments = headerCells.map((th) => (th.style.textAlign || th.getAttribute('align') || '').trim())
-    if (!columnAlignments.some(Boolean)) return
-    const rows = table.querySelectorAll<HTMLTableRowElement>('tbody tr')
-    rows.forEach((row) => {
-      const cells = Array.from(row.children) as HTMLElement[]
-      columnAlignments.forEach((align, idx) => {
-        if (!align) return
-        const cell = cells[idx]
-        if (!cell) return
-        cell.style.textAlign = align
-      })
-    })
-  })
-}
-
-async function renderMermaid() {
-  if (editorMode.value === 'editor') return
-  const root = previewPaneRef.value
-  if (!root) return
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: themeStore.isDark ? 'dark' : 'default',
-    securityLevel: 'strict'
-  })
-  const nodes = Array.from(root.querySelectorAll<HTMLElement>('.mermaid'))
-  for (const node of nodes) {
-    const source = node.dataset.source || node.textContent || ''
-    if (!node.dataset.source) node.dataset.source = source
-    const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`
-    try {
-      const { svg } = await mermaid.render(id, source)
-      node.innerHTML = svg
-    } catch {
-      // keep source code when render fails
-    }
-  }
-}
-
-function renderStructurizr() {
-  if (editorMode.value === 'editor') return
-  const root = previewPaneRef.value
-  if (!root) return
-  const nodes = Array.from(root.querySelectorAll<HTMLElement>('.structurizr'))
-  for (const node of nodes) {
-    const source = node.dataset.source || node.textContent || ''
-    if (!node.dataset.source) node.dataset.source = source
-    try {
-      node.innerHTML = renderStructurizrSvg(source, themeStore.isDark)
-    } catch {
-      // keep source code when render fails
-    }
-  }
-}
-
 async function renderPreviewDiagrams() {
-  await renderMermaid()
-  renderStructurizr()
-  normalizeTableColumnAlignment()
-  decorateHeadingAnchors()
-  decorateCodeCopyButtons()
-  buildReadingToc()
-}
-
-function decorateHeadingAnchors() {
-  const root = previewPaneRef.value
-  if (!root) return
-  const headings = root.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]')
-  headings.forEach((heading) => {
-    if (heading.querySelector(':scope > .heading-copy-btn')) return
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'heading-copy-btn'
-    button.dataset.anchor = heading.id
-    button.title = 'Скопировать якорь раздела'
-    button.setAttribute('aria-label', 'Скопировать якорь раздела')
-    button.innerHTML = '<span class="material-symbols-outlined notranslate" translate="no">content_copy</span>'
-    heading.appendChild(button)
-  })
-}
-
-function decorateCodeCopyButtons() {
-  const root = previewPaneRef.value
-  if (!root) return
-  const blocks = root.querySelectorAll<HTMLElement>('pre')
-  blocks.forEach((block) => {
-    if (block.querySelector(':scope > .code-copy-btn')) return
-    const code = block.querySelector('code')
-    if (!code) return
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'code-copy-btn'
-    button.title = 'Скопировать код'
-    button.setAttribute('aria-label', 'Скопировать код')
-    button.innerHTML = '<span class="material-symbols-outlined notranslate" translate="no">content_copy</span>'
-    block.appendChild(button)
-  })
-}
-
-function buildReadingToc() {
-  const root = previewPaneRef.value
-  if (!root) {
-    readingTocItems.value = []
-    return
-  }
-  const headings = Array.from(root.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]'))
-  const items = headings.map((heading) => {
-    const clone = heading.cloneNode(true) as HTMLElement
-    clone.querySelectorAll('.heading-copy-btn').forEach((node) => node.remove())
-    const permalink = clone.querySelector<HTMLElement>(':scope > .heading-anchor')
-    let rawText = permalink?.textContent ?? clone.textContent ?? ''
-    rawText = rawText.replace(/\s+/g, ' ').trim()
-    // markdown-it-anchor permalink symbol is '#'; strip only the leading marker.
-    const text = rawText.replace(/^#\s*/, '').trim() || heading.id
-    const level = Number(heading.tagName[1])
-    return { id: heading.id, text, level: Number.isFinite(level) ? level : 2 }
-  })
-  readingTocItems.value = items
-}
-
-function scrollToHeading(id: string) {
-  const root = previewPaneRef.value
-  if (!root) return
-  const escaped = (globalThis.CSS && 'escape' in globalThis.CSS)
-    ? globalThis.CSS.escape(id)
-    : id.replace(/"/g, '\\"')
-  const heading = root.querySelector<HTMLElement>(`#${escaped}`)
-  if (!heading) return
-  heading.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      return ok
-    } catch {
-      return false
-    }
-  }
-}
-
-function applyCopyFeedback(
-  button: HTMLButtonElement,
-  copied: boolean,
-  okTitle: string,
-  failTitle: string,
-  resetTitle: string
-) {
-  const previousTimer = copyFeedbackTimers.get(button)
-  if (previousTimer) window.clearTimeout(previousTimer)
-  button.classList.remove('copied', 'failed')
-  button.classList.add(copied ? 'copied' : 'failed')
-  button.title = copied ? okTitle : failTitle
-  const timer = window.setTimeout(() => {
-    button.classList.remove('copied', 'failed')
-    button.title = resetTitle
-  }, 1300)
-  copyFeedbackTimers.set(button, timer)
+  await previewRenderPipeline.renderPreviewBase()
+  previewCopyDecorations.decorateHeadingAnchors()
+  previewCopyDecorations.decorateCodeCopyButtons()
+  readingToc.buildReadingToc()
 }
 
 async function onPreviewClick(event: MouseEvent) {
-  const target = event.target as HTMLElement | null
-  const headingButton = target?.closest<HTMLButtonElement>('.heading-copy-btn')
-  if (headingButton) {
-    event.preventDefault()
-    event.stopPropagation()
-
-    const anchor = headingButton.dataset.anchor
-    if (!anchor) return
-    const link = `#${anchor}`
-    const copied = await copyTextToClipboard(link)
-    applyCopyFeedback(
-      headingButton,
-      copied,
-      'Якорь скопирован',
-      'Не удалось скопировать',
-      'Скопировать якорь раздела'
-    )
-    return
-  }
-
-  const codeButton = target?.closest<HTMLButtonElement>('.code-copy-btn')
-  if (!codeButton) return
-
-  event.preventDefault()
-  event.stopPropagation()
-
-  const codeHost = codeButton.closest('pre')
-  const code = codeHost?.querySelector('code')
-  const codeText = code?.textContent ?? ''
-  if (!codeText.trim()) return
-
-  const copied = await copyTextToClipboard(codeText)
-  applyCopyFeedback(codeButton, copied, 'Код скопирован', 'Не удалось скопировать', 'Скопировать код')
-}
-
-function onGlobalClick(event: MouseEvent) {
-  const target = event.target as Node | null
-  if (headingMenuRef.value && target && !headingMenuRef.value.contains(target)) headingMenuOpen.value = false
-  if (tableMenuRef.value && target && !tableMenuRef.value.contains(target)) tableMenuOpen.value = false
-  if (emojiMenuRef.value && target && !emojiMenuRef.value.contains(target)) emojiMenuOpen.value = false
+  await previewCopyDecorations.onPreviewClick(event)
 }
 
 onMounted(() => {
   emit('mode-change', editorMode.value)
-  document.addEventListener('click', onGlobalClick)
   void renderPreviewDiagrams()
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('click', onGlobalClick)
-  if (pointerMoveHandler) window.removeEventListener('mousemove', pointerMoveHandler)
-  if (pointerUpHandler) window.removeEventListener('mouseup', pointerUpHandler)
+  clearDragListeners()
 })
 </script>
 
@@ -810,230 +580,70 @@ onBeforeUnmount(() => {
   >
     <div class="toolbar">
       <template v-if="editorMode === 'reading'">
-        <router-link to="/" class="reading-logo">MDWiki</router-link>
-        <div class="reading-title" :title="props.readingTitle || ''">{{ props.readingTitle || 'Untitled' }}</div>
-        <div class="reading-controls">
-          <input
-            v-model.number="readingFontSize"
-            class="reading-font-slider"
-            type="range"
-            :min="READING_FONT_MIN"
-            :max="READING_FONT_MAX"
-            step="1"
-            aria-label="Reading font size"
-            title="Reading font size"
-          />
-          <span class="reading-font-size">{{ readingFontSize }}px</span>
-          <div class="reading-theme-swatches" role="radiogroup" aria-label="Reading background style">
-            <button
-              type="button"
-              class="reading-theme-dot theme-white"
-              :class="{ active: readingTheme === 'white' }"
-              aria-label="White background"
-              title="White"
-              @click="readingTheme = 'white'"
-            />
-            <button
-              type="button"
-              class="reading-theme-dot theme-paper"
-              :class="{ active: readingTheme === 'paper' }"
-              aria-label="Paper background"
-              title="Paper"
-              @click="readingTheme = 'paper'"
-            />
-            <button
-              type="button"
-              class="reading-theme-dot theme-dark"
-              :class="{ active: readingTheme === 'dark' }"
-              aria-label="Dark background"
-              title="Dark"
-              @click="readingTheme = 'dark'"
-            />
-          </div>
-          <button
-            type="button"
-            class="reading-toc-toggle"
-            :class="{ active: readingTocVisible }"
-            title="Оглавление"
-            aria-label="Оглавление"
-            @click="readingTocVisible = !readingTocVisible"
-          >
-            <span class="material-symbols-outlined notranslate" translate="no">toc</span>
-          </button>
-        </div>
-        <button
-          type="button"
-          class="reading-exit-btn"
-          title="Exit reading mode"
-          aria-label="Exit reading mode"
-          @click="exitReadingMode"
-        >
-          <span class="material-symbols-outlined notranslate" translate="no">close_fullscreen</span>
-        </button>
+        <ReadingToolbar
+          :title="props.readingTitle"
+          :font-size="readingFontSize"
+          :font-min="READING_FONT_MIN"
+          :font-max="READING_FONT_MAX"
+          :theme="readingTheme"
+          :toc-visible="readingTocVisible"
+          @update:font-size="readingFontSize = $event"
+          @update:theme="readingTheme = $event"
+          @update:toc-visible="readingTocVisible = $event"
+          @exit="exitReadingMode"
+        />
       </template>
       <template v-else>
-      <button type="button" class="icon-btn" title="Bold" aria-label="Bold" @click="wrapSelection('**', '**')"><span class="material-symbols-outlined notranslate" translate="no">format_bold</span></button>
-      <button type="button" class="icon-btn" title="Italic" aria-label="Italic" @click="wrapSelection('*', '*')"><span class="material-symbols-outlined notranslate" translate="no">format_italic</span></button>
-      <button type="button" class="icon-btn" title="Underline" aria-label="Underline" @click="wrapSelection('<u>', '</u>')"><span class="material-symbols-outlined notranslate" translate="no">format_underlined</span></button>
-      <button type="button" class="icon-btn" title="Strikethrough" aria-label="Strikethrough" @click="wrapSelection('~~', '~~')"><span class="material-symbols-outlined notranslate" translate="no">strikethrough_s</span></button>
-      <button type="button" class="icon-btn" title="Highlight" aria-label="Highlight" @click="wrapSelection('==', '==')"><span class="material-symbols-outlined notranslate" translate="no">ink_highlighter</span></button>
-      <button type="button" class="icon-btn" title="Superscript" aria-label="Superscript" @click="wrapSelection('^', '^')"><span class="material-symbols-outlined notranslate" translate="no">superscript</span></button>
-      <button type="button" class="icon-btn" title="Subscript" aria-label="Subscript" @click="wrapSelection('~', '~')"><span class="material-symbols-outlined notranslate" translate="no">subscript</span></button>
-      <button type="button" class="icon-btn" title="Inline code" aria-label="Inline code" @click="wrapSelection('`', '`')"><span class="material-symbols-outlined notranslate" translate="no">code</span></button>
-      <span class="sep" />
-      <div ref="headingMenuRef" class="heading-menu">
-        <button type="button" class="icon-btn" title="Heading levels" aria-label="Heading levels" @click.stop="toggleHeadingMenu">
-          <span class="material-symbols-outlined notranslate" translate="no">title</span>
-        </button>
-        <div v-if="headingMenuOpen" class="heading-menu-list">
-          <button type="button" class="heading-menu-item" @click="applyHeading(1)">H1</button>
-          <button type="button" class="heading-menu-item" @click="applyHeading(2)">H2</button>
-          <button type="button" class="heading-menu-item" @click="applyHeading(3)">H3</button>
-          <button type="button" class="heading-menu-item" @click="applyHeading(4)">H4</button>
-          <button type="button" class="heading-menu-item" @click="applyHeading(5)">H5</button>
-        </div>
-      </div>
-      <button type="button" class="icon-btn" title="Bulleted list" aria-label="Bulleted list" @click="insertLinePrefix('- ', 'list item')"><span class="material-symbols-outlined notranslate" translate="no">format_list_bulleted</span></button>
-      <button type="button" class="icon-btn" title="Numbered list" aria-label="Numbered list" @click="insertLinePrefix('1. ', 'list item')"><span class="material-symbols-outlined notranslate" translate="no">format_list_numbered</span></button>
-      <button type="button" class="icon-btn" title="Task list" aria-label="Task list" @click="insertLinePrefix('- [ ] ', 'task')"><span class="material-symbols-outlined notranslate" translate="no">checklist</span></button>
-      <button type="button" class="icon-btn" title="Quote" aria-label="Quote" @click="insertLinePrefix('> ', 'quote')"><span class="material-symbols-outlined notranslate" translate="no">format_quote</span></button>
-      <button type="button" class="icon-btn" title="Code block" aria-label="Code block" @click="insertText('\n```\ncode\n```\n')"><span class="material-symbols-outlined notranslate" translate="no">data_object</span></button>
-      <span class="sep" />
-      <button type="button" class="icon-btn" title="Link" aria-label="Link" @click="wrapSelection('[', '](https://example.com)', 'link text')"><span class="material-symbols-outlined notranslate" translate="no">link</span></button>
-      <button type="button" class="icon-btn" title="Insert image" aria-label="Insert image" @click="triggerUpload"><span class="material-symbols-outlined notranslate" translate="no">image</span></button>
-      <div ref="tableMenuRef" class="table-menu">
-        <button type="button" class="icon-btn" title="Insert table" aria-label="Insert table" @click.stop="toggleTableMenu">
-          <span class="material-symbols-outlined notranslate" translate="no">grid_on</span>
-        </button>
-        <div v-if="tableMenuOpen" class="table-menu-list">
-          <div
-            class="table-grid"
-            :style="{ gridTemplateColumns: `repeat(${TABLE_GRID_MAX}, 16px)` }"
-            @mouseleave="setTableHover(1, 1)"
-          >
-            <button
-              v-for="idx in TABLE_GRID_MAX * TABLE_GRID_MAX"
-              :key="idx"
-              type="button"
-              class="table-grid-cell"
-              :class="{ active: ((idx - 1) % TABLE_GRID_MAX) + 1 <= tableHoverCols && Math.floor((idx - 1) / TABLE_GRID_MAX) + 1 <= tableHoverRows }"
-              @mouseenter="setTableHover(((idx - 1) % TABLE_GRID_MAX) + 1, Math.floor((idx - 1) / TABLE_GRID_MAX) + 1)"
-              @click="applyTableSize(((idx - 1) % TABLE_GRID_MAX) + 1, Math.floor((idx - 1) / TABLE_GRID_MAX) + 1)"
-            />
-          </div>
-          <div class="table-grid-label">{{ tableHoverCols }} × {{ tableHoverRows }}</div>
-        </div>
-      </div>
-      <button
-        type="button"
-        class="icon-btn"
-        title="Выровнять markdown-таблицу под курсором"
-        aria-label="Выровнять markdown-таблицу под курсором"
-        @click="formatMarkdownTableAtCursor"
-      >
-        <span class="material-symbols-outlined notranslate" translate="no">format_align_justify</span>
-      </button>
-      <button type="button" class="icon-btn" title="Wiki link" aria-label="Wiki link" @click="wrapSelection('[[', ']]', 'Page Title')"><span class="material-symbols-outlined notranslate" translate="no">article_shortcut</span></button>
-      <button type="button" class="icon-btn" title="Tag" aria-label="Tag" @click="insertText(' #tag')"><span class="material-symbols-outlined notranslate" translate="no">sell</span></button>
-      <div ref="emojiMenuRef" class="emoji-menu">
-        <button type="button" class="icon-btn" title="Insert emoji" aria-label="Insert emoji" @click.stop="toggleEmojiMenu">
-          <span class="material-symbols-outlined notranslate" translate="no">sentiment_satisfied</span>
-        </button>
-        <div v-if="emojiMenuOpen" class="emoji-menu-list">
-          <button
-            v-for="emoji in emojiItems"
-            :key="emoji"
-            type="button"
-            class="emoji-item"
-            :title="emoji"
-            @click="applyEmoji(emoji)"
-          >
-            {{ emoji }}
-          </button>
-        </div>
-      </div>
-      <span class="sep" />
-      <button type="button" class="icon-btn" title="Undo" aria-label="Undo" :disabled="!canUndo" @click="undo"><span class="material-symbols-outlined notranslate" translate="no">undo</span></button>
-      <button type="button" class="icon-btn" title="Redo" aria-label="Redo" :disabled="!canRedo" @click="redo"><span class="material-symbols-outlined notranslate" translate="no">redo</span></button>
-      <button type="button" class="icon-btn" title="Save" aria-label="Save" @click="emit('save')"><span class="material-symbols-outlined notranslate" translate="no">save</span></button>
-      <span class="mode-switch">
-        <button type="button" class="icon-btn" title="Editor" aria-label="Editor" :class="{ active: editorMode === 'editor' }" @click="setMode('editor')"><span class="material-symbols-outlined notranslate" translate="no">edit_note</span></button>
-        <button type="button" class="icon-btn" title="Split" aria-label="Split" :class="{ active: editorMode === 'split' }" @click="setMode('split')"><span class="material-symbols-outlined notranslate" translate="no">split_scene</span></button>
-        <button type="button" class="icon-btn" title="Preview" aria-label="Preview" :class="{ active: editorMode === 'preview' }" @click="setMode('preview')"><span class="material-symbols-outlined notranslate" translate="no">preview</span></button>
-        <button type="button" class="icon-btn" title="Reading" aria-label="Reading" @click="setMode('reading')"><span class="material-symbols-outlined notranslate" translate="no">menu_book</span></button>
-      </span>
+        <EditorToolbar
+          :inline-format-actions="inlineFormatActions"
+          :list-and-block-actions="listAndBlockActions"
+          :quick-insert-actions="quickInsertActions"
+          :history-actions="historyActions"
+          :mode-switch-actions="modeSwitchActions"
+          :emoji-items="emojiItems"
+          :on-apply-heading="applyHeading"
+          :on-apply-table-size="applyTableSize"
+          :on-apply-emoji="applyEmoji"
+        />
       </template>
     </div>
     <div ref="splitShellRef" class="editor-shell" :class="`mode-${editorMode}`" :style="editorShellStyle">
-      <div v-if="editorMode === 'editor' || editorMode === 'split'" class="editor-pane">
-        <textarea
-          ref="editorRef"
-          class="markdown-input"
-          :value="markdownValue"
-          spellcheck="false"
-          @input="onEditorInput"
-          @keydown="onEditorKeydown"
-          @click="refreshWikilinkSuggestions"
-          @keyup="refreshWikilinkSuggestions"
-          @scroll="onEditorScroll"
-          @blur="wikilink.close()"
-        />
-        <div v-if="wikilinkOpen" class="wikilink-suggestions" :style="wikilinkMenuStyle">
-          <button
-            v-for="(item, idx) in wikilinkItems"
-            :key="item.slug"
-            type="button"
-            class="wikilink-suggestion-item"
-            :class="{ active: idx === wikilinkSelected }"
-            @mousedown.prevent="applyWikilinkSuggestion(idx)"
-          >
-            <span>{{ item.title }}</span>
-            <small>{{ item.slug }}</small>
-          </button>
-        </div>
-      </div>
-      <div
+      <EditorInputPane
+        v-if="editorMode === 'editor' || editorMode === 'split'"
+        ref="editorRef"
+        :model-value="markdownValue"
+        :wikilink-open="wikilinkOpen"
+        :wikilink-items="wikilinkItems"
+        :wikilink-selected="wikilinkSelected"
+        :wikilink-menu-style="wikilinkMenuStyle"
+        @input="onEditorInput"
+        @keydown="onEditorKeydown"
+        @click="refreshWikilinkSuggestions"
+        @keyup="refreshWikilinkSuggestions"
+        @scroll="onEditorScroll"
+        @blur="wikilink.close()"
+        @select-wikilink="applyWikilinkSuggestion"
+      />
+      <VerticalPaneResizer
         v-if="editorMode === 'split'"
-        class="split-resizer"
-        :class="{ dragging: splitDragging }"
-        role="separator"
-        aria-orientation="vertical"
+        :dragging="splitDragging"
         aria-label="Resize split panes"
         @mousedown="startSplitDrag"
         @dblclick="resetSplitRatio"
       />
-      <div
+      <EditorPreviewPane
         v-if="editorMode !== 'editor'"
         ref="previewPaneRef"
-        class="preview-pane"
-        :class="[
-          { 'reading-theme-white': editorMode === 'reading' && readingTheme === 'white' },
-          { 'reading-theme-paper': editorMode === 'reading' && readingTheme === 'paper' },
-          { 'reading-theme-dark': editorMode === 'reading' && readingTheme === 'dark' }
-        ]"
+        :is-reading="editorMode === 'reading'"
+        :reading-theme="readingTheme"
+        :show-toc="previewHasToc"
+        :reading-toc-items="readingTocItems"
+        :preview-html="previewHtml"
+        :reading-preview-style="readingPreviewStyle"
         @click="onPreviewClick"
         @scroll="onPreviewScroll"
-      >
-        <div class="reading-layout" :class="{ 'with-toc': editorMode === 'reading' && readingTocVisible && readingTocItems.length > 0 }">
-          <div class="preview-content markdown-body" :style="readingPreviewStyle" v-html="previewHtml" />
-          <aside
-            v-if="editorMode === 'reading' && readingTocVisible && readingTocItems.length > 0"
-            class="reading-toc"
-          >
-            <div class="reading-toc-title">Оглавление</div>
-            <button
-              v-for="item in readingTocItems"
-              :key="item.id"
-              type="button"
-              class="reading-toc-item"
-              :style="{ paddingLeft: `${Math.max(0, item.level - 1) * 10 + 8}px` }"
-              @click="scrollToHeading(item.id)"
-            >
-              {{ item.text }}
-            </button>
-          </aside>
-        </div>
-      </div>
+        @select-heading="readingToc.scrollToHeading"
+      />
     </div>
     <input
       ref="uploadInput"
@@ -1084,246 +694,6 @@ onBeforeUnmount(() => {
   border-radius: 0;
 }
 
-.reading-logo {
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text);
-  text-decoration: none;
-  letter-spacing: -0.3px;
-}
-
-.reading-logo:hover {
-  color: var(--color-primary);
-}
-
-.reading-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-}
-
-.reading-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.reading-font-slider {
-  width: 130px;
-}
-
-.reading-font-size {
-  min-width: 42px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-.reading-theme-swatches {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.reading-theme-dot {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  padding: 0;
-}
-
-.reading-theme-dot.theme-white {
-  background: #ffffff;
-}
-
-.reading-theme-dot.theme-paper {
-  background: #f6f1e3;
-}
-
-.reading-theme-dot.theme-dark {
-  background: #0f1115;
-}
-
-.reading-theme-dot.active {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
-}
-
-.reading-toc-toggle {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text-muted);
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.reading-toc-toggle.active {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.reading-toc-toggle .material-symbols-outlined {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.icon-btn {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-  border-radius: 6px;
-  padding: 0;
-}
-
-.icon-btn .material-symbols-outlined {
-  font-size: 20px;
-  line-height: 1;
-}
-
-.icon-btn.active {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.icon-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.sep {
-  width: 1px;
-  height: 22px;
-  background: var(--color-border);
-  margin: 0 2px;
-}
-
-.mode-switch {
-  margin-left: auto;
-  display: inline-flex;
-  gap: 4px;
-}
-
-.heading-menu,
-.table-menu,
-.emoji-menu {
-  position: relative;
-}
-
-.heading-menu-list,
-.table-menu-list,
-.emoji-menu-list {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  z-index: 30;
-}
-
-.heading-menu-list {
-  display: grid;
-  gap: 2px;
-  padding: 6px;
-  min-width: 64px;
-}
-
-.heading-menu-item {
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  text-align: left;
-  padding: 6px 8px;
-  border-radius: 6px;
-}
-
-.heading-menu-item:hover {
-  background: var(--color-bg-hover);
-}
-
-.table-menu-list {
-  padding: 8px;
-  width: max-content;
-}
-
-.table-grid {
-  display: grid;
-  gap: 3px;
-}
-
-.toolbar .table-grid-cell {
-  width: 16px;
-  min-width: 16px;
-  height: 16px;
-  min-height: 16px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  border-radius: 2px;
-  padding: 0;
-}
-
-.toolbar .table-grid-cell.active {
-  background: color-mix(in srgb, var(--color-primary) 26%, var(--color-bg-secondary));
-  border-color: color-mix(in srgb, var(--color-primary) 54%, var(--color-border));
-}
-
-.table-grid-label {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-.emoji-menu-list {
-  width: 284px;
-  max-height: 210px;
-  overflow: auto;
-  padding: 6px;
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.emoji-item {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
-  border: 1px solid transparent;
-  background: transparent;
-  border-radius: 6px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  font-size: 18px;
-}
-
-.emoji-item:hover {
-  border-color: var(--color-border);
-  background: var(--color-bg-hover);
-}
-
 .editor-shell {
   flex: 1;
   min-height: 0;
@@ -1347,139 +717,19 @@ onBeforeUnmount(() => {
   grid-template-columns: 1fr 8px minmax(0, 1fr);
 }
 
-.editor-pane,
-.preview-pane {
-  min-height: 0;
-  height: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-bg);
-}
-
-.editor-pane {
-  overflow: hidden;
-  position: relative;
-}
-
-.preview-pane {
-  overflow: auto;
-  padding: 14px;
-}
-
-.preview-content {
-  width: 100%;
-}
-
-.reading-layout {
-  width: 100%;
-}
-
-.reading-layout.with-toc {
-  display: grid;
-  grid-template-columns: minmax(0, 920px) 240px;
-  gap: 24px;
-  align-items: start;
-  justify-content: center;
-}
-
-.editor-shell.mode-reading .preview-pane {
-  border: none;
-  border-radius: 0;
-  padding: 28px clamp(56px, 10vw, 220px);
-  background: var(--color-bg);
-  position: relative;
-}
-
-.editor-shell.mode-reading .preview-content {
-  max-width: 920px;
-  margin: 0 auto;
-  line-height: 1.75;
-}
-
-.reading-toc {
-  position: sticky;
-  top: 12px;
-  align-self: start;
-  max-height: calc(100vh - 110px);
-  overflow: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-bg) 92%, transparent);
-  padding: 8px;
-}
-
-.reading-toc-title {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin: 2px 6px 8px;
-}
-
-.reading-toc-item {
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  text-align: left;
-  font-size: 12px;
-  line-height: 1.3;
-  border-radius: 6px;
-  padding: 5px 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.reading-toc-item:hover {
-  background: var(--color-bg-hover);
-}
-
-@media (max-width: 1100px) {
-  .reading-layout.with-toc {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .reading-toc {
-    position: static;
-    max-height: 220px;
-    margin-top: 8px;
-  }
-}
-
 .markdown-editor-wrapper.reading-theme-white .toolbar,
-.editor-shell.mode-reading .preview-pane.reading-theme-white {
+.markdown-editor-wrapper.reading-theme-white :deep(.preview-pane.reading-theme-white) {
   background: #ffffff;
 }
 
 .markdown-editor-wrapper.reading-theme-paper .toolbar,
-.editor-shell.mode-reading .preview-pane.reading-theme-paper {
+.markdown-editor-wrapper.reading-theme-paper :deep(.preview-pane.reading-theme-paper) {
   background: #f6f1e3;
 }
 
 .markdown-editor-wrapper.reading-theme-dark .toolbar,
-.editor-shell.mode-reading .preview-pane.reading-theme-dark {
+.markdown-editor-wrapper.reading-theme-dark :deep(.preview-pane.reading-theme-dark) {
   background: #0f1115;
-  color: #e7ecf3;
-}
-
-.markdown-editor-wrapper.reading-theme-dark .reading-logo,
-.markdown-editor-wrapper.reading-theme-dark .reading-title {
-  color: #f3f7ff;
-}
-
-.markdown-editor-wrapper.reading-theme-dark .reading-font-size {
-  color: #aeb8c7;
-}
-
-.markdown-editor-wrapper.reading-theme-dark .reading-toc {
-  background: #171b22;
-  border-color: #2b3442;
-}
-
-.markdown-editor-wrapper.reading-theme-dark .reading-toc-title {
-  color: #9ca8bb;
-}
-
-.markdown-editor-wrapper.reading-theme-dark .reading-toc-item {
   color: #e7ecf3;
 }
 
@@ -1503,99 +753,6 @@ onBeforeUnmount(() => {
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body code:not(pre code)) {
   background: #273243;
   color: #f5fbff;
-}
-
-.reading-exit-btn {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-bg) 92%, transparent);
-  color: var(--color-text);
-  border-radius: 50%;
-  padding: 0;
-}
-
-.reading-exit-btn .material-symbols-outlined {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.markdown-input {
-  width: 100%;
-  height: 100%;
-  border: none;
-  border-radius: 0;
-  outline: none;
-  resize: none;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 14px;
-  line-height: 1.6;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  padding: 14px;
-  overflow: auto;
-}
-
-.split-resizer {
-  width: 8px;
-  cursor: col-resize;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-}
-
-.split-resizer::before {
-  content: '';
-  width: 4px;
-  height: 56px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-border) 85%, transparent);
-  transition: background 0.12s ease, transform 0.12s ease;
-}
-
-.split-resizer:hover::before,
-.split-resizer.dragging::before {
-  background: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
-  transform: scaleX(1.15);
-}
-
-.wikilink-suggestions {
-  position: fixed;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  z-index: 40;
-  max-height: 240px;
-  overflow: auto;
-  padding: 4px;
-}
-
-.wikilink-suggestion-item {
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  border-radius: 6px;
-  padding: 8px;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  text-align: left;
-}
-
-.wikilink-suggestion-item small {
-  color: var(--color-text-muted);
-}
-
-.wikilink-suggestion-item.active,
-.wikilink-suggestion-item:hover {
-  background: var(--color-bg-hover);
 }
 
 .visually-hidden {

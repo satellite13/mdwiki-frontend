@@ -1,23 +1,30 @@
-import { readString, writeString } from '@/utils/localPreferences'
+import {
+  clampNumber,
+  readClampedNumberPref,
+  writeClampedNumberPref
+} from '@/utils/numericPreference'
 
 const DOCUMENTS_SIDEBAR_WIDTH_LS_KEY = 'mdwiki-documents-sidebar-width'
 
 const MIN_WIDTH = 220
 const MAX_WIDTH = 480
 const DEFAULT_WIDTH = 260
+const WIDTH_CONFIG = {
+  min: MIN_WIDTH,
+  max: MAX_WIDTH,
+  fallback: DEFAULT_WIDTH
+}
 
 export function readDocumentsSidebarWidthPref(): number {
-  const raw = Number(readString(DOCUMENTS_SIDEBAR_WIDTH_LS_KEY) || String(DEFAULT_WIDTH))
-  return clampDocumentsSidebarWidth(raw)
+  return readClampedNumberPref(DOCUMENTS_SIDEBAR_WIDTH_LS_KEY, WIDTH_CONFIG)
 }
 
 export function writeDocumentsSidebarWidthPref(value: number): void {
-  writeString(DOCUMENTS_SIDEBAR_WIDTH_LS_KEY, String(Math.round(clampDocumentsSidebarWidth(value))))
+  writeClampedNumberPref(DOCUMENTS_SIDEBAR_WIDTH_LS_KEY, value, WIDTH_CONFIG)
 }
 
 export function clampDocumentsSidebarWidth(value: number): number {
-  if (!Number.isFinite(value)) return DEFAULT_WIDTH
-  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value))
+  return clampNumber(value, WIDTH_CONFIG)
 }
 
 export { DEFAULT_WIDTH as DEFAULT_DOCUMENTS_SIDEBAR_WIDTH }

@@ -1,4 +1,9 @@
 import { readString, writeString } from '@/utils/localPreferences'
+import {
+  clampNumber,
+  readClampedNumberPref,
+  writeClampedNumberPref
+} from '@/utils/numericPreference'
 
 export type EditorMode = 'editor' | 'split' | 'preview' | 'reading'
 
@@ -8,6 +13,11 @@ const SPLIT_RATIO_LS_KEY = 'mdwiki-editor-split-ratio'
 const MIN_RATIO = 25
 const MAX_RATIO = 75
 const DEFAULT_RATIO = 50
+const SPLIT_RATIO_CONFIG = {
+  min: MIN_RATIO,
+  max: MAX_RATIO,
+  fallback: DEFAULT_RATIO
+}
 
 export function readEditorModePref(): EditorMode {
   const value = readString(EDITOR_MODE_LS_KEY)
@@ -20,18 +30,15 @@ export function writeEditorModePref(value: EditorMode): void {
 }
 
 export function readSplitRatioPref(): number {
-  const raw = Number(readString(SPLIT_RATIO_LS_KEY) || String(DEFAULT_RATIO))
-  if (Number.isFinite(raw)) return Math.min(MAX_RATIO, Math.max(MIN_RATIO, raw))
-  return DEFAULT_RATIO
+  return readClampedNumberPref(SPLIT_RATIO_LS_KEY, SPLIT_RATIO_CONFIG)
 }
 
 export function writeSplitRatioPref(value: number): void {
-  writeString(SPLIT_RATIO_LS_KEY, String(Math.round(value)))
+  writeClampedNumberPref(SPLIT_RATIO_LS_KEY, value, SPLIT_RATIO_CONFIG)
 }
 
 export function clampSplitRatio(value: number): number {
-  if (!Number.isFinite(value)) return DEFAULT_RATIO
-  return Math.min(MAX_RATIO, Math.max(MIN_RATIO, value))
+  return clampNumber(value, SPLIT_RATIO_CONFIG)
 }
 
 export { DEFAULT_RATIO as DEFAULT_SPLIT_RATIO }
