@@ -61,8 +61,8 @@ onMounted(fetchUsers)
 
 <template>
   <div class="admin-users">
-    <div class="admin-nav">
-      <router-link to="/admin/users" class="admin-nav-link active">{{ t.admin.openUsersSettings }}</router-link>
+    <div class="admin-nav" aria-label="Admin sections">
+      <router-link to="/admin/users" class="admin-nav-link">{{ t.admin.openUsersSettings }}</router-link>
       <router-link to="/admin/embedding" class="admin-nav-link">{{ t.admin.openEmbeddingSettings }}</router-link>
     </div>
     <h1>{{ t.admin.usersTitle }}</h1>
@@ -98,19 +98,40 @@ onMounted(fetchUsers)
 <style scoped>
 .admin-nav {
   display: flex;
-  gap: 10px;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
   margin-bottom: 16px;
 }
 
 .admin-nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
   font-size: 13px;
   color: var(--color-text-muted);
   text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-.admin-nav-link.active {
+.admin-nav-link:hover {
   color: var(--color-text);
+  border-color: var(--color-border);
+  background: var(--color-bg-hover);
+}
+
+.admin-nav-link.router-link-exact-active {
+  color: var(--color-primary);
   font-weight: 600;
+  border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .admin-users h1 {

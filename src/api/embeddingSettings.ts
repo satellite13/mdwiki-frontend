@@ -4,6 +4,8 @@ import type { EmbeddingSettings } from '@/types'
 export interface UpdateEmbeddingSettingsPayload {
   provider: 'openai' | 'ollama' | 'lmstudio'
   model: string
+  baseUrl?: string | null
+  apiKey?: string
 }
 
 export function getEmbeddingSettings() {

@@ -87,7 +87,7 @@ function onEmojiClick(emoji: string) {
     v-for="action in inlineFormatActions"
     :key="action.key"
     :title="action.title"
-    :aria-label="action.ariaLabel"
+    :ariaLabel="action.ariaLabel"
     :icon="action.icon"
     @click="action.onClick"
   />
@@ -96,7 +96,7 @@ function onEmojiClick(emoji: string) {
     <template #trigger>
       <IconActionButton
         title="Heading levels"
-        aria-label="Heading levels"
+        ariaLabel="Heading levels"
         icon="title"
         @click="toggleHeadingMenu"
       />
@@ -117,7 +117,7 @@ function onEmojiClick(emoji: string) {
     v-for="action in listAndBlockActions"
     :key="action.key"
     :title="action.title"
-    :aria-label="action.ariaLabel"
+    :ariaLabel="action.ariaLabel"
     :icon="action.icon"
     @click="action.onClick"
   />
@@ -126,7 +126,7 @@ function onEmojiClick(emoji: string) {
     v-for="action in quickInsertActions"
     :key="action.key"
     :title="action.title"
-    :aria-label="action.ariaLabel"
+    :ariaLabel="action.ariaLabel"
     :icon="action.icon"
     @click="action.onClick"
   />
@@ -134,7 +134,7 @@ function onEmojiClick(emoji: string) {
     <template #trigger>
       <IconActionButton
         title="Insert table"
-        aria-label="Insert table"
+        ariaLabel="Insert table"
         icon="grid_on"
         @click="toggleTableMenu"
       />
@@ -162,7 +162,7 @@ function onEmojiClick(emoji: string) {
     <template #trigger>
       <IconActionButton
         title="Insert emoji"
-        aria-label="Insert emoji"
+        ariaLabel="Insert emoji"
         icon="sentiment_satisfied"
         @click="toggleEmojiMenu"
       />
@@ -185,7 +185,7 @@ function onEmojiClick(emoji: string) {
     v-for="action in historyActions"
     :key="action.key"
     :title="action.title"
-    :aria-label="action.ariaLabel"
+    :ariaLabel="action.ariaLabel"
     :icon="action.icon"
     :disabled="action.disabled"
     @click="action.onClick"
@@ -195,7 +195,7 @@ function onEmojiClick(emoji: string) {
       v-for="action in modeSwitchActions"
       :key="action.key"
       :title="action.title"
-      :aria-label="action.ariaLabel"
+      :ariaLabel="action.ariaLabel"
       :icon="action.icon"
       :active="action.active"
       @click="action.onClick"

@@ -12,12 +12,18 @@ const loading = ref(true)
 const saving = ref(false)
 const provider = ref<'openai' | 'ollama' | 'lmstudio'>('openai')
 const model = ref('')
+const baseUrl = ref('')
+const apiKey = ref('')
+const apiKeyConfigured = ref(false)
 const expectedDimension = ref<number | null>(null)
 const warning = ref<EmbeddingSettingsWarning | null>(null)
 
 function applySettings(data: EmbeddingSettings) {
   provider.value = data.provider
   model.value = data.model
+  baseUrl.value = data.baseUrl
+  apiKeyConfigured.value = data.apiKeyConfigured
+  apiKey.value = ''
   expectedDimension.value = data.expectedDimension
   warning.value = data.warning ?? null
 }
@@ -37,10 +43,17 @@ async function loadSettings() {
 async function saveSettings() {
   saving.value = true
   try {
-    const { data } = await updateEmbeddingSettings({
+    const payload = {
       provider: provider.value,
-      model: model.value.trim()
-    })
+      model: model.value.trim(),
+      baseUrl: baseUrl.value.trim() || null
+    } as const
+    const keyValue = apiKey.value.trim()
+    const { data } = await updateEmbeddingSettings(
+      keyValue
+        ? { ...payload, apiKey: keyValue }
+        : payload
+    )
     applySettings(data)
     const mismatchMessage = data.warning
       ? `${t.admin.embeddingMismatchDetails(data.warning.actualDimension, data.warning.expectedDimension)}\n${t.admin.embeddingReindexHint}`
@@ -58,9 +71,9 @@ onMounted(loadSettings)
 
 <template>
   <div class="admin-embedding">
-    <div class="admin-nav">
+    <div class="admin-nav" aria-label="Admin sections">
       <router-link to="/admin/users" class="admin-nav-link">{{ t.admin.openUsersSettings }}</router-link>
-      <router-link to="/admin/embedding" class="admin-nav-link active">{{ t.admin.openEmbeddingSettings }}</router-link>
+      <router-link to="/admin/embedding" class="admin-nav-link">{{ t.admin.openEmbeddingSettings }}</router-link>
     </div>
     <h1>{{ t.admin.embeddingTitle }}</h1>
 
@@ -79,6 +92,20 @@ onMounted(loadSettings)
         <span>{{ t.admin.embeddingModelLabel }}</span>
         <input v-model="model" required />
       </label>
+
+      <label class="field">
+        <span>{{ t.admin.embeddingBaseUrlLabel }}</span>
+        <input v-model="baseUrl" type="url" placeholder="https://..." />
+      </label>
+
+      <label class="field">
+        <span>{{ t.admin.embeddingApiKeyLabel }}</span>
+        <input v-model="apiKey" type="password" autocomplete="new-password" />
+      </label>
+      <p class="hint">
+        {{ t.admin.embeddingApiKeyHint }}
+        {{ apiKeyConfigured ? t.admin.embeddingApiKeyConfigured : t.admin.embeddingApiKeyMissing }}
+      </p>
 
       <label class="field">
         <span>{{ t.admin.embeddingExpectedDimensionLabel }}</span>
@@ -101,19 +128,40 @@ onMounted(loadSettings)
 <style scoped>
 .admin-nav {
   display: flex;
-  gap: 10px;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
   margin-bottom: 16px;
 }
 
 .admin-nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
   font-size: 13px;
   color: var(--color-text-muted);
   text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-.admin-nav-link.active {
+.admin-nav-link:hover {
   color: var(--color-text);
+  border-color: var(--color-border);
+  background: var(--color-bg-hover);
+}
+
+.admin-nav-link.router-link-exact-active {
+  color: var(--color-primary);
   font-weight: 600;
+  border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .admin-embedding h1 {

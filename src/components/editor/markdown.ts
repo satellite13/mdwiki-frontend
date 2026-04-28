@@ -4,13 +4,60 @@ import markdownItTaskLists from 'markdown-it-task-lists'
 import markdownItAnchor from 'markdown-it-anchor'
 import markdownItSub from 'markdown-it-sub'
 import markdownItSup from 'markdown-it-sup'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
+import bash from 'highlight.js/lib/languages/bash'
+import css from 'highlight.js/lib/languages/css'
+import java from 'highlight.js/lib/languages/java'
+import javascript from 'highlight.js/lib/languages/javascript'
+import json from 'highlight.js/lib/languages/json'
+import kotlin from 'highlight.js/lib/languages/kotlin'
+import markdown from 'highlight.js/lib/languages/markdown'
+import plaintext from 'highlight.js/lib/languages/plaintext'
+import python from 'highlight.js/lib/languages/python'
+import sql from 'highlight.js/lib/languages/sql'
+import typescript from 'highlight.js/lib/languages/typescript'
+import xml from 'highlight.js/lib/languages/xml'
+import yaml from 'highlight.js/lib/languages/yaml'
 import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { wikilinkPreviewHref } from '@/services/pageIndex'
 
 export const WIKI_REGEX = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g
 export const TAG_REGEX = /(?:^|\s)#([\w\u0400-\u04FF-]+)/g
+
+let highlightLanguagesRegistered = false
+
+function registerHighlightLanguages() {
+  if (highlightLanguagesRegistered) return
+  const langEntries: Array<[string, any]> = [
+    ['plaintext', plaintext],
+    ['text', plaintext],
+    ['bash', bash],
+    ['sh', bash],
+    ['shell', bash],
+    ['javascript', javascript],
+    ['js', javascript],
+    ['typescript', typescript],
+    ['ts', typescript],
+    ['json', json],
+    ['yaml', yaml],
+    ['yml', yaml],
+    ['xml', xml],
+    ['html', xml],
+    ['css', css],
+    ['markdown', markdown],
+    ['md', markdown],
+    ['python', python],
+    ['py', python],
+    ['java', java],
+    ['kotlin', kotlin],
+    ['sql', sql]
+  ]
+  for (const [name, definition] of langEntries) {
+    hljs.registerLanguage(name, definition)
+  }
+  highlightLanguagesRegistered = true
+}
 
 export function escapeHtml(value: string): string {
   return value
@@ -67,6 +114,7 @@ function mermaidFencePlugin(md: MarkdownIt) {
 }
 
 export function createMarkdownRenderer(): MarkdownIt {
+  registerHighlightLanguages()
   return new MarkdownIt({
     html: true,
     breaks: true,

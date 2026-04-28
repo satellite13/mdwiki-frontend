@@ -66,7 +66,14 @@ function logout() {
       <router-link :to="graphLinkTo" class="nav-link" title="All pages and links in the wiki">Graph</router-link>
       <router-link to="/attachments" class="nav-link">Attachments</router-link>
       <router-link to="/profile" class="nav-link">{{ auth.username }}</router-link>
-      <router-link v-if="auth.isAdmin" to="/admin/users" class="nav-link">Admin</router-link>
+      <router-link
+        v-if="auth.isAdmin"
+        to="/admin/users"
+        class="nav-link"
+        :class="{ 'is-active': route.path.startsWith('/admin') }"
+      >
+        Admin
+      </router-link>
       <button
         v-if="auth.isAdmin"
         type="button"
@@ -132,15 +139,31 @@ function logout() {
 }
 
 .nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 500;
   text-decoration: none;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
 .nav-link:hover {
   color: var(--color-text);
+  border-color: var(--color-border);
+  background: var(--color-bg-hover);
   text-decoration: none;
+}
+
+.nav-link.router-link-active,
+.nav-link.is-active {
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .theme-toggle {

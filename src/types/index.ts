@@ -104,6 +104,8 @@ export interface EmbeddingSettingsWarning {
 export interface EmbeddingSettings {
   provider: 'openai' | 'ollama' | 'lmstudio'
   model: string
+  baseUrl: string
+  apiKeyConfigured: boolean
   expectedDimension: number
   warning?: EmbeddingSettingsWarning | null
 }

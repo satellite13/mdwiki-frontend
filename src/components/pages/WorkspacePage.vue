@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onBeforeUnmount, watch } from 'vue'
-import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
-import GraphPanel from '@/components/graph/GraphPanel.vue'
+import { defineAsyncComponent, onBeforeUnmount, watch } from 'vue'
 import { useWorkspacePage } from '@/composables/useWorkspacePage'
 import { useEditorUiStore } from '@/stores/editorUi'
 import type { EditorMode } from '@/components/editor/editorPreferences'
+
+const MarkdownEditor = defineAsyncComponent(() => import('@/components/editor/MarkdownEditor.vue'))
+const GraphPanel = defineAsyncComponent(() => import('@/components/graph/GraphPanel.vue'))
 
 const {
   page,

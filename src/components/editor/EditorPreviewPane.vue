@@ -49,7 +49,7 @@ defineExpose({
       <ReadingToc
         v-if="props.showToc"
         :items="props.readingTocItems"
-        :dark="props.readingTheme === 'dark'"
+        :theme="props.readingTheme"
         @select="onSelectHeading"
       />
     </div>

@@ -1,5 +1,3 @@
-import mermaid from 'mermaid'
-
 type PreviewRootGetter = () => HTMLElement | null
 
 type PreviewRenderPipelineOptions = {
@@ -10,6 +8,16 @@ type PreviewRenderPipelineOptions = {
 }
 
 export function usePreviewRenderPipeline(options: PreviewRenderPipelineOptions) {
+  let mermaidLoader: Promise<typeof import('mermaid')> | null = null
+
+  async function loadMermaid() {
+    if (!mermaidLoader) {
+      mermaidLoader = import('mermaid')
+    }
+    const module = await mermaidLoader
+    return module.default
+  }
+
   function normalizeTableColumnAlignment() {
     const root = options.getRoot()
     if (!root) return
@@ -36,12 +44,15 @@ export function usePreviewRenderPipeline(options: PreviewRenderPipelineOptions) 
     if (!options.shouldRender()) return
     const root = options.getRoot()
     if (!root) return
+    const nodes = Array.from(root.querySelectorAll<HTMLElement>('.mermaid'))
+    if (!nodes.length) return
+
+    const mermaid = await loadMermaid()
     mermaid.initialize({
       startOnLoad: false,
       theme: options.isDark() ? 'dark' : 'default',
       securityLevel: 'strict'
     })
-    const nodes = Array.from(root.querySelectorAll<HTMLElement>('.mermaid'))
     for (const node of nodes) {
       const source = node.dataset.source || node.textContent || ''
       if (!node.dataset.source) node.dataset.source = source

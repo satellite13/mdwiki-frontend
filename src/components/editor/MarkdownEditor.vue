@@ -20,7 +20,7 @@ import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPi
 import { useReadingToc } from '@/components/editor/useReadingToc'
 import { useSplitScrollSync } from '@/components/editor/useSplitScrollSync'
 import type { ToolbarAction } from './toolbarTypes'
-import { createMarkdownRenderer } from './markdown'
+import type MarkdownIt from 'markdown-it'
 import { renderStructurizrSvg } from './structurizr'
 import {
   clampSplitRatio,
@@ -48,7 +48,20 @@ const EMOJI_ITEMS = [
   '📎', '📷', '🧠', '🔧', '📝', '💬', '🌟', '💯'
 ]
 
-const md = createMarkdownRenderer()
+let markdownRenderer: MarkdownIt | null = null
+let markdownRendererPromise: Promise<MarkdownIt> | null = null
+let previewRenderToken = 0
+
+async function getMarkdownRenderer(): Promise<MarkdownIt> {
+  if (markdownRenderer) return markdownRenderer
+  if (!markdownRendererPromise) {
+    markdownRendererPromise = import('./markdown').then(({ createMarkdownRenderer }) => {
+      markdownRenderer = createMarkdownRenderer()
+      return markdownRenderer
+    })
+  }
+  return markdownRendererPromise
+}
 
 const props = defineProps<{
   modelValue: string
@@ -93,7 +106,7 @@ const wikilinkMenuStyle = wikilink.menuStyle
 
 const { startResizeDrag, clearDragListeners } = useHorizontalDragResize()
 
-const previewHtml = computed(() => md.render(markdownValue.value))
+const previewHtml = ref('')
 const canUndo = history.canUndo
 const canRedo = history.canRedo
 const emojiItems = computed(() => EMOJI_ITEMS)
@@ -198,14 +211,11 @@ watch(editorMode, (value) => {
   writeEditorModePref(value)
   emit('mode-change', value)
   wikilink.close()
-  nextTick(() => {
-    void renderPreviewDiagrams()
-  })
+  void refreshPreview()
 })
 
-watch(previewHtml, async () => {
-  await nextTick()
-  await renderPreviewDiagrams()
+watch(markdownValue, () => {
+  void refreshPreview()
 })
 
 watch(readingTheme, (value) => {
@@ -553,13 +563,27 @@ async function renderPreviewDiagrams() {
   readingToc.buildReadingToc()
 }
 
+async function refreshPreview() {
+  const token = ++previewRenderToken
+  if (editorMode.value === 'editor') {
+    previewHtml.value = ''
+    return
+  }
+  const renderer = await getMarkdownRenderer()
+  if (token !== previewRenderToken) return
+  previewHtml.value = renderer.render(markdownValue.value)
+  await nextTick()
+  if (token !== previewRenderToken) return
+  await renderPreviewDiagrams()
+}
+
 async function onPreviewClick(event: MouseEvent) {
   await previewCopyDecorations.onPreviewClick(event)
 }
 
 onMounted(() => {
   emit('mode-change', editorMode.value)
-  void renderPreviewDiagrams()
+  void refreshPreview()
 })
 
 onBeforeUnmount(() => {
@@ -627,7 +651,7 @@ onBeforeUnmount(() => {
       <VerticalPaneResizer
         v-if="editorMode === 'split'"
         :dragging="splitDragging"
-        aria-label="Resize split panes"
+        ariaLabel="Resize split panes"
         @mousedown="startSplitDrag"
         @dblclick="resetSplitRatio"
       />
@@ -965,24 +989,24 @@ onBeforeUnmount(() => {
   color: var(--color-danger);
 }
 
-::deep(.markdown-body .mermaid) {
+:deep(.markdown-body .mermaid) {
   display: flex;
   justify-content: center;
   overflow-x: auto;
 }
 
-::deep(.markdown-body .mermaid svg) {
+:deep(.markdown-body .mermaid svg) {
   max-width: 100%;
   height: auto;
 }
 
-::deep(.markdown-body .structurizr) {
+:deep(.markdown-body .structurizr) {
   display: flex;
   justify-content: center;
   overflow-x: auto;
 }
 
-::deep(.markdown-body .structurizr svg) {
+:deep(.markdown-body .structurizr svg) {
   max-width: 100%;
   height: auto;
 }
