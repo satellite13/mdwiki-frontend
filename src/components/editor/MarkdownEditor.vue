@@ -826,9 +826,111 @@ onBeforeUnmount(() => {
   color: #24292f;
 }
 
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-comment),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-quote) {
+  color: #5f6b78;
+}
+
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-keyword),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-selector-tag),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-subst) {
+  color: #9b1c31;
+}
+
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-number),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-literal),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-variable),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-template-variable),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-tag .hljs-attr) {
+  color: #0f4f96;
+}
+
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-string),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-doctag) {
+  color: #23631c;
+}
+
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-title),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-section),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-selector-id) {
+  color: #6f42c1;
+}
+
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-type),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-class .hljs-title) {
+  color: #7f5b0a;
+}
+
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-tag),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-name),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-attribute) {
+  color: #176236;
+}
+
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-regexp),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-link) {
+  color: #0d4f77;
+}
+
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-built_in),
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-builtin-name) {
+  color: #8a3f05;
+}
+
 .markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body pre code.hljs) {
   background: #efe7d6;
   color: #2d2a22;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-comment),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-quote) {
+  color: #7b6f5a;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-keyword),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-selector-tag),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-subst) {
+  color: #813232;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-number),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-literal),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-variable),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-template-variable),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-tag .hljs-attr) {
+  color: #1f4f88;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-string),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-doctag) {
+  color: #2f6f26;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-title),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-section),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-selector-id) {
+  color: #5f3f96;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-type),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-class .hljs-title) {
+  color: #7a5d22;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-tag),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-name),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-attribute) {
+  color: #225b32;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-regexp),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-link) {
+  color: #2b5974;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-built_in),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-builtin-name) {
+  color: #7d401f;
 }
 
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body pre code.hljs) {
