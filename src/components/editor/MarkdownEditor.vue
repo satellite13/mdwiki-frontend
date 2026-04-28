@@ -696,6 +696,42 @@ onBeforeUnmount(() => {
   gap: 0;
 }
 
+.markdown-editor-wrapper.reading-theme-white {
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f6f8fb;
+  --color-bg-hover: #edf2f8;
+  --color-border: #d3dce7;
+  --color-text: #1f2937;
+  --color-text-muted: #5f6f84;
+  --color-text-faint: #8a96a6;
+  --color-wikilink: #2563a8;
+  --color-tag: #a26a16;
+}
+
+.markdown-editor-wrapper.reading-theme-paper {
+  --color-bg: #f6f1e3;
+  --color-bg-secondary: #efe6d3;
+  --color-bg-hover: #e7dbc1;
+  --color-border: #d8cbb3;
+  --color-text: #2d2a22;
+  --color-text-muted: #6d624d;
+  --color-text-faint: #8c816c;
+  --color-wikilink: #5f4bb6;
+  --color-tag: #946a14;
+}
+
+.markdown-editor-wrapper.reading-theme-dark {
+  --color-bg: #0f1115;
+  --color-bg-secondary: #171b22;
+  --color-bg-hover: #212734;
+  --color-border: #2b3442;
+  --color-text: #e7ecf3;
+  --color-text-muted: #9ca8bb;
+  --color-text-faint: #76859c;
+  --color-wikilink: #8ac5ff;
+  --color-tag: #f4bf73;
+}
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -757,6 +793,12 @@ onBeforeUnmount(() => {
   color: #e7ecf3;
 }
 
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body),
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body),
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body) {
+  color: var(--color-text);
+}
+
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h1),
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h2),
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h3),
@@ -777,6 +819,21 @@ onBeforeUnmount(() => {
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body code:not(pre code)) {
   background: #273243;
   color: #f5fbff;
+}
+
+.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body pre code.hljs) {
+  background: #f6f8fa;
+  color: #24292f;
+}
+
+.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body pre code.hljs) {
+  background: #efe7d6;
+  color: #2d2a22;
+}
+
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body pre code.hljs) {
+  background: #272822;
+  color: #f8f8f2;
 }
 
 .visually-hidden {
@@ -1011,13 +1068,4 @@ onBeforeUnmount(() => {
   height: auto;
 }
 
-[data-theme='dark'] :deep(.markdown-body pre code.hljs) {
-  background: #272822;
-  color: #f8f8f2;
-}
-
-[data-theme='dark'] :deep(.markdown-body code:not(pre code)) {
-  background: #273243;
-  color: #f5fbff;
-}
 </style>
