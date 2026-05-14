@@ -989,6 +989,10 @@ onBeforeUnmount(() => {
   padding-left: 1.1rem;
 }
 
+:deep(.markdown-body ol) {
+  padding-left: 1.6rem;
+}
+
 :deep(.markdown-body li) {
   line-height: 1.9;
   margin: 0.18rem 0;
