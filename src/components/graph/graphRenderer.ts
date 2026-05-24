@@ -6,6 +6,7 @@ export interface SimNode extends d3.SimulationNodeDatum {
   title: string
   tags: string[]
   isCurrent: boolean
+  exists: boolean
 }
 
 export interface SimLink extends d3.SimulationLinkDatum<SimNode> {
