@@ -5,6 +5,7 @@ export interface GraphNode {
   title: string
   tags: string[]
   isCurrent: boolean
+  exists: boolean
 }
 
 export interface GraphEdge {
@@ -45,7 +46,8 @@ function normalizeGraphResponse(raw: GraphResponse): GraphResponse {
   return {
     nodes: (raw.nodes ?? []).map((n) => ({
       ...n,
-      isCurrent: n.isCurrent ?? (n as { current?: boolean }).current ?? false
+      isCurrent: n.isCurrent ?? (n as { current?: boolean }).current ?? false,
+      exists: n.exists ?? true
     })),
     edges: normalizeEdges(rawAny.edges ?? raw.edges)
   }

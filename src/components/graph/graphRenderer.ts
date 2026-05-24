@@ -82,7 +82,7 @@ function linkLineCoords(s: SimNode, t: SimNode): { x1: number; y1: number; x2: n
   const ux = dx / len
   const uy = dy / len
   const rs = nodeRadius(s) + 3
-  const rt = nodeRadius(t) + 10
+  const rt = nodeRadius(t) + 2
   return {
     x1: sx + ux * rs,
     y1: sy + uy * rs,
@@ -193,10 +193,11 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
     .append('marker')
     .attr('id', markerId)
     .attr('viewBox', '0 -5 10 10')
-    .attr('refX', 9)
+    .attr('refX', 8)
     .attr('refY', 0)
-    .attr('markerWidth', 5)
-    .attr('markerHeight', 5)
+    .attr('markerUnits', 'userSpaceOnUse')
+    .attr('markerWidth', 10)
+    .attr('markerHeight', 10)
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-4L8,0L0,4')
@@ -245,7 +246,11 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
   node
     .append('circle')
     .attr('r', (d) => nodeRadius(d))
-    .attr('fill', (d) => (d.isCurrent ? 'var(--color-primary, #0d9488)' : 'var(--color-text-muted, #999)'))
+    .attr('fill', (d) => {
+      if (d.isCurrent) return 'var(--color-primary, #0d9488)'
+      if (!d.exists) return 'var(--color-warning, #f59e0b)'
+      return 'var(--color-text-muted, #999)'
+    })
     .attr('stroke', 'var(--color-bg, #fff)')
     .attr('stroke-width', 2)
 
