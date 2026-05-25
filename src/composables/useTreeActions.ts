@@ -1,6 +1,7 @@
 import { useRouter } from 'vue-router'
 import { useFolderStore } from '@/stores/folders'
 import { useDialogStore } from '@/stores/dialog'
+import { useEditorUiStore } from '@/stores/editorUi'
 import * as pagesApi from '@/api/pages'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -19,6 +20,7 @@ export function useTreeActions(options: UseTreeActionsOptions) {
   const router = useRouter()
   const folderStore = useFolderStore()
   const dialog = useDialogStore()
+  const editorUi = useEditorUiStore()
 
   async function createNewPage(folderId?: string) {
     const titleRaw = await dialog.prompt(t.tree.pageNamePrompt)
@@ -27,6 +29,7 @@ export function useTreeActions(options: UseTreeActionsOptions) {
     const slug = normalizePageSlug(title)
     if (!slug) return
     await pagesApi.createPage(slug, title, '', folderId || undefined)
+    editorUi.setReadingMode(false)
     router.push(`/page/${slug}`)
   }
 
