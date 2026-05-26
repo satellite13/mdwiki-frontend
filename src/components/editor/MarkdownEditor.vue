@@ -165,7 +165,8 @@ const quickInsertActions: ToolbarAction[] = [
     onClick: formatMarkdownTableAtCursor
   },
   { key: 'wiki-link', title: 'Wiki link', ariaLabel: 'Wiki link', icon: 'article_shortcut', onClick: () => wrapSelection('[[', ']]', 'Page Title') },
-  { key: 'tag', title: 'Tag', ariaLabel: 'Tag', icon: 'sell', onClick: () => insertText(' #tag') }
+  { key: 'tag', title: 'Tag', ariaLabel: 'Tag', icon: 'sell', onClick: () => insertText(' #tag') },
+  { key: 'insert-date', title: 'Insert current date', ariaLabel: 'Insert current date', icon: 'calendar_today', onClick: insertCurrentDate }
 ]
 
 const historyActions = computed<ToolbarAction[]>(() => [
@@ -319,6 +320,14 @@ function applyTableSize(cols: number, rows: number) {
 
 function applyEmoji(emoji: string) {
   insertText(emoji)
+}
+
+function insertCurrentDate() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  insertText(`${year}-${month}-${day}`)
 }
 
 function formatMarkdownTableAtCursor() {

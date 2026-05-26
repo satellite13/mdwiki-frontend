@@ -33,11 +33,12 @@ function onDragStart(e: DragEvent) {
   })
 }
 
-/** Только лог: смотрим, приходят ли dragover на строку страницы (без preventDefault). */
 function onDragOverPage(e: DragEvent) {
+  if (!auth.isEditor) return
+  e.preventDefault()
+  e.dataTransfer!.dropEffect = 'move'
   dndLogDragOverThrottled(`page:${props.node.slug}`, {
     slug: props.node.slug,
-    defaultPrevented: e.defaultPrevented,
   })
 }
 
