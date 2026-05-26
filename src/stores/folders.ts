@@ -117,9 +117,9 @@ export const useFolderStore = defineStore('folders', () => {
     }
   }
 
-  async function deleteFolder(id: string) {
+  async function deleteFolder(id: string, pageAction: foldersApi.FolderDeletePageAction = 'delete') {
     try {
-      await foldersApi.deleteFolder(stripFolderPrefix(id))
+      await foldersApi.deleteFolder(stripFolderPrefix(id), pageAction)
       await fetchTree(true)
     } catch (e) {
       console.error('Failed to delete folder:', e)

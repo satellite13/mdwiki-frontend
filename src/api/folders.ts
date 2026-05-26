@@ -17,6 +17,9 @@ export function moveFolder(id: string, parentId: string | null) {
   return client.put<void>(`/folders/${id}/move`, { parentId })
 }
 
-export function deleteFolder(id: string) {
-  return client.delete<void>(`/folders/${id}`)
+export type FolderDeletePageAction = 'delete' | 'move_to_root'
+
+export function deleteFolder(id: string, pageAction: FolderDeletePageAction = 'delete') {
+  const param = pageAction === 'move_to_root' ? 'MOVE_TO_ROOT' : 'DELETE'
+  return client.delete<void>(`/folders/${id}`, { params: { pageAction: param } })
 }

@@ -5,8 +5,10 @@ import { useEditorUiStore } from '@/stores/editorUi'
 import * as pagesApi from '@/api/pages'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { countPagesInFolder, folderContainsPageSlug } from '@/utils/folderTree'
 import { t } from '@/utils/i18n'
 import type { FolderTreeNode } from '@/types'
+import type { FolderDeletePageAction } from '@/api/folders'
 
 export interface UseTreeActionsOptions {
   getActiveSlug: () => string | null
@@ -58,12 +60,42 @@ export function useTreeActions(options: UseTreeActionsOptions) {
   async function deleteNode(node: FolderTreeNode) {
     try {
       if (node.type === 'folder') {
-        const ok = await dialog.confirm(t.tree.confirmDelete(node.name), {
-          danger: true,
-          confirmLabel: t.tree.delete
-        })
-        if (!ok) return
-        await folderStore.deleteFolder(node.id)
+        const pageCount = countPagesInFolder(node)
+        let pageAction: FolderDeletePageAction = 'delete'
+
+        if (pageCount > 0) {
+          const choice = await dialog.choice(
+            t.tree.chooseFolderDeleteMode(node.name, pageCount),
+            [
+              {
+                value: 'delete',
+                label: t.tree.deletePagesWithFolderLabel,
+                description: t.tree.deletePagesWithFolderHint,
+                danger: true
+              },
+              {
+                value: 'move_to_root',
+                label: t.tree.movePagesToRootLabel,
+                description: t.tree.movePagesToRootHint
+              }
+            ],
+            { title: t.tree.deleteFolder }
+          )
+          if (!choice) return
+          pageAction = choice === 'move_to_root' ? 'move_to_root' : 'delete'
+        } else {
+          const ok = await dialog.confirm(t.tree.confirmDelete(node.name), {
+            danger: true,
+            confirmLabel: t.tree.delete
+          })
+          if (!ok) return
+        }
+
+        await folderStore.deleteFolder(node.id, pageAction)
+        const activeSlug = options.getActiveSlug()
+        if (activeSlug && pageAction === 'delete' && folderContainsPageSlug(node, activeSlug)) {
+          router.push('/')
+        }
       } else if (node.slug) {
         const mode = await dialog.choice(
           t.tree.chooseDeleteMode(node.name),

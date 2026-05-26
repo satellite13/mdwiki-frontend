@@ -33,6 +33,12 @@ export const t = {
     folderNamePrompt: 'Folder name:',
     newNamePrompt: 'New name:',
     confirmDelete: (name: string) => `Delete "${name}"?`,
+    chooseFolderDeleteMode: (name: string, pageCount: number) =>
+      `Folder "${name}" contains ${pageCount} document${pageCount === 1 ? '' : 's'}. What should happen to them?`,
+    deletePagesWithFolderLabel: 'Delete documents',
+    deletePagesWithFolderHint: 'Permanently remove all documents in this folder',
+    movePagesToRootLabel: 'Move to root',
+    movePagesToRootHint: 'Keep documents and move them to the wiki root',
   },
   admin: {
     confirmDeleteUser: (username: string) => `Delete user "${username}"?`,
