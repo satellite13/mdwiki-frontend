@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { protectWikilinkTablePipes, splitTablePipeCells, WIKILINK_TABLE_PIPE } from './tablePipeCells'
+import {
+  protectWikilinkTablePipes,
+  protectWikilinkTablePipesInDocument,
+  splitTablePipeCells,
+  WIKILINK_TABLE_PIPE
+} from './tablePipeCells'
 
 describe('splitTablePipeCells', () => {
   it('splits a simple pipe row', () => {
@@ -27,5 +32,15 @@ describe('protectWikilinkTablePipes', () => {
 
   it('leaves unlabeled wikilinks unchanged', () => {
     expect(protectWikilinkTablePipes('[[page]]')).toBe('[[page]]')
+  })
+})
+
+describe('protectWikilinkTablePipesInDocument', () => {
+  it('protects wikilinks only inside pipe tables', () => {
+    const src =
+      '- [[multica-overview|Обзор Multica.ai]] — общая картина\n\n| A | B |\n| --- | --- |\n| [[x|Y]] | z |\n'
+    const out = protectWikilinkTablePipesInDocument(src)
+    expect(out).toContain('- [[multica-overview|Обзор Multica.ai]] — общая картина')
+    expect(out).toContain(`[[x${WIKILINK_TABLE_PIPE}Y]]`)
   })
 })

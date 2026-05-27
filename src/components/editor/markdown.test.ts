@@ -33,6 +33,16 @@ describe('createMarkdownRenderer task lists', () => {
     expect((html.match(/<code/g) ?? []).length).toBe(3)
   })
 
+  it('renders list wikilinks with label separators outside tables', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('- [[multica-overview|Обзор Multica.ai]] — общая картина')
+
+    expect(html).toContain('class="wikilink"')
+    expect(html).toContain('>Обзор Multica.ai<')
+    expect(html).not.toContain('[[multica-overview')
+    expect(html).not.toContain('\uE000')
+  })
+
   it('renders pipe tables with wikilink label separators as two columns', () => {
     const md = createMarkdownRenderer()
     const html = md.render(

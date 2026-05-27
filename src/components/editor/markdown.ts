@@ -20,7 +20,7 @@ import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
 import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
 import { normalizePageSlug } from '@/utils/pageSlug'
-import { protectWikilinkTablePipes, WIKILINK_TABLE_PIPE } from '@/utils/tablePipeCells'
+import { protectWikilinkTablePipesInDocument, WIKILINK_TABLE_PIPE } from '@/utils/tablePipeCells'
 import { wikilinkPreviewHref } from '@/services/pageIndex'
 
 export const WIKI_REGEX = new RegExp(
@@ -79,21 +79,84 @@ function frontmatterStripPlugin(md: MarkdownIt) {
 
 function protectWikilinkTablePipesPlugin(md: MarkdownIt) {
   md.core.ruler.before('block', 'mdwiki_protect_wikilink_table_pipes', (state) => {
-    state.src = protectWikilinkTablePipes(state.src)
+    state.src = protectWikilinkTablePipesInDocument(state.src)
   })
 }
 
-function wikilinkPlugin(md: MarkdownIt) {
-  const prev = md.renderer.rules.text
-  md.renderer.rules.text = (tokens, idx, options, env, self) => {
-    const source = prev ? prev(tokens, idx, options, env, self) : tokens[idx].content
-    return source.replace(WIKI_REGEX, (_m, slugRaw: string, labelRaw?: string) => {
-      const slug = slugRaw.trim()
-      const label = (labelRaw?.trim() || slug).trim()
-      const href = wikilinkPreviewHref(slug)
-      return `<a href="${escapeHtml(href)}" class="wikilink" data-wikilink="1" data-slug="${escapeHtml(slug)}">${escapeHtml(label)}</a>`
-    })
-  }
+function renderWikilinkLink(slugRaw: string, labelRaw: string | undefined, Token: typeof import('markdown-it/lib/token.mjs').default, level: number) {
+  const slug = slugRaw.trim()
+  const label = (labelRaw?.trim() || slug).trim()
+  const href = wikilinkPreviewHref(slug)
+
+  const open = new Token('link_open', 'a', 1)
+  open.attrs = [
+    ['href', href],
+    ['class', 'wikilink'],
+    ['data-wikilink', '1'],
+    ['data-slug', slug]
+  ]
+  open.level = level
+  open.markup = 'wikilink'
+
+  const text = new Token('text', '', 0)
+  text.content = label
+  text.level = level + 1
+
+  const close = new Token('link_close', 'a', -1)
+  close.level = level
+  close.markup = 'wikilink'
+
+  return [open, text, close]
+}
+
+function wikilinkTokenizePlugin(md: MarkdownIt) {
+  md.core.ruler.before('linkify', 'mdwiki_wikilink_tokenize', (state) => {
+    const Token = state.Token
+
+    for (const blockToken of state.tokens) {
+      if (blockToken.type !== 'inline' || !blockToken.children) continue
+
+      const nextChildren: typeof blockToken.children = []
+      for (const token of blockToken.children) {
+        if (token.type !== 'text' || !token.content.includes('[[')) {
+          nextChildren.push(token)
+          continue
+        }
+
+        const content = token.content
+        let lastIndex = 0
+        let matched = false
+        WIKI_REGEX.lastIndex = 0
+        let match: RegExpExecArray | null
+
+        while ((match = WIKI_REGEX.exec(content)) !== null) {
+          matched = true
+          if (match.index > lastIndex) {
+            const rest = new Token('text', '', 0)
+            rest.content = content.slice(lastIndex, match.index)
+            rest.level = token.level
+            nextChildren.push(rest)
+          }
+          nextChildren.push(...renderWikilinkLink(match[1], match[2], Token, token.level))
+          lastIndex = WIKI_REGEX.lastIndex
+        }
+
+        if (!matched) {
+          nextChildren.push(token)
+          continue
+        }
+
+        if (lastIndex < content.length) {
+          const rest = new Token('text', '', 0)
+          rest.content = content.slice(lastIndex)
+          rest.level = token.level
+          nextChildren.push(rest)
+        }
+      }
+
+      blockToken.children = nextChildren
+    }
+  })
 }
 
 function tagPlugin(md: MarkdownIt) {
@@ -155,7 +218,7 @@ export function createMarkdownRenderer(): MarkdownIt {
     })
     .use(frontmatterStripPlugin)
     .use(protectWikilinkTablePipesPlugin)
-    .use(wikilinkPlugin)
+    .use(wikilinkTokenizePlugin)
     .use(tagPlugin)
     .use(mermaidFencePlugin)
 }
