@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { findPipeTableRange, formatPipeTableAtCursor } from './formatMarkdownTable'
+import { splitTablePipeCells } from './tablePipeCells'
 
 describe('findPipeTableRange', () => {
   it('returns null when delimiter row column count mismatches header', () => {
@@ -48,5 +49,17 @@ describe('formatPipeTableAtCursor', () => {
   it('returns null when the cursor is not inside a pipe table', () => {
     const text = 'just prose\n\nno table\n'
     expect(formatPipeTableAtCursor(text, 3)).toBeNull()
+  })
+
+  it('formats tables with wikilink label separators in cells', () => {
+    const raw =
+      '| Сущность | Описание |\n| --- | --- |\n| [[axenix|AXENIX]] | Консалтинг |\n| [[dam|DAM]] | S3 |\n'
+    const result = formatPipeTableAtCursor(raw, raw.indexOf('Сущность'))
+    expect(result).not.toBeNull()
+    expect(result!.text).toContain('[[axenix|AXENIX]]')
+    expect(result!.text).toContain('[[dam|DAM]]')
+    const lines = result!.text.trimEnd().split('\n')
+    expect(lines).toHaveLength(4)
+    expect(lines.every((ln) => splitTablePipeCells(ln).length === 2)).toBe(true)
   })
 })

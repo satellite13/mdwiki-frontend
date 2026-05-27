@@ -1,3 +1,5 @@
+import { splitTablePipeCells } from './tablePipeCells'
+
 /** Alignment inferred from a GFM delimiter cell (between pipes). */
 export type TableColumnAlign = 'default' | 'left' | 'right' | 'center'
 
@@ -29,11 +31,7 @@ function isDelimiterRow(line: string): boolean {
 }
 
 function splitPipeCells(line: string): string[] {
-  let t = line.trim()
-  if (t.startsWith('|')) t = t.slice(1)
-  if (t.endsWith('|')) t = t.slice(0, -1)
-  if (!t.includes('|') && t.length > 0) return [t]
-  return t.split('|')
+  return splitTablePipeCells(line)
 }
 
 function parseDelimiterCell(cell: string): TableColumnAlign {

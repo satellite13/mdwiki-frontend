@@ -32,4 +32,18 @@ describe('createMarkdownRenderer task lists', () => {
     expect(html).not.toContain('<label')
     expect((html.match(/<code/g) ?? []).length).toBe(3)
   })
+
+  it('renders pipe tables with wikilink label separators as two columns', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render(
+      '| Сущность | Описание |\n| --- | --- |\n| [[axenix|AXENIX]] | Консалтинг, ИТ-решения |\n| [[dam|DAM]] | S3, CDN |\n'
+    )
+
+    expect((html.match(/<th>/g) ?? []).length).toBe(2)
+    expect((html.match(/<td>/g) ?? []).length).toBe(4)
+    expect(html).toContain('class="wikilink"')
+    expect(html).toContain('>AXENIX<')
+    expect(html).toContain('>DAM<')
+    expect(html).toContain('Консалтинг, ИТ-решения')
+  })
 })

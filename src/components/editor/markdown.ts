@@ -20,9 +20,13 @@ import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
 import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
 import { normalizePageSlug } from '@/utils/pageSlug'
+import { protectWikilinkTablePipes, WIKILINK_TABLE_PIPE } from '@/utils/tablePipeCells'
 import { wikilinkPreviewHref } from '@/services/pageIndex'
 
-export const WIKI_REGEX = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g
+export const WIKI_REGEX = new RegExp(
+  `\\[\\[([^\\]|]+?)(?:[|${WIKILINK_TABLE_PIPE}]([^\\]]+?))?\\]\\]`,
+  'g'
+)
 export const TAG_REGEX = /(?:^|\s)#([\w\u0400-\u04FF-]+)/g
 
 let highlightLanguagesRegistered = false
@@ -70,6 +74,12 @@ export function escapeHtml(value: string): string {
 function frontmatterStripPlugin(md: MarkdownIt) {
   md.core.ruler.before('normalize', 'mdwiki_strip_frontmatter', (state) => {
     state.src = stripMarkdownFrontmatter(state.src)
+  })
+}
+
+function protectWikilinkTablePipesPlugin(md: MarkdownIt) {
+  md.core.ruler.before('block', 'mdwiki_protect_wikilink_table_pipes', (state) => {
+    state.src = protectWikilinkTablePipes(state.src)
   })
 }
 
@@ -144,6 +154,7 @@ export function createMarkdownRenderer(): MarkdownIt {
       })
     })
     .use(frontmatterStripPlugin)
+    .use(protectWikilinkTablePipesPlugin)
     .use(wikilinkPlugin)
     .use(tagPlugin)
     .use(mermaidFencePlugin)
