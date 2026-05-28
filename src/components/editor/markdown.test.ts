@@ -57,3 +57,45 @@ describe('createMarkdownRenderer task lists', () => {
     expect(html).toContain('Консалтинг, ИТ-решения')
   })
 })
+
+describe('createMarkdownRenderer link classification', () => {
+  it('renders external markdown links with icon and target blank', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('[GitHub](https://github.com)')
+
+    expect(html).toContain('class="external-link"')
+    expect(html).toContain('target="_blank"')
+    expect(html).toContain('rel="noopener noreferrer"')
+    expect(html).toContain('open_in_new')
+    expect(html).not.toContain('mdlink-internal')
+  })
+
+  it('renders internal /page links with mdlink-internal class', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('[Страница](/page/foo)')
+
+    expect(html).toContain('class="mdlink-internal"')
+    expect(html).toContain('href="/page/foo"')
+    expect(html).not.toContain('target="_blank"')
+    expect(html).not.toContain('open_in_new')
+  })
+
+  it('renders linkify URLs as external links', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('См. https://example.com/page')
+
+    expect(html).toContain('class="external-link"')
+    expect(html).toContain('https://example.com/page')
+    expect(html).toContain('open_in_new')
+  })
+
+  it('keeps wikilinks as wikilink only without external classes', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('См. [[other-page|Другая страница]]')
+
+    expect(html).toContain('class="wikilink"')
+    expect(html).not.toContain('external-link')
+    expect(html).not.toContain('mdlink-internal')
+    expect(html).not.toContain('open_in_new')
+  })
+})

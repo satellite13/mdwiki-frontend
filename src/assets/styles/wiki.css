@@ -24,6 +24,39 @@
   color: var(--color-wikilink);
 }
 
+.mdlink-internal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  color: var(--color-wikilink);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  vertical-align: baseline;
+}
+
+.external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  color: var(--color-external-link);
+  text-decoration: underline;
+  vertical-align: baseline;
+}
+
+.external-link:hover {
+  color: var(--color-text-muted);
+}
+
+.external-link-icon {
+  flex-shrink: 0;
+  font-size: 14px !important;
+  line-height: 1;
+  opacity: 0.85;
+  color: inherit;
+}
+
 .hashtag {
   color: var(--color-tag);
   font-weight: 500;

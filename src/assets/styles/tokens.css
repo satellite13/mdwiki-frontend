@@ -30,6 +30,7 @@
   /* Semantic */
   --color-wikilink: #0d9488;
   --color-wikilink-missing: #cf222e;
+  --color-external-link: #656d76;
   --color-tag: #bf8700;
 
   /* Typography */
@@ -53,6 +54,7 @@
   --color-border: #3a3b40;
   --color-wikilink: #20c997;
   --color-wikilink-missing: #ff6b6b;
+  --color-external-link: #909399;
   --color-tag: #fcc419;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }

@@ -22,6 +22,10 @@ import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { protectWikilinkTablePipesInDocument, WIKILINK_TABLE_PIPE } from '@/utils/tablePipeCells'
 import { wikilinkPreviewHref } from '@/services/pageIndex'
+import { classifyPreviewLinkHref } from '@/utils/previewLinks'
+
+const EXTERNAL_LINK_ICON =
+  '<span class="external-link-icon material-symbols-outlined notranslate" translate="no" aria-hidden="true">open_in_new</span>'
 
 export const WIKI_REGEX = new RegExp(
   `\\[\\[([^\\]|]+?)(?:[|${WIKILINK_TABLE_PIPE}]([^\\]]+?))?\\]\\]`,
@@ -170,6 +174,56 @@ function tagPlugin(md: MarkdownIt) {
   }
 }
 
+function linkClassifyPlugin(md: MarkdownIt) {
+  const defaultLinkOpen = md.renderer.rules.link_open
+  const defaultLinkClose = md.renderer.rules.link_close
+
+  md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+    const token = tokens[idx]
+    if (token.markup === 'wikilink') {
+      return defaultLinkOpen
+        ? defaultLinkOpen(tokens, idx, options, env, self)
+        : self.renderToken(tokens, idx, options)
+    }
+
+    const href = token.attrGet('href') || ''
+    const kind = classifyPreviewLinkHref(href)
+    if (kind === 'external') {
+      token.attrSet('class', 'external-link')
+      token.attrSet('target', '_blank')
+      token.attrSet('rel', 'noopener noreferrer')
+    } else {
+      token.attrSet('class', 'mdlink-internal')
+    }
+
+    return defaultLinkOpen
+      ? defaultLinkOpen(tokens, idx, options, env, self)
+      : self.renderToken(tokens, idx, options)
+  }
+
+  md.renderer.rules.link_close = (tokens, idx, options, env, self) => {
+    let openToken: (typeof tokens)[number] | null = null
+    for (let i = idx - 1; i >= 0; i--) {
+      if (tokens[i].type === 'link_open') {
+        openToken = tokens[i]
+        break
+      }
+    }
+
+    const closeHtml = defaultLinkClose
+      ? defaultLinkClose(tokens, idx, options, env, self)
+      : self.renderToken(tokens, idx, options)
+
+    if (!openToken || openToken.markup === 'wikilink') return closeHtml
+
+    const href = openToken.attrGet('href') || ''
+    if (classifyPreviewLinkHref(href) === 'external') {
+      return EXTERNAL_LINK_ICON + closeHtml
+    }
+    return closeHtml
+  }
+}
+
 function mermaidFencePlugin(md: MarkdownIt) {
   const defaultFence = md.renderer.rules.fence
   md.renderer.rules.fence = (tokens, idx, options, env, self) => {
@@ -220,5 +274,6 @@ export function createMarkdownRenderer(): MarkdownIt {
     .use(protectWikilinkTablePipesPlugin)
     .use(wikilinkTokenizePlugin)
     .use(tagPlugin)
+    .use(linkClassifyPlugin)
     .use(mermaidFencePlugin)
 }

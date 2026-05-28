@@ -817,8 +817,13 @@ onBeforeUnmount(() => {
   color: #f7fbff;
 }
 
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .wikilink) {
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .wikilink),
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .mdlink-internal) {
   color: #8ac5ff;
+}
+
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .external-link) {
+  color: #a8b4c4;
 }
 
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .hashtag) {
@@ -1043,10 +1048,17 @@ onBeforeUnmount(() => {
   vertical-align: top;
 }
 
-:deep(.markdown-body .wikilink) {
+:deep(.markdown-body .wikilink),
+:deep(.markdown-body .mdlink-internal) {
   color: var(--color-wikilink);
   text-decoration: underline;
   text-decoration-style: dotted;
+}
+
+:deep(.markdown-body .external-link) {
+  color: var(--color-external-link);
+  text-decoration: underline;
+  text-decoration-style: solid;
 }
 
 :deep(.markdown-body .hashtag) {
