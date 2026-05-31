@@ -4,8 +4,8 @@ import { stripFolderPrefix } from '@/utils/folderId'
 import { isApiErrorWithStatus } from '@/utils/apiError'
 import { invalidatePageIndex } from '@/services/pageIndex'
 
-export function listPages() {
-  return client.get<PageListItem[]>('/pages')
+export function listPages(params?: { page?: number; size?: number }) {
+  return client.get<PageListItem[]>('/pages', { params })
 }
 
 export function getPage(slug: string) {

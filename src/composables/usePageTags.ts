@@ -48,8 +48,21 @@ export function usePageTags() {
   }
 
   async function refreshPageTagsIndex() {
-    const { data } = await pagesApi.listPages()
-    pageTagsBySlug.value = Object.fromEntries(data.map((page) => [page.slug, page.tags]))
+    const pageSize = 200
+    let pageNumber = 0
+    let total = 0
+    const pages: Array<{ slug: string; tags: string[] }> = []
+
+    do {
+      const response = await pagesApi.listPages({ page: pageNumber, size: pageSize })
+      if (response.data.length === 0) break
+      pages.push(...response.data)
+      const totalHeader = Number(response.headers['x-total-count'])
+      total = Number.isFinite(totalHeader) ? totalHeader : pages.length
+      pageNumber += 1
+    } while (pages.length < total)
+
+    pageTagsBySlug.value = Object.fromEntries(pages.map((page) => [page.slug, page.tags]))
   }
 
   async function refreshTagData(force = false) {
