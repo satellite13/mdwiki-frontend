@@ -113,8 +113,35 @@ defineExpose({
 .preview-pane :deep(.markdown-body h4),
 .preview-pane :deep(.markdown-body h5),
 .preview-pane :deep(.markdown-body h6) {
-  text-decoration: none;
-  border-bottom: none;
+  text-decoration: none !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+.preview-pane :deep(.markdown-body h1 > a),
+.preview-pane :deep(.markdown-body h2 > a),
+.preview-pane :deep(.markdown-body h3 > a),
+.preview-pane :deep(.markdown-body h4 > a),
+.preview-pane :deep(.markdown-body h5 > a),
+.preview-pane :deep(.markdown-body h6 > a) {
+  text-decoration: none !important;
+  border-bottom: none !important;
+}
+
+.preview-pane :deep(.markdown-body h1 > a:hover),
+.preview-pane :deep(.markdown-body h2 > a:hover),
+.preview-pane :deep(.markdown-body h3 > a:hover),
+.preview-pane :deep(.markdown-body h4 > a:hover),
+.preview-pane :deep(.markdown-body h5 > a:hover),
+.preview-pane :deep(.markdown-body h6 > a:hover),
+.preview-pane :deep(.markdown-body h1 > a:focus),
+.preview-pane :deep(.markdown-body h2 > a:focus),
+.preview-pane :deep(.markdown-body h3 > a:focus),
+.preview-pane :deep(.markdown-body h4 > a:focus),
+.preview-pane :deep(.markdown-body h5 > a:focus),
+.preview-pane :deep(.markdown-body h6 > a:focus) {
+  text-decoration: none !important;
+  border-bottom: none !important;
 }
 
 .preview-pane.reading-theme-white {
