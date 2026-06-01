@@ -97,6 +97,16 @@ defineExpose({
   line-height: 1.75;
 }
 
+/* In reading mode keep headings on baseline and shift body text slightly right. */
+.preview-pane.mode-reading :deep(.markdown-body p),
+.preview-pane.mode-reading :deep(.markdown-body ul),
+.preview-pane.mode-reading :deep(.markdown-body ol),
+.preview-pane.mode-reading :deep(.markdown-body blockquote),
+.preview-pane.mode-reading :deep(.markdown-body pre),
+.preview-pane.mode-reading :deep(.markdown-body table) {
+  margin-left: 0.6rem;
+}
+
 .preview-pane.reading-theme-white {
   background: #ffffff;
 }
