@@ -107,6 +107,16 @@ defineExpose({
   margin-left: 0.6rem;
 }
 
+.preview-pane :deep(.markdown-body h1),
+.preview-pane :deep(.markdown-body h2),
+.preview-pane :deep(.markdown-body h3),
+.preview-pane :deep(.markdown-body h4),
+.preview-pane :deep(.markdown-body h5),
+.preview-pane :deep(.markdown-body h6) {
+  text-decoration: none;
+  border-bottom: none;
+}
+
 .preview-pane.reading-theme-white {
   background: #ffffff;
 }
