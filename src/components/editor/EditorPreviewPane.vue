@@ -162,4 +162,21 @@ defineExpose({
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+@media (max-width: 767px) {
+  .preview-pane {
+    padding: 10px;
+    border-radius: 6px;
+  }
+
+  .preview-pane.mode-reading {
+    padding: 16px 14px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .preview-pane.mode-reading {
+    padding: 20px clamp(20px, 5vw, 48px);
+  }
+}
 </style>

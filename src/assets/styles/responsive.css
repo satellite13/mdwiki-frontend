@@ -1,0 +1,37 @@
+/* ============================================
+   Shared responsive utilities
+   ============================================ */
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll .data-table {
+  min-width: 640px;
+}
+
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .show-mobile-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .hide-narrow {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .show-narrow-only {
+    display: none !important;
+  }
+}

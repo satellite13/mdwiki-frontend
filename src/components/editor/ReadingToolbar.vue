@@ -203,4 +203,40 @@ function toggleToc() {
   font-size: 18px;
   line-height: 1;
 }
+
+@media (max-width: 767px) {
+  .reading-logo {
+    font-size: 13px;
+  }
+
+  .reading-title {
+    display: none;
+  }
+
+  .reading-font-slider {
+    width: 72px;
+  }
+
+  .reading-font-size {
+    min-width: 36px;
+    font-size: 11px;
+  }
+
+  .reading-theme-dot {
+    width: 18px;
+    height: 18px;
+  }
+
+  .reading-toc-toggle,
+  .reading-exit-btn {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .reading-font-slider {
+    width: 100px;
+  }
+}
 </style>

@@ -7,6 +7,7 @@ import { t } from '@/utils/i18n'
 import { readString, writeString } from '@/utils/localPreferences'
 import { useEditorHistory } from '@/composables/useEditorHistory'
 import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useHorizontalDragResize } from '@/composables/useHorizontalDragResize'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { formatPipeTableAtCursor } from '@/utils/formatMarkdownTable'
@@ -75,6 +76,7 @@ const emit = defineEmits<{
 }>()
 
 const themeStore = useThemeStore()
+const { isMobile } = useBreakpoint()
 
 const uploadError = ref('')
 const uploadInput = ref<HTMLInputElement | null>(null)
@@ -110,11 +112,13 @@ const previewHtml = ref('')
 const canUndo = history.canUndo
 const canRedo = history.canRedo
 const emojiItems = computed(() => EMOJI_ITEMS)
-const editorShellStyle = computed(() =>
-  editorMode.value === 'split'
-    ? { gridTemplateColumns: `${splitRatio.value}% 8px minmax(0, 1fr)` }
-    : undefined
-)
+const editorShellStyle = computed(() => {
+  if (editorMode.value !== 'split') return undefined
+  if (isMobile.value) {
+    return { gridTemplateRows: 'minmax(0, 1fr) minmax(0, 1fr)' }
+  }
+  return { gridTemplateColumns: `${splitRatio.value}% 8px minmax(0, 1fr)` }
+})
 const readingPreviewStyle = computed(() =>
   editorMode.value === 'reading'
     ? { fontSize: `${readingFontSize.value}px` }
@@ -658,7 +662,7 @@ onBeforeUnmount(() => {
         @select-wikilink="applyWikilinkSuggestion"
       />
       <VerticalPaneResizer
-        v-if="editorMode === 'split'"
+        v-if="editorMode === 'split' && !isMobile"
         :dragging="splitDragging"
         ariaLabel="Resize split panes"
         @mousedown="startSplitDrag"
@@ -784,6 +788,31 @@ onBeforeUnmount(() => {
 
 .editor-shell.mode-split {
   grid-template-columns: 1fr 8px minmax(0, 1fr);
+}
+
+@media (max-width: 767px) {
+  .toolbar {
+    padding: 6px;
+    gap: 4px;
+  }
+
+  .reading-mode .toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 6px 10px;
+  }
+
+  .editor-shell.mode-split {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .toolbar {
+    padding: 6px;
+  }
 }
 
 .markdown-editor-wrapper.reading-theme-white .toolbar,

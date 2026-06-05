@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
 import AppHeader from './AppHeader.vue'
 import AppSidebar from './AppSidebar.vue'
 import VerticalPaneResizer from '@/components/ui/VerticalPaneResizer.vue'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useHorizontalDragResize } from '@/composables/useHorizontalDragResize'
 import { useEditorUiStore } from '@/stores/editorUi'
 import {
@@ -13,15 +15,27 @@ import {
   writeDocumentsSidebarWidthPref
 } from './sidebarPreferences'
 
+const route = useRoute()
 const editorUi = useEditorUiStore()
-const { isReadingMode } = storeToRefs(editorUi)
+const { isReadingMode, mobileSidebarOpen } = storeToRefs(editorUi)
+const { isMobile, isTablet, isDesktop } = useBreakpoint()
 const appBodyRef = ref<HTMLElement | null>(null)
 const sidebarWidth = ref(readDocumentsSidebarWidthPref())
 const sidebarDragging = ref(false)
 const { startResizeDrag, clearDragListeners } = useHorizontalDragResize()
 
+const effectiveSidebarWidth = computed(() => {
+  if (isMobile.value) return 0
+  if (isTablet.value) return 220
+  return sidebarWidth.value
+})
+
+const showSidebarResizer = computed(() => isDesktop.value && !isReadingMode.value)
+const showInlineSidebar = computed(() => !isMobile.value && !isReadingMode.value)
+const showMobileSidebar = computed(() => isMobile.value && !isReadingMode.value)
+
 function startSidebarResize(event: MouseEvent) {
-  if (isReadingMode.value) return
+  if (isReadingMode.value || !isDesktop.value) return
   const body = appBodyRef.value
   if (!body) return
   const rect = body.getBoundingClientRect()
@@ -47,13 +61,20 @@ function resetSidebarWidth() {
 }
 
 function onKeydown(e: KeyboardEvent) {
-  // Ctrl+K or Cmd+K → focus search
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault()
     const searchInput = document.querySelector('.search-form input') as HTMLInputElement
     searchInput?.focus()
   }
 }
+
+watch(() => route.fullPath, () => {
+  editorUi.closeMobileOverlays()
+})
+
+watch(isMobile, (mobile) => {
+  if (!mobile) editorUi.closeMobileSidebar()
+})
 
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => {
@@ -63,12 +84,35 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-layout" :class="{ 'reading-mode': isReadingMode }">
+  <div
+    class="app-layout"
+    :class="{
+      'reading-mode': isReadingMode,
+      'mobile-sidebar-open': mobileSidebarOpen
+    }"
+  >
     <AppHeader v-if="!isReadingMode" />
     <div ref="appBodyRef" class="app-body" :class="{ resizing: sidebarDragging }">
-      <AppSidebar v-if="!isReadingMode" :width="sidebarWidth" />
+      <AppSidebar
+        v-if="showInlineSidebar"
+        :width="effectiveSidebarWidth"
+        variant="inline"
+      />
+      <AppSidebar
+        v-if="showMobileSidebar"
+        :width="0"
+        variant="drawer"
+        :open="mobileSidebarOpen"
+      />
+      <button
+        v-if="showMobileSidebar && mobileSidebarOpen"
+        type="button"
+        class="sidebar-backdrop"
+        aria-label="Close sidebar"
+        @click="editorUi.closeMobileSidebar()"
+      />
       <VerticalPaneResizer
-        v-if="!isReadingMode"
+        v-if="showSidebarResizer"
         :dragging="sidebarDragging"
         ariaLabel="Resize documents sidebar"
         @mousedown="startSidebarResize"
@@ -91,6 +135,7 @@ onBeforeUnmount(() => {
 .app-body {
   display: flex;
   flex: 1;
+  position: relative;
 }
 
 .app-body.resizing {
@@ -101,16 +146,44 @@ onBeforeUnmount(() => {
 .app-main {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   padding: 24px 32px;
   overflow-y: auto;
-  height: calc(100vh - 49px);
+  height: calc(100vh - var(--app-header-height));
   background: var(--color-bg);
 }
 
 .app-layout.reading-mode .app-main {
   padding: 0;
   height: 100vh;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: var(--app-header-height) 0 0 0;
+  z-index: 90;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(15, 17, 21, 0.45);
+  cursor: pointer;
+}
+
+@media (max-width: 1023px) {
+  .app-main {
+    padding: 16px 20px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-main {
+    padding: 12px 14px;
+  }
+
+  .app-layout.mobile-sidebar-open .app-main {
+    overflow: hidden;
+  }
 }
 </style>

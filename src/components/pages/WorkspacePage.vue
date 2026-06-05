@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineAsyncComponent, onBeforeUnmount, watch } from 'vue'
 import { useWorkspacePage } from '@/composables/useWorkspacePage'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useEditorUiStore } from '@/stores/editorUi'
 import type { EditorMode } from '@/components/editor/editorPreferences'
 
@@ -25,6 +26,7 @@ const {
 } = useWorkspacePage()
 
 const editorUi = useEditorUiStore()
+const { isMobile } = useBreakpoint()
 
 function onEditorModeChange(mode: EditorMode) {
   editorUi.setReadingMode(mode === 'reading')
@@ -105,6 +107,14 @@ watch(page, (nextPage) => {
   <div v-else-if="loading" class="state-placeholder">Loading...</div>
   <div v-else class="empty-workspace">
     <p>Select a page from the sidebar or create a new one.</p>
+    <button
+      v-if="isMobile"
+      type="button"
+      class="btn-secondary open-sidebar-btn"
+      @click="editorUi.openMobileSidebar()"
+    >
+      Open documents
+    </button>
   </div>
 </template>
 
@@ -236,11 +246,47 @@ watch(page, (nextPage) => {
 
 .empty-workspace {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   height: 100%;
   color: var(--color-text-muted);
   font-size: 15px;
+  text-align: center;
+  padding: 0 16px;
+}
+
+.open-sidebar-btn {
+  min-height: 40px;
+}
+
+@media (max-width: 767px) {
+  .workspace-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0;
+  }
+
+  .title-input {
+    flex: 1 1 100%;
+    font-size: 22px;
+    min-width: 0;
+  }
+
+  .graph-area {
+    height: 220px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .title-input {
+    font-size: 24px;
+  }
+
+  .graph-area {
+    height: 260px;
+  }
 }
 
 .breadcrumbs {

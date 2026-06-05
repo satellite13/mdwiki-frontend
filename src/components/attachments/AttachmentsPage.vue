@@ -110,7 +110,8 @@ onMounted(fetchAttachments)
 
     <div v-if="loading" class="state-placeholder">Loading...</div>
     <div v-else-if="attachments.length === 0" class="state-placeholder">No attachments yet.</div>
-    <table v-else class="data-table attachments-table">
+    <div v-else class="table-scroll">
+    <table class="data-table attachments-table">
       <thead>
         <tr>
           <th></th>
@@ -144,6 +145,7 @@ onMounted(fetchAttachments)
         </tr>
       </tbody>
     </table>
+    </div>
   </div>
 </template>
 
@@ -201,4 +203,15 @@ onMounted(fetchAttachments)
   flex-wrap: wrap;
 }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+@media (max-width: 767px) {
+  .upload-zone {
+    padding: 20px 16px;
+    margin-bottom: 16px;
+  }
+
+  .attachments-page h1 {
+    font-size: 1.35rem;
+  }
+}
 </style>

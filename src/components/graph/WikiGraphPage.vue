@@ -30,4 +30,18 @@ const highlight = computed(() => {
   width: calc(100% + 64px);
   height: 100%;
 }
+
+@media (max-width: 1023px) {
+  .wiki-graph-page {
+    margin: -16px -20px;
+    width: calc(100% + 40px);
+  }
+}
+
+@media (max-width: 767px) {
+  .wiki-graph-page {
+    margin: -12px -14px;
+    width: calc(100% + 28px);
+  }
+}
 </style>

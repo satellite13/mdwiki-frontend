@@ -67,7 +67,8 @@ onMounted(fetchUsers)
     </div>
     <h1>{{ t.admin.usersTitle }}</h1>
     <div v-if="loading" class="state-placeholder">Loading...</div>
-    <table v-else class="data-table users-table">
+    <div v-else class="table-scroll">
+    <table class="data-table users-table">
       <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
       <tbody>
         <tr v-for="user in users" :key="user.id">
@@ -92,6 +93,7 @@ onMounted(fetchUsers)
         </tr>
       </tbody>
     </table>
+    </div>
   </div>
 </template>
 
@@ -203,6 +205,25 @@ onMounted(fetchUsers)
   color: var(--color-danger);
   border-color: var(--color-danger);
   background: rgba(207, 34, 46, 0.06);
+}
+
+@media (max-width: 767px) {
+  .admin-nav {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-nav-link {
+    flex: 1 1 auto;
+    justify-content: center;
+    font-size: 12px;
+    padding: 0 8px;
+  }
+
+  .admin-users h1 {
+    font-size: 1.35rem;
+    margin-bottom: 20px;
+  }
 }
 
 </style>
