@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onBeforeUnmount, watch } from 'vue'
+import { defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useWorkspacePage } from '@/composables/useWorkspacePage'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useEditorUiStore } from '@/stores/editorUi'
 import type { EditorMode } from '@/components/editor/editorPreferences'
+import { t } from '@/utils/i18n'
+
+type MarkdownEditorHandle = {
+  exportToPdf: () => Promise<void>
+  exportingPdf: boolean
+}
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/editor/MarkdownEditor.vue'))
 const GraphPanel = defineAsyncComponent(() => import('@/components/graph/GraphPanel.vue'))
@@ -27,6 +33,18 @@ const {
 
 const editorUi = useEditorUiStore()
 const { isMobile } = useBreakpoint()
+const editorRef = ref<MarkdownEditorHandle | null>(null)
+const exportingPdf = ref(false)
+
+async function exportPdf() {
+  if (!editorRef.value?.exportToPdf || exportingPdf.value) return
+  exportingPdf.value = true
+  try {
+    await editorRef.value.exportToPdf()
+  } finally {
+    exportingPdf.value = false
+  }
+}
 
 function onEditorModeChange(mode: EditorMode) {
   editorUi.setReadingMode(mode === 'reading')
@@ -64,6 +82,16 @@ watch(page, (nextPage) => {
       <span v-if="isDirty()" class="unsaved-dot" title="Unsaved changes"></span>
       <span v-if="saveError" class="save-error" @click="clearSaveError">{{ saveError }}</span>
       <button
+        type="button"
+        class="pdf-export-btn"
+        :disabled="exportingPdf"
+        :title="t.export.pdfButton"
+        :aria-label="t.export.pdfButton"
+        @click="exportPdf"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no">picture_as_pdf</span>
+      </button>
+      <button
         class="graph-toggle"
         @click="toggleGraph"
         :title="showGraph ? 'Hide neighborhood graph' : 'Neighborhood graph (this page and linked pages, depth 1–3)'"
@@ -81,6 +109,7 @@ watch(page, (nextPage) => {
 
     <div class="editor-area">
       <MarkdownEditor
+        ref="editorRef"
         :modelValue="content"
         :readingTitle="title || page.title"
         @update:modelValue="onContentChange"
@@ -186,6 +215,7 @@ watch(page, (nextPage) => {
   flex-shrink: 0;
 }
 
+.pdf-export-btn,
 .graph-toggle {
   display: flex;
   align-items: center;
@@ -202,9 +232,20 @@ watch(page, (nextPage) => {
   flex-shrink: 0;
 }
 
+.pdf-export-btn:hover:not(:disabled),
 .graph-toggle:hover {
   color: var(--color-text);
   background: var(--color-bg-hover);
+}
+
+.pdf-export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pdf-export-btn .material-symbols-outlined {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .graph-area {

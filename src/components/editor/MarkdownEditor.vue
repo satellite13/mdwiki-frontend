@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useDialogStore } from '@/stores/dialog'
 import { useThemeStore } from '@/stores/theme'
 import { uploadAttachment } from '@/api/attachments'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { downloadPagePdf } from '@/utils/exportPagePdf'
 import { t } from '@/utils/i18n'
 import { readString, writeString } from '@/utils/localPreferences'
 import { useEditorHistory } from '@/composables/useEditorHistory'
@@ -76,6 +78,7 @@ const emit = defineEmits<{
 }>()
 
 const themeStore = useThemeStore()
+const dialog = useDialogStore()
 const { isMobile } = useBreakpoint()
 
 const uploadError = ref('')
@@ -95,6 +98,7 @@ const lastNonReadingMode = ref<EditorMode>('split')
 const readingFontSize = ref(readReadingFontSizePref())
 const readingTheme = ref<ReadingTheme>(readReadingThemePref())
 const readingTocVisible = ref(true)
+const exportingPdf = ref(false)
 
 const wikilink = useWikilinkAutocomplete({
   getEditor: () => getEditorElement(),
@@ -539,6 +543,46 @@ function getPreviewPaneElement(): HTMLElement | null {
   return previewPaneRef.value?.rootEl ?? null
 }
 
+function getPreviewContentElement(): HTMLElement | null {
+  const root = getPreviewPaneElement()
+  return root?.querySelector<HTMLElement>('.preview-content.markdown-body') ?? null
+}
+
+async function exportToPdf() {
+  if (exportingPdf.value) return
+  exportingPdf.value = true
+  const previousMode = editorMode.value
+  try {
+    if (previousMode === 'editor') {
+      setMode('preview')
+      await nextTick()
+      await refreshPreview()
+      await nextTick()
+    } else {
+      await renderPreviewDiagrams()
+      await nextTick()
+    }
+
+    const content = getPreviewContentElement()
+    if (!content) {
+      await dialog.alert(t.export.pdfNoPreview)
+      return
+    }
+
+    await downloadPagePdf({
+      title: props.readingTitle || 'Untitled',
+      contentElement: content
+    })
+  } catch (error) {
+    await dialog.alert(getApiErrorMessage(error, t.export.pdfFailed))
+  } finally {
+    if (previousMode === 'editor') {
+      setMode(previousMode)
+    }
+    exportingPdf.value = false
+  }
+}
+
 function onPreviewScroll() {
   if (editorMode.value !== 'split') return
   splitScrollSync.syncPreviewToEditor()
@@ -602,6 +646,11 @@ onMounted(() => {
 onBeforeUnmount(() => {
   clearDragListeners()
 })
+
+defineExpose({
+  exportToPdf,
+  exportingPdf
+})
 </script>
 
 <template>
@@ -628,6 +677,7 @@ onBeforeUnmount(() => {
           @update:theme="readingTheme = $event"
           @update:toc-visible="readingTocVisible = $event"
           @exit="exitReadingMode"
+          @export-pdf="exportToPdf"
         />
       </template>
       <template v-else>

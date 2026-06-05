@@ -15,6 +15,7 @@ const emit = defineEmits<{
   'update:theme': [value: ReadingTheme]
   'update:tocVisible': [value: boolean]
   exit: []
+  exportPdf: []
 }>()
 
 const themeOptions: Array<{ id: ReadingTheme; ariaLabel: string; title: string; className: string }> = [
@@ -74,6 +75,15 @@ function toggleToc() {
       @click="toggleToc"
     >
       <span class="material-symbols-outlined notranslate" translate="no">toc</span>
+    </button>
+    <button
+      type="button"
+      class="reading-export-btn"
+      title="Export PDF"
+      aria-label="Export PDF"
+      @click="emit('exportPdf')"
+    >
+      <span class="material-symbols-outlined notranslate" translate="no">picture_as_pdf</span>
     </button>
   </div>
   <button
@@ -163,6 +173,7 @@ function toggleToc() {
   outline-offset: 1px;
 }
 
+.reading-export-btn,
 .reading-toc-toggle {
   width: 30px;
   height: 30px;
@@ -181,6 +192,7 @@ function toggleToc() {
   border-color: var(--color-primary);
 }
 
+.reading-export-btn .material-symbols-outlined,
 .reading-toc-toggle .material-symbols-outlined {
   font-size: 18px;
   line-height: 1;

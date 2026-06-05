@@ -74,6 +74,11 @@ export const t = {
     confirm: 'Confirm',
     error: 'Error',
   },
+  export: {
+    pdfButton: 'Export PDF',
+    pdfFailed: 'Failed to export PDF',
+    pdfNoPreview: 'Unable to prepare preview for export',
+  },
   dialog: {
     ok: 'OK',
   },
