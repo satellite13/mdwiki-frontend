@@ -211,6 +211,16 @@ watch(page, (nextPage) => {
   flex-shrink: 0;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .save-status.saved {
+    animation: fadeIn 0.3s ease both, fadeOut 0.3s ease 1.5s forwards;
+  }
+
+  .unsaved-dot {
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+}
+
 .save-error {
   font-size: 12px;
   color: #e53e3e;

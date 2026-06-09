@@ -263,10 +263,11 @@ onMounted(async () => {
     <div v-if="folderStore.loading" class="tree-loading">{{ t.tree.loading }}</div>
     <div v-else :class="['tree-content', { 'root-drag-over': rootDragOver }]">
       <TreeFolder
-        v-for="folder in rootFolders"
+        v-for="(folder, idx) in rootFolders"
         :key="folder.id"
         :node="folder"
         :depth="0"
+        :staggerIndex="idx"
         :activeSlug="activeSlug"
         @selectPage="onSelectPage"
         @contextmenu="onContextMenu"
@@ -275,10 +276,11 @@ onMounted(async () => {
         @addSubfolder="onAddSubfolder"
       />
       <TreePage
-        v-for="page in rootPages"
+        v-for="(page, idx) in rootPages"
         :key="page.id"
         :node="page"
         :depth="0"
+        :staggerIndex="rootFolders.length + idx"
         :active="activeSlug === page.slug"
         @select="onSelectPage"
         @contextmenu="onContextMenu"

@@ -119,7 +119,11 @@ onBeforeUnmount(() => {
         @dblclick="resetSidebarWidth"
       />
       <main class="app-main">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <Transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </router-view>
       </main>
     </div>
   </div>
@@ -169,6 +173,24 @@ onBeforeUnmount(() => {
   margin: 0;
   background: rgba(15, 17, 21, 0.45);
   cursor: pointer;
+}
+
+/* Page transitions */
+@media (prefers-reduced-motion: no-preference) {
+  .page-fade-enter-active,
+  .page-fade-leave-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .page-fade-enter-from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  .page-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 }
 
 @media (max-width: 1023px) {

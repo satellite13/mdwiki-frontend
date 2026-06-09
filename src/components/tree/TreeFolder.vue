@@ -13,6 +13,7 @@ const props = defineProps<{
   node: FolderTreeNode
   depth: number
   activeSlug: string | null
+  staggerIndex?: number
 }>()
 
 const emit = defineEmits<{
@@ -137,7 +138,7 @@ function onContextMenu(e: MouseEvent) {
   >
     <div
       :class="['folder-header', { 'drag-over': isDragOver }]"
-      :style="{ paddingLeft: `${depth * 16 + 8}px` }"
+      :style="{ paddingLeft: `${depth * 16 + 8}px`, '--stagger-index': staggerIndex ?? 0 }"
       :draggable="auth.isEditor"
       @dragstart="onDragStart"
       @dragend="onFolderDragEnd"
@@ -165,30 +166,34 @@ function onContextMenu(e: MouseEvent) {
       </span>
     </div>
 
-    <div v-if="expanded" class="folder-children">
-      <TreeFolder
-        v-for="child in folders"
-        :key="child.id"
-        :node="child"
-        :depth="depth + 1"
-        :activeSlug="activeSlug"
-        @selectPage="emit('selectPage', $event)"
-        @contextmenu="emit('contextmenu', $event, child)"
-        @delete="emit('delete', $event)"
-        @addPage="emit('addPage', $event)"
-        @addSubfolder="emit('addSubfolder', $event)"
-      />
-      <TreePage
-        v-for="page in pages"
-        :key="page.id"
-        :node="page"
-        :depth="depth + 1"
-        :active="activeSlug === page.slug"
-        @select="emit('selectPage', $event)"
-        @contextmenu="emit('contextmenu', $event, page)"
-        @delete="emit('delete', $event)"
-      />
-    </div>
+    <Transition name="folder-expand">
+      <div v-if="expanded" class="folder-children">
+        <TreeFolder
+          v-for="(child, idx) in folders"
+          :key="child.id"
+          :node="child"
+          :depth="depth + 1"
+          :staggerIndex="(staggerIndex ?? 0) + idx"
+          :activeSlug="activeSlug"
+          @selectPage="emit('selectPage', $event)"
+          @contextmenu="emit('contextmenu', $event, child)"
+          @delete="emit('delete', $event)"
+          @addPage="emit('addPage', $event)"
+          @addSubfolder="emit('addSubfolder', $event)"
+        />
+        <TreePage
+          v-for="(page, idx) in pages"
+          :key="page.id"
+          :node="page"
+          :depth="depth + 1"
+          :staggerIndex="(staggerIndex ?? 0) + folders.length + idx"
+          :active="activeSlug === page.slug"
+          @select="emit('selectPage', $event)"
+          @contextmenu="emit('contextmenu', $event, page)"
+          @delete="emit('delete', $event)"
+        />
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -292,5 +297,38 @@ function onContextMenu(e: MouseEvent) {
 
 .node-action-icon {
   font-size: 16px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .folder-header {
+    animation: fadeInUp 0.3s ease both;
+    animation-delay: calc(var(--stagger-index, 0) * 20ms);
+  }
+
+  .folder-header:hover .folder-icon {
+    transform: scale(1.01);
+  }
+
+  .folder-expand-enter-active {
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.25s ease-out;
+  }
+
+  .folder-expand-leave-active {
+    overflow: hidden;
+    transition: max-height 0.25s ease-in, opacity 0.2s ease-in;
+  }
+
+  .folder-expand-enter-from,
+  .folder-expand-leave-to {
+    max-height: 0;
+    opacity: 0;
+  }
+
+  .folder-expand-enter-to,
+  .folder-expand-leave-from {
+    max-height: 3000px;
+    opacity: 1;
+  }
 }
 </style>

@@ -53,80 +53,82 @@ function onOverlayMouseDown(e: MouseEvent) {
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="active"
-      class="dialog-root"
-      role="presentation"
-      @mousedown.self="onOverlayMouseDown"
-    >
+    <Transition name="dialog">
       <div
-        class="dialog-panel"
-        role="dialog"
-        aria-modal="true"
-        :aria-labelledby="active.title ? 'dialog-title' : undefined"
-        aria-describedby="dialog-desc"
-        @mousedown.stop
+        v-if="active"
+        class="dialog-root"
+        role="presentation"
+        @mousedown.self="onOverlayMouseDown"
       >
-        <h2 v-if="active.title" id="dialog-title" class="dialog-title">{{ active.title }}</h2>
-        <p id="dialog-desc" class="dialog-message">{{ active.message }}</p>
+        <div
+          class="dialog-panel"
+          role="dialog"
+          aria-modal="true"
+          :aria-labelledby="active.title ? 'dialog-title' : undefined"
+          aria-describedby="dialog-desc"
+          @mousedown.stop
+        >
+          <h2 v-if="active.title" id="dialog-title" class="dialog-title">{{ active.title }}</h2>
+          <p id="dialog-desc" class="dialog-message">{{ active.message }}</p>
 
-        <div v-if="active.kind === 'prompt'" class="dialog-field">
-          <input
-            ref="inputRef"
-            v-model="promptValue"
-            type="text"
-            class="dialog-input"
-            autocomplete="off"
-            @keydown.enter.prevent="onPromptSubmit"
-          />
-        </div>
+          <div v-if="active.kind === 'prompt'" class="dialog-field">
+            <input
+              ref="inputRef"
+              v-model="promptValue"
+              type="text"
+              class="dialog-input"
+              autocomplete="off"
+              @keydown.enter.prevent="onPromptSubmit"
+            />
+          </div>
 
-        <div class="dialog-actions">
-          <template v-if="active.kind === 'alert'">
-            <button type="button" class="btn-primary" @click="store.submitAlert()">
-              {{ t.dialog.ok }}
-            </button>
-          </template>
-          <template v-else-if="active.kind === 'confirm'">
-            <button type="button" class="btn-secondary" @click="store.submitConfirm(false)">
-              {{ t.common.cancel }}
-            </button>
-            <button
-              type="button"
-              :class="active.danger ? 'btn-danger-solid' : 'btn-primary'"
-              @click="store.submitConfirm(true)"
-            >
-              {{ active.confirmLabel ?? t.common.confirm }}
-            </button>
-          </template>
-          <template v-else-if="active.kind === 'prompt'">
-            <button type="button" class="btn-secondary" @click="store.submitPrompt(null)">
-              {{ t.common.cancel }}
-            </button>
-            <button type="button" class="btn-primary" @click="onPromptSubmit">
-              {{ t.dialog.ok }}
-            </button>
-          </template>
-          <template v-else>
-            <button type="button" class="btn-secondary" @click="store.submitChoice(null)">
-              {{ active.cancelLabel ?? t.common.cancel }}
-            </button>
-            <button
-              v-for="option in active.options"
-              :key="option.value"
-              type="button"
-              :class="['dialog-choice-btn', option.danger ? 'btn-danger-solid' : 'btn-primary']"
-              @click="store.submitChoice(option.value)"
-            >
-              <span class="dialog-choice-label">{{ option.label }}</span>
-              <small v-if="option.description" class="dialog-choice-description">
-                {{ option.description }}
-              </small>
-            </button>
-          </template>
+          <div class="dialog-actions">
+            <template v-if="active.kind === 'alert'">
+              <button type="button" class="btn-primary" @click="store.submitAlert()">
+                {{ t.dialog.ok }}
+              </button>
+            </template>
+            <template v-else-if="active.kind === 'confirm'">
+              <button type="button" class="btn-secondary" @click="store.submitConfirm(false)">
+                {{ t.common.cancel }}
+              </button>
+              <button
+                type="button"
+                :class="active.danger ? 'btn-danger-solid' : 'btn-primary'"
+                @click="store.submitConfirm(true)"
+              >
+                {{ active.confirmLabel ?? t.common.confirm }}
+              </button>
+            </template>
+            <template v-else-if="active.kind === 'prompt'">
+              <button type="button" class="btn-secondary" @click="store.submitPrompt(null)">
+                {{ t.common.cancel }}
+              </button>
+              <button type="button" class="btn-primary" @click="onPromptSubmit">
+                {{ t.dialog.ok }}
+              </button>
+            </template>
+            <template v-else>
+              <button type="button" class="btn-secondary" @click="store.submitChoice(null)">
+                {{ active.cancelLabel ?? t.common.cancel }}
+              </button>
+              <button
+                v-for="option in active.options"
+                :key="option.value"
+                type="button"
+                :class="['dialog-choice-btn', option.danger ? 'btn-danger-solid' : 'btn-primary']"
+                @click="store.submitChoice(option.value)"
+              >
+                <span class="dialog-choice-label">{{ option.label }}</span>
+                <small v-if="option.description" class="dialog-choice-description">
+                  {{ option.description }}
+                </small>
+              </button>
+            </template>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -215,5 +217,33 @@ function onOverlayMouseDown(e: MouseEvent) {
 
 .btn-danger-solid:hover {
   background: var(--color-danger-hover);
+}
+
+/* Dialog transitions */
+@media (prefers-reduced-motion: no-preference) {
+  .dialog-enter-active,
+  .dialog-leave-active {
+    transition: opacity 0.25s ease;
+  }
+
+  .dialog-enter-active .dialog-panel,
+  .dialog-leave-active .dialog-panel {
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+
+  .dialog-enter-from,
+  .dialog-leave-to {
+    opacity: 0;
+  }
+
+  .dialog-enter-from .dialog-panel {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  .dialog-leave-to .dialog-panel {
+    opacity: 0;
+    transform: scale(0.95);
+  }
 }
 </style>

@@ -10,6 +10,7 @@ const props = defineProps<{
   node: FolderTreeNode
   depth: number
   active: boolean
+  staggerIndex?: number
 }>()
 
 const emit = defineEmits<{
@@ -59,7 +60,7 @@ function onContextMenu(e: MouseEvent) {
 <template>
   <div
     :class="['tree-page', { active }]"
-    :style="{ paddingLeft: `${depth * 16 + 24}px` }"
+    :style="{ paddingLeft: `${depth * 16 + 24}px`, '--stagger-index': staggerIndex ?? 0 }"
     :draggable="auth.isEditor"
     @dragstart="onDragStart"
     @dragover="onDragOverPage"
@@ -162,5 +163,16 @@ function onContextMenu(e: MouseEvent) {
 
 .node-action-icon {
   font-size: 16px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tree-page {
+    animation: fadeInUp 0.3s ease both;
+    animation-delay: calc(var(--stagger-index, 0) * 20ms);
+  }
+
+  .tree-page:hover .page-icon {
+    transform: scale(1.01);
+  }
 }
 </style>
