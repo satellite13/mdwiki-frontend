@@ -63,12 +63,15 @@ watch(page, (nextPage) => {
 
 <template>
   <div class="workspace" :class="{ 'reading-mode': editorUi.isReadingMode }" v-if="page">
-    <nav v-if="!editorUi.isReadingMode && page.folderPath && page.folderPath.length" class="breadcrumbs">
-      <router-link to="/" class="breadcrumb-item">/</router-link>
+    <nav v-if="page.folderPath && page.folderPath.length" class="breadcrumbs">
+      <router-link to="/" class="breadcrumb-home" aria-label="Home">
+        <span class="material-symbols-outlined notranslate" translate="no">home</span>
+      </router-link>
       <template v-for="folder in page.folderPath" :key="folder.id">
-        <span class="breadcrumb-item">{{ folder.name }}</span>
-        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-sep" aria-hidden="true">/</span>
+        <router-link to="/" class="breadcrumb-item">{{ folder.name }}</router-link>
       </template>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
       <span class="breadcrumb-current">{{ page.title }}</span>
     </nav>
     <div v-if="loading" class="workspace-loading">Loading...</div>
@@ -333,31 +336,67 @@ watch(page, (nextPage) => {
 .breadcrumbs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   font-size: 12px;
   color: var(--color-text-faint);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  padding: 6px 4px;
   flex-wrap: wrap;
 }
 
-.breadcrumb-item {
+.breadcrumb-home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   color: var(--color-text-muted);
   text-decoration: none;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.breadcrumb-home:hover {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  text-decoration: none;
+}
+
+.breadcrumb-home .material-symbols-outlined {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-weight: 450;
+  transition: all 0.15s;
   cursor: pointer;
 }
 
 .breadcrumb-item:hover {
   color: var(--color-primary);
-  text-decoration: underline;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  text-decoration: none;
 }
 
 .breadcrumb-sep {
   color: var(--color-text-faint);
   user-select: none;
+  margin: 0 1px;
 }
 
 .breadcrumb-current {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
   color: var(--color-text);
-  font-weight: 500;
+  font-weight: 600;
 }
 </style>

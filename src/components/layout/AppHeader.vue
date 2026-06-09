@@ -79,7 +79,7 @@ function onNavClick() {
     <router-link to="/" class="logo" @click="onNavClick">MDWiki</router-link>
 
     <form class="search-form" @submit.prevent="onSearch">
-      <input v-model="searchQuery" placeholder="Search pages..." type="search" />
+      <input v-model="searchQuery" placeholder="Search pages...   ⌘K" type="search" />
     </form>
 
     <nav class="header-nav hide-mobile" aria-label="Main navigation">
@@ -136,35 +136,38 @@ function onNavClick() {
       </button>
     </div>
 
-    <nav
-      v-if="mobileNavOpen"
-      class="mobile-nav-menu show-mobile-only"
-      aria-label="Mobile navigation"
-    >
-      <router-link :to="graphLinkTo" class="mobile-nav-link" @click="onNavClick">Graph</router-link>
-      <router-link to="/attachments" class="mobile-nav-link" @click="onNavClick">Attachments</router-link>
-      <router-link to="/profile" class="mobile-nav-link" @click="onNavClick">{{ auth.username }}</router-link>
-      <router-link
-        v-if="auth.isAdmin"
-        to="/admin/users"
-        class="mobile-nav-link"
-        @click="onNavClick"
+    <Transition name="slide-down">
+      <nav
+        v-if="mobileNavOpen"
+        class="mobile-nav-menu show-mobile-only"
+        aria-label="Mobile navigation"
       >
-        Admin
-      </router-link>
-      <button
-        v-if="auth.isAdmin"
-        type="button"
-        class="mobile-nav-link mobile-nav-btn"
-        :disabled="syncWikiLoading"
-        @click="onSyncWikiFromDisk(); onNavClick()"
-      >
-        {{ syncWikiLoading ? '…' : t.admin.syncWikiButton }}
-      </button>
-      <button type="button" class="mobile-nav-link mobile-nav-btn mobile-nav-logout" @click="logout">
-        Logout
-      </button>
-    </nav>
+        <div class="mobile-nav-title">MDWiki</div>
+        <router-link :to="graphLinkTo" class="mobile-nav-link" @click="onNavClick">Graph</router-link>
+        <router-link to="/attachments" class="mobile-nav-link" @click="onNavClick">Attachments</router-link>
+        <router-link to="/profile" class="mobile-nav-link" @click="onNavClick">{{ auth.username }}</router-link>
+        <router-link
+          v-if="auth.isAdmin"
+          to="/admin/users"
+          class="mobile-nav-link"
+          @click="onNavClick"
+        >
+          Admin
+        </router-link>
+        <button
+          v-if="auth.isAdmin"
+          type="button"
+          class="mobile-nav-link mobile-nav-btn"
+          :disabled="syncWikiLoading"
+          @click="onSyncWikiFromDisk(); onNavClick()"
+        >
+          {{ syncWikiLoading ? '…' : t.admin.syncWikiButton }}
+        </button>
+        <button type="button" class="mobile-nav-link mobile-nav-btn mobile-nav-logout" @click="logout">
+          Logout
+        </button>
+      </nav>
+    </Transition>
   </header>
 </template>
 
@@ -176,9 +179,12 @@ function onNavClick() {
   gap: 10px;
   padding: 0 16px;
   height: var(--app-header-height);
-  background: var(--color-bg);
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 110;
 }
 
@@ -209,7 +215,16 @@ function onNavClick() {
   font-size: 13px;
   padding: 6px 12px;
   background: var(--color-bg-secondary);
+  border: 1px solid transparent;
   border-radius: var(--radius);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.search-form input:focus {
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
 .header-nav {
@@ -232,6 +247,20 @@ function onNavClick() {
   font-weight: 500;
   text-decoration: none;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
+  position: relative;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 2px;
+  transition: width 0.2s ease;
 }
 
 .nav-link:hover {
@@ -241,11 +270,21 @@ function onNavClick() {
   text-decoration: none;
 }
 
+.nav-link:hover::after {
+  width: 50%;
+}
+
 .nav-link.router-link-active,
 .nav-link.is-active {
   color: var(--color-primary);
   border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  font-weight: 600;
+}
+
+.nav-link.router-link-active::after,
+.nav-link.is-active::after {
+  width: 70%;
 }
 
 .icon-btn,
@@ -314,6 +353,16 @@ function onNavClick() {
   padding: 8px 0 10px;
   border-top: 1px solid var(--color-border);
   background: var(--color-bg);
+  overflow: hidden;
+}
+
+.mobile-nav-title {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.3px;
+  padding: 6px 4px 10px;
 }
 
 .mobile-nav-link {
@@ -342,6 +391,30 @@ function onNavClick() {
 
 .mobile-nav-logout {
   color: var(--color-danger);
+}
+
+/* Mobile nav slide-down transition */
+.slide-down-enter-active {
+  transition: all 0.25s ease-out;
+}
+
+.slide-down-leave-active {
+  transition: all 0.2s ease-in;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-width: 0;
+}
+
+.slide-down-enter-to,
+.slide-down-leave-from {
+  opacity: 1;
+  max-height: 400px;
 }
 
 @media (max-width: 767px) {
