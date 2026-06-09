@@ -1,0 +1,238 @@
+/* ============================================
+   Print & PDF Export Styles
+   ============================================ */
+
+/* ---------- PDF export host (button-triggered via html2canvas + jsPDF) ---------- */
+
+.pdf-export-host {
+  font-family: var(--font-body);
+  max-width: 794px;
+  margin: 0 auto;
+  background: #ffffff;
+  color: #24292f;
+  padding: 40px 48px;
+  box-sizing: border-box;
+}
+
+.pdf-export-title {
+  font-family: var(--font-body);
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 24px;
+  color: #24292f;
+  line-height: 1.2;
+}
+
+.pdf-export-host h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: #24292f;
+}
+
+.pdf-export-host h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 28px;
+  margin-bottom: 12px;
+  color: #24292f;
+}
+
+.pdf-export-host h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 22px;
+  margin-bottom: 10px;
+  color: #24292f;
+}
+
+.pdf-export-host h4,
+.pdf-export-host h5,
+.pdf-export-host h6 {
+  font-weight: 600;
+  margin-top: 18px;
+  margin-bottom: 8px;
+  color: #24292f;
+}
+
+.pdf-export-host p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 1em;
+  color: #24292f;
+}
+
+.pdf-export-host :not(pre) > code {
+  font-size: 12px;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  color: #24292f;
+}
+
+.pdf-export-host pre {
+  background: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.pdf-export-host pre > code {
+  font-size: 12px;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.pdf-export-host table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.pdf-export-host th,
+.pdf-export-host td {
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid #d1d9e0;
+}
+
+.pdf-export-host th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+.pdf-export-host blockquote {
+  margin: 1em 0;
+  padding: 0.6em 16px;
+  border-left: 3px solid #0d9488;
+  background: #f0fdfa;
+  color: #374151;
+}
+
+.pdf-export-host blockquote p {
+  color: inherit;
+}
+
+.pdf-export-host img {
+  max-width: 100%;
+  height: auto;
+  page-break-inside: avoid;
+}
+
+.pdf-export-host .mermaid,
+.pdf-export-host .structurizr {
+  max-width: 100%;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.pdf-export-host .mermaid svg,
+.pdf-export-host .structurizr svg {
+  display: block;
+  margin: 0 auto;
+}
+
+.pdf-export-host .wikilink,
+.pdf-export-host .wikilink-text,
+.pdf-export-host .mdlink-internal {
+  color: #0d9488;
+  text-decoration: underline;
+}
+
+.pdf-export-host a {
+  color: #0d9488;
+  text-decoration: underline;
+}
+
+.pdf-export-host ul,
+.pdf-export-host ol {
+  padding-left: 24px;
+  margin-bottom: 1em;
+}
+
+.pdf-export-host li {
+  margin-bottom: 6px;
+}
+
+.pdf-export-host hr {
+  border: none;
+  height: 1px;
+  background: #d1d9e0;
+  margin: 1.5em 0;
+}
+
+/* ---------- @media print (browser Cmd+P) ---------- */
+
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  .app-header,
+  .sidebar,
+  .app-sidebar,
+  .sidebar-backdrop,
+  .breadcrumbs,
+  .workspace-header,
+  .graph-toggle,
+  .backlinks-panel,
+  .pdf-export-btn,
+  .heading-copy-btn,
+  .code-copy-btn,
+  .editor-toolbar,
+  .graph-area,
+  .open-sidebar-btn {
+    display: none !important;
+  }
+
+  .app-body {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .markdown-body {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  a {
+    color: #000000 !important;
+    text-decoration: underline !important;
+  }
+
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  h1, h2 {
+    page-break-before: avoid;
+    page-break-after: avoid;
+  }
+
+  h1 + h2 {
+    page-break-before: auto;
+  }
+
+  pre,
+  blockquote,
+  table {
+    page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 2cm;
+  }
+}
