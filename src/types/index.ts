@@ -66,6 +66,15 @@ export interface SearchResult {
   snippet: string
 }
 
+export interface RagSearchResult {
+  pageSlug: string
+  pageTitle: string
+  sectionHeading: string | null
+  snippet: string
+  score: number
+  tags: string[]
+}
+
 export interface ApiKey {
   id: string
   name: string
