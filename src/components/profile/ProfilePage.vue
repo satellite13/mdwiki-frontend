@@ -6,6 +6,7 @@ import * as apiKeysApi from '@/api/apiKeys'
 import type { ApiKey } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
+import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
 const auth = useAuthStore()
 const dialog = useDialogStore()
@@ -126,7 +127,7 @@ onBeforeUnmount(() => {
       <button class="btn-primary" @click="createKey">Create Key</button>
     </div>
 
-    <div v-if="loading" class="state-placeholder">Loading...</div>
+    <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
     <table v-else-if="keys.length" class="data-table keys-table">
       <thead><tr><th>Name</th><th>Created</th><th>Last Used</th><th></th></tr></thead>
       <tbody>

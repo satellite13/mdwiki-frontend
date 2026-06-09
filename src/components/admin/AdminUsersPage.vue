@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
+import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
 const auth = useAuthStore()
 const dialog = useDialogStore()
@@ -66,7 +67,7 @@ onMounted(fetchUsers)
       <router-link to="/admin/embedding" class="admin-nav-link">{{ t.admin.openEmbeddingSettings }}</router-link>
     </div>
     <h1>{{ t.admin.usersTitle }}</h1>
-    <div v-if="loading" class="state-placeholder">Loading...</div>
+    <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
     <div v-else class="table-scroll">
     <table class="data-table users-table">
       <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>

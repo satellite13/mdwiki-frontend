@@ -6,6 +6,7 @@ import * as attachmentsApi from '@/api/attachments'
 import type { Attachment } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
+import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
 const auth = useAuthStore()
 const dialog = useDialogStore()
@@ -108,7 +109,7 @@ onMounted(fetchAttachments)
       <p v-else>Drag files here or <label class="file-label"><input type="file" multiple @change="onFileInput" hidden />browse</label></p>
     </div>
 
-    <div v-if="loading" class="state-placeholder">Loading...</div>
+    <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
     <div v-else-if="attachments.length === 0" class="state-placeholder">No attachments yet.</div>
     <div v-else class="table-scroll">
     <table class="data-table attachments-table">

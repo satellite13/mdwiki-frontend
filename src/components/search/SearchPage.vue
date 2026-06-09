@@ -6,6 +6,7 @@ import type { SearchResult } from '@/types'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
+import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
 const route = useRoute()
 const dialog = useDialogStore()
@@ -35,7 +36,7 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
   <div class="search-page">
     <h1>Search Results</h1>
     <p v-if="query" class="query-info">Results for "<strong>{{ query }}</strong>"</p>
-    <div v-if="loading" class="state-placeholder">Searching...</div>
+    <div v-if="loading" class="state-placeholder"><SkeletonPage variant="search" /></div>
     <div v-else-if="results.length === 0" class="state-placeholder">No results found.</div>
     <ul v-else class="results">
       <li v-for="(r, index) in results" :key="r.pageId" class="result-card" :style="{ animationDelay: `${Math.min(index, 15) * 0.05}s` }">

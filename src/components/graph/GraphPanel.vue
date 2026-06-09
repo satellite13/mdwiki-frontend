@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { getPageGraph, getWikiGraph } from '@/api/graph'
 import type { GraphNode, GraphEdge } from '@/api/graph'
 import { renderGraph, type GraphRenderHandle } from './graphRenderer'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -126,7 +127,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <div ref="canvasRef" class="graph-canvas">
-      <div v-if="loading" class="graph-loading">Loading graph...</div>
+      <div v-if="loading" class="graph-loading"><SkeletonLoader width="100%" height="100%" variant="block" /></div>
       <svg ref="svgRef" class="graph-svg" />
     </div>
   </div>

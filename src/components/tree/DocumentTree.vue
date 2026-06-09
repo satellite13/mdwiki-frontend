@@ -16,6 +16,7 @@ import type { FolderTreeNode } from '@/types'
 import TreeFolder from './TreeFolder.vue'
 import TreePage from './TreePage.vue'
 import TreeContextMenu from './TreeContextMenu.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -242,7 +243,11 @@ onMounted(async () => {
           type="search"
           :placeholder="t.tree.searchTag"
         />
-        <div v-if="tagsLoading" class="tags-loading">{{ t.tree.loadingTags }}</div>
+        <div v-if="tagsLoading" class="tags-loading">
+          <SkeletonLoader width="70%" height="12px" />
+          <SkeletonLoader width="45%" height="12px" />
+          <SkeletonLoader width="60%" height="12px" />
+        </div>
         <div v-else-if="tagStore.tags.length === 0" class="tags-empty">{{ t.tree.noTags }}</div>
         <div v-else-if="filteredTags.length === 0" class="tags-empty">{{ t.tree.tagsNotFound }}</div>
         <div v-else class="tags-list">
@@ -260,7 +265,15 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="folderStore.loading" class="tree-loading">{{ t.tree.loading }}</div>
+    <div v-if="folderStore.loading" class="tree-loading">
+      <SkeletonLoader width="70%" height="14px" />
+      <SkeletonLoader width="55%" height="14px" :style="{ marginLeft: '16px' }" />
+      <SkeletonLoader width="45%" height="14px" :style="{ marginLeft: '16px' }" />
+      <SkeletonLoader width="60%" height="14px" />
+      <SkeletonLoader width="50%" height="14px" :style="{ marginLeft: '16px' }" />
+      <SkeletonLoader width="65%" height="14px" />
+      <SkeletonLoader width="40%" height="14px" />
+    </div>
     <div v-else :class="['tree-content', { 'root-drag-over': rootDragOver }]">
       <TreeFolder
         v-for="(folder, idx) in rootFolders"

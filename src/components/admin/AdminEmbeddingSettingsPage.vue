@@ -5,6 +5,7 @@ import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
 import type { EmbeddingSettings, EmbeddingSettingsWarning } from '@/types'
+import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
 const dialog = useDialogStore()
 
@@ -77,7 +78,7 @@ onMounted(loadSettings)
     </div>
     <h1>{{ t.admin.embeddingTitle }}</h1>
 
-    <div v-if="loading" class="state-placeholder">Loading...</div>
+    <div v-if="loading" class="state-placeholder"><SkeletonPage variant="form" /></div>
     <form v-else class="settings-form" @submit.prevent="saveSettings">
       <label class="field">
         <span>{{ t.admin.embeddingProviderLabel }}</span>

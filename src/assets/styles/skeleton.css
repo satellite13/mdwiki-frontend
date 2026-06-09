@@ -1,0 +1,44 @@
+/* ============================================
+   MDWiki — Skeleton loading placeholders
+   ============================================ */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-secondary) 25%,
+    var(--color-bg-tertiary) 50%,
+    var(--color-bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+.skeleton--circle {
+  border-radius: 50%;
+}
+
+.skeleton--block {
+  border-radius: var(--radius);
+}
+
+/* Stack multiple skeleton lines with gap */
+.skeleton + .skeleton {
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: var(--color-bg-tertiary);
+  }
+}

@@ -5,6 +5,8 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useEditorUiStore } from '@/stores/editorUi'
 import type { EditorMode } from '@/components/editor/editorPreferences'
 import { t } from '@/utils/i18n'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
 type MarkdownEditorHandle = {
   exportToPdf: () => Promise<void>
@@ -74,7 +76,7 @@ watch(page, (nextPage) => {
       <span class="breadcrumb-sep" aria-hidden="true">/</span>
       <span class="breadcrumb-current">{{ page.title }}</span>
     </nav>
-    <div v-if="loading" class="workspace-loading">Loading...</div>
+    <div v-if="loading" class="workspace-loading"><SkeletonLoader width="80px" height="12px" /></div>
     <div v-if="!editorUi.isReadingMode" class="workspace-header">
       <input
         class="title-input"
@@ -136,7 +138,7 @@ watch(page, (nextPage) => {
       </details>
     </div>
   </div>
-  <div v-else-if="loading" class="state-placeholder">Loading...</div>
+  <div v-else-if="loading" class="state-placeholder"><SkeletonPage variant="editor" /></div>
   <div v-else class="empty-workspace">
     <p>Select a page from the sidebar or create a new one.</p>
     <button
