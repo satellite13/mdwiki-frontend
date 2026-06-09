@@ -129,13 +129,13 @@ onMounted(fetchAttachments)
             <img v-if="isImage(att.contentType)" :src="att.url" class="thumb" :alt="att.originalName" />
             <span v-else class="file-icon">📎</span>
           </td>
-          <td class="name-cell">
+          <td class="name-cell" data-label="Name">
             <a :href="att.url" target="_blank">{{ att.originalName }}</a>
           </td>
-          <td class="type-cell">{{ att.contentType }}</td>
-          <td class="size-cell">{{ formatSize(att.sizeBytes) }}</td>
-          <td class="user-cell">{{ att.uploadedBy || '—' }}</td>
-          <td class="date-cell">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
+          <td class="type-cell" data-label="Type">{{ att.contentType }}</td>
+          <td class="size-cell" data-label="Size">{{ formatSize(att.sizeBytes) }}</td>
+          <td class="user-cell" data-label="Uploaded by">{{ att.uploadedBy || '—' }}</td>
+          <td class="date-cell" data-label="Date">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
           <td class="actions-cell">
             <div class="actions-inner">
               <button class="btn-secondary btn-sm" type="button" @click="copyLink(att)" title="Copy markdown link">Copy link</button>
@@ -212,6 +212,87 @@ onMounted(fetchAttachments)
 
   .attachments-page h1 {
     font-size: 1.35rem;
+  }
+
+  .attachments-table thead {
+    display: none;
+  }
+
+  .attachments-table,
+  .attachments-table tbody,
+  .attachments-table tr,
+  .attachments-table td {
+    display: block;
+  }
+
+  .attachments-table tr {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+    background: var(--color-bg);
+    box-shadow: var(--shadow);
+  }
+
+  .attachments-table td {
+    padding: 3px 0;
+    border-bottom: none;
+    text-align: left;
+  }
+
+  .attachments-table td::before {
+    content: attr(data-label);
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--color-text-muted);
+    width: 90px;
+    flex-shrink: 0;
+  }
+
+  .preview-cell {
+    margin-bottom: 8px;
+  }
+
+  .preview-cell::before {
+    display: none !important;
+  }
+
+  .preview-cell .thumb {
+    width: 56px;
+    height: 56px;
+  }
+
+  .name-cell {
+    margin-bottom: 6px;
+  }
+
+  .name-cell::before {
+    display: none !important;
+  }
+
+  .name-cell a {
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .actions-cell {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .actions-cell::before {
+    display: none !important;
+  }
+
+  .btn-sm {
+    min-height: 36px;
+    min-width: 44px;
+    padding: 6px 14px;
+    font-size: 13px;
   }
 }
 </style>

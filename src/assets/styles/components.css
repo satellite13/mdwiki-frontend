@@ -45,3 +45,50 @@
   text-align: center;
   font-size: 15px;
 }
+
+@media (max-width: 767px) {
+  .auth-page {
+    min-height: 100dvh;
+    padding: 16px;
+    background-size: 16px 16px;
+  }
+
+  .auth-card {
+    padding: 28px 20px;
+    max-width: 100%;
+    border-radius: 10px;
+  }
+
+  .auth-card h1 {
+    font-size: 1.35rem;
+    margin-bottom: 20px;
+  }
+
+  .auth-page .field {
+    margin-bottom: 14px;
+  }
+
+  .auth-page .field label {
+    font-size: 12px;
+  }
+
+  .auth-page input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .auth-page button[type="submit"] {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .auth-page .switch {
+    font-size: 13px;
+    margin-top: 14px;
+  }
+
+  .state-placeholder {
+    padding: 32px 0;
+    font-size: 14px;
+  }
+}

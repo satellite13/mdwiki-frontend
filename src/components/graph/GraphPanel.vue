@@ -216,4 +216,23 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 200px;
 }
+
+@media (max-width: 767px) {
+  .graph-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .graph-label {
+    flex: 1 1 100%;
+    font-size: 12px;
+  }
+
+  .depth-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+}
 </style>

@@ -104,4 +104,38 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
   line-height: 1.6;
 }
 
+@media (max-width: 767px) {
+  .search-page h1 {
+    font-size: 1.35rem;
+    margin-bottom: 4px;
+  }
+
+  .query-info {
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .results {
+    gap: 10px;
+  }
+
+  .result-card {
+    padding: 14px 16px;
+  }
+
+  .result-card h3 {
+    font-size: 1rem;
+  }
+
+  .snippet {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+}
+
+/* touch-friendly tap targets */
+.result-card a {
+  display: block;
+  min-height: 44px;
+}
 </style>

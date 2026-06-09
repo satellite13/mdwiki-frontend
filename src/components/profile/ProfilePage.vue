@@ -257,4 +257,112 @@ onBeforeUnmount(() => {
   border-color: var(--color-danger);
 }
 
+@media (max-width: 767px) {
+  .profile-page h1 {
+    font-size: 1.35rem;
+    margin-bottom: 16px;
+  }
+
+  .profile-page h2 {
+    font-size: 1.15rem;
+    margin-top: 28px;
+  }
+
+  .profile-card {
+    padding: 14px 16px;
+  }
+
+  .profile-card p {
+    font-size: 14px;
+  }
+
+  .hint {
+    font-size: 13px;
+  }
+
+  .key-created {
+    padding: 14px 16px;
+  }
+
+  .key-display {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .key-display code {
+    font-size: 12px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+
+  .key-display .btn-secondary {
+    align-self: flex-start;
+    min-height: 36px;
+    min-width: 44px;
+  }
+
+  .create-key {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .create-key input {
+    max-width: 100%;
+  }
+
+  .create-key .btn-primary {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* keys table → cards */
+  .keys-table thead {
+    display: none;
+  }
+
+  .keys-table,
+  .keys-table tbody,
+  .keys-table tr,
+  .keys-table td {
+    display: block;
+  }
+
+  .keys-table tr {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--color-bg);
+    box-shadow: var(--shadow);
+  }
+
+  .keys-table td {
+    padding: 3px 0;
+    border-bottom: none;
+    text-align: left;
+  }
+
+  .key-name {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .key-date {
+    font-size: 12px;
+  }
+
+  .keys-table td:last-child {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .btn-sm {
+    min-height: 36px;
+    min-width: 44px;
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+}
 </style>

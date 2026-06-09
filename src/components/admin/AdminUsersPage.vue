@@ -72,9 +72,9 @@ onMounted(fetchUsers)
       <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
       <tbody>
         <tr v-for="user in users" :key="user.id">
-          <td class="user-name">{{ user.username }}</td>
-          <td class="user-email">{{ user.email }}</td>
-          <td><span class="role-badge">{{ user.role }}</span></td>
+          <td class="user-name" data-label="Username">{{ user.username }}</td>
+          <td class="user-email" data-label="Email">{{ user.email }}</td>
+          <td class="role-cell" data-label="Role"><span class="role-badge">{{ user.role }}</span></td>
           <td class="actions-cell">
             <select :value="user.role" @change="changeRole(user, ($event.target as HTMLSelectElement).value)">
               <option value="READER">READER</option>
@@ -223,6 +223,92 @@ onMounted(fetchUsers)
   .admin-users h1 {
     font-size: 1.35rem;
     margin-bottom: 20px;
+  }
+
+  .users-table thead {
+    display: none;
+  }
+
+  .users-table,
+  .users-table tbody,
+  .users-table tr,
+  .users-table td {
+    display: block;
+  }
+
+  .users-table tr {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+    background: var(--color-bg);
+    box-shadow: var(--shadow);
+  }
+
+  .users-table td {
+    padding: 3px 0;
+    border-bottom: none;
+    text-align: left;
+  }
+
+  .users-table td::before {
+    content: attr(data-label);
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--color-text-muted);
+    width: 80px;
+    flex-shrink: 0;
+  }
+
+  .user-name {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .user-name::before {
+    display: none !important;
+  }
+
+  .role-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .role-cell .role-badge {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  .actions-cell {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .actions-cell::before {
+    display: none !important;
+  }
+
+  .users-table select {
+    min-height: 36px;
+    min-width: 44px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .btn-delete-user {
+    min-height: 36px;
+    min-width: 44px;
+    padding: 6px 14px;
+    font-size: 13px;
   }
 }
 
