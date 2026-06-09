@@ -907,6 +907,8 @@ defineExpose({
 
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .hashtag) {
   color: #f4bf73;
+  background: color-mix(in srgb, #f4bf73 15%, transparent);
+  border-color: color-mix(in srgb, #f4bf73 25%, transparent);
 }
 
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body code:not(pre code)) {

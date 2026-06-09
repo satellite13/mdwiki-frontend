@@ -446,27 +446,55 @@ onMounted(async () => {
   background: var(--color-bg);
   color: var(--color-text);
   border-radius: 999px;
-  padding: 3px 8px;
+  padding: 3px 10px 3px 7px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-size: 12px;
   cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.15s ease;
 }
 
 .tag-chip:hover {
-  border-color: var(--color-primary);
+  border-color: var(--color-tag);
+  background: color-mix(in srgb, var(--color-tag) 6%, var(--color-bg));
+  transform: translateY(-1px);
 }
 
 .tag-chip.active {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-  color: var(--color-primary);
+  border-color: var(--color-tag);
+  background: color-mix(in srgb, var(--color-tag) 14%, transparent);
+  color: var(--color-tag);
+}
+
+.tag-chip.active:hover {
+  background: color-mix(in srgb, var(--color-tag) 20%, transparent);
+  border-color: var(--color-tag);
+}
+
+.tag-name {
+  font-weight: 500;
+}
+
+.tag-chip.active .tag-name {
+  font-weight: 600;
 }
 
 .tag-count {
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--color-bg-secondary);
+  border-radius: 999px;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.tag-chip.active .tag-count {
+  background: color-mix(in srgb, var(--color-tag) 20%, transparent);
+  color: var(--color-tag);
 }
 
 .tree-content {
