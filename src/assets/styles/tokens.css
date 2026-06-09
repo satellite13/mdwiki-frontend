@@ -3,6 +3,9 @@
    ============================================ */
 
 :root {
+  /* Transition duration for theme switching */
+  --theme-transition-duration: 0.25s;
+
   /* Backgrounds */
   --color-bg: #ffffff;
   --color-bg-secondary: #f6f8fa;
@@ -47,12 +50,12 @@
 
 [data-theme="dark"] {
   --color-bg: #1a1b1e;
-  --color-bg-secondary: #25262b;
-  --color-bg-tertiary: #2c2d33;
-  --color-bg-hover: #35363d;
-  --color-text: #c9cdd1;
-  --color-text-muted: #909399;
-  --color-text-faint: #5c5f66;
+  --color-bg-secondary: #1e1f23;
+  --color-bg-tertiary: #292a2f;
+  --color-bg-hover: #32333a;
+  --color-text: #e1e3e6;
+  --color-text-muted: #a8abb2;
+  --color-text-faint: #6a6d75;
   --color-primary: #20c997;
   --color-primary-hover: #12b886;
   --color-primary-light: rgba(32, 201, 151, 0.12);
@@ -62,7 +65,20 @@
   --color-border: #3a3b40;
   --color-wikilink: #20c997;
   --color-wikilink-missing: #ff6b6b;
-  --color-external-link: #909399;
+  --color-external-link: #a8abb2;
   --color-tag: #fcc419;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Smooth theme transitions — disabled when user prefers reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  *,
+  *::before,
+  *::after {
+    transition:
+      background var(--theme-transition-duration, 0.25s) ease,
+      color var(--theme-transition-duration, 0.25s) ease,
+      border-color var(--theme-transition-duration, 0.25s) ease,
+      box-shadow var(--theme-transition-duration, 0.25s) ease;
+  }
 }
