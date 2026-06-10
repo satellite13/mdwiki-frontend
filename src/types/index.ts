@@ -19,6 +19,7 @@ export interface Page {
   title: string
   contentMd: string | null
   tags: string[]
+  locked: boolean
   createdBy: string | null
   updatedBy: string | null
   folderPath?: FolderPathItem[]
