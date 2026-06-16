@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
+import { defineAsyncComponent, onBeforeUnmount, ref, watch, computed } from 'vue'
 import { useWorkspacePage } from '@/composables/useWorkspacePage'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useEditorUiStore } from '@/stores/editorUi'
 import type { EditorMode } from '@/components/editor/editorPreferences'
 import { t } from '@/utils/i18n'
+import { setFrontmatterField } from '@/utils/frontmatter'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
@@ -61,6 +62,17 @@ watch(page, (nextPage) => {
     editorUi.setReadingMode(false)
   }
 })
+
+const isLocked = computed(() => page.value?.locked ?? false)
+
+function toggleLock() {
+  if (!page.value) return
+  const newLocked = !page.value.locked
+  const newContent = setFrontmatterField(content.value, 'locked', newLocked)
+  content.value = newContent
+  page.value = { ...page.value, locked: newLocked }
+  onEditorSave()
+}
 </script>
 
 <template>
@@ -80,12 +92,24 @@ watch(page, (nextPage) => {
     <div v-if="!editorUi.isReadingMode" class="workspace-header">
       <input
         class="title-input"
+        :class="{ 'title-input-locked': isLocked }"
         :value="title"
         @input="onTitleInput"
         placeholder="Page title"
+        :disabled="isLocked"
       />
       <span v-if="isDirty()" class="unsaved-dot" title="Unsaved changes"></span>
       <span v-if="saveError" class="save-error" @click="clearSaveError">{{ saveError }}</span>
+      <button
+        type="button"
+        class="lock-btn"
+        :class="{ locked: isLocked }"
+        :title="isLocked ? 'Unlock page' : 'Lock page (read-only)'"
+        :aria-label="isLocked ? 'Unlock page' : 'Lock page'"
+        @click="toggleLock"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no">{{ isLocked ? 'lock' : 'lock_open' }}</span>
+      </button>
       <button
         type="button"
         class="pdf-export-btn"
@@ -192,6 +216,46 @@ watch(page, (nextPage) => {
 
 .title-input:focus {
   box-shadow: none;
+}
+
+.title-input-locked {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.lock-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.lock-btn:hover {
+  color: var(--color-text);
+  background: var(--color-bg-hover);
+}
+
+.lock-btn.locked {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.lock-btn.locked:hover {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.lock-btn .material-symbols-outlined {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .save-status {
