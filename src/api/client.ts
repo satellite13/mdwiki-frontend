@@ -1,6 +1,6 @@
 import axios from 'axios'
 import router from '@/router'
-import { readString, removePref } from '@/utils/localPreferences'
+import { readString } from '@/utils/localPreferences'
 
 const client = axios.create({
   baseURL: '/api',
@@ -16,20 +16,26 @@ client.interceptors.request.use((config) => {
   return config
 })
 
+async function handleUnauthorized() {
+  const { useAuthStore } = await import('@/stores/auth')
+  useAuthStore().logout()
+
+  const currentPath = router.currentRoute.value.fullPath
+  if (!redirectingToLogin && currentPath !== '/login') {
+    redirectingToLogin = true
+    try {
+      await router.replace({ path: '/login', query: { redirect: currentPath } })
+    } finally {
+      redirectingToLogin = false
+    }
+  }
+}
+
 client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      removePref('token')
-      removePref('username')
-      removePref('role')
-      const currentPath = router.currentRoute.value.fullPath
-      if (!redirectingToLogin && currentPath !== '/login') {
-        redirectingToLogin = true
-        void router.replace({ path: '/login', query: { redirect: currentPath } }).finally(() => {
-          redirectingToLogin = false
-        })
-      }
+      void handleUnauthorized()
     }
     return Promise.reject(error)
   }
