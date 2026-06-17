@@ -54,7 +54,6 @@ async function loadGraph() {
         : await getPageGraph(props.slug!, depth.value)
     lastNodes = data.nodes
     lastEdges = data.edges
-    // Сначала убираем оверлей, чтобы flex отдал svg высоту (иначе clientHeight = 0 → NaN в d3).
     loading.value = false
     await nextTick()
     await nextTick()
@@ -113,8 +112,12 @@ onBeforeUnmount(() => {
 <template>
   <div class="graph-panel" :class="{ 'graph-panel--wiki': variant === 'wiki' }">
     <div class="graph-toolbar">
-      <span class="graph-label">{{ variant === 'wiki' ? 'Wiki graph' : 'Page graph' }}</span>
+      <div class="graph-toolbar__left">
+        <span class="graph-label">{{ variant === 'wiki' ? 'Wiki graph' : 'Page graph' }}</span>
+        <span v-if="variant === 'wiki' && lastNodes.length" class="graph-meta">{{ lastNodes.length }} nodes</span>
+      </div>
       <div v-if="variant === 'page'" class="depth-controls">
+        <span class="depth-label">Depth</span>
         <button
           v-for="d in [1, 2, 3]"
           :key="d"
@@ -128,7 +131,7 @@ onBeforeUnmount(() => {
     </div>
     <div ref="canvasRef" class="graph-canvas">
       <div v-if="loading" class="graph-loading"><SkeletonLoader width="100%" height="100%" variant="block" /></div>
-      <svg ref="svgRef" class="graph-svg" />
+      <svg ref="svgRef" class="graph-svg" aria-hidden="true" />
     </div>
   </div>
 </template>
@@ -151,38 +154,67 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
+  background: color-mix(in srgb, var(--color-bg-secondary) 88%, transparent);
+  backdrop-filter: blur(6px);
   flex-shrink: 0;
+}
+
+.graph-toolbar__left {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
 }
 
 .graph-label {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
   color: var(--color-text-muted);
+}
+
+.graph-meta {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .depth-controls {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+}
+
+.depth-label {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  margin-right: 2px;
 }
 
 .depth-btn {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   font-size: 11px;
+  font-weight: 500;
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--color-bg);
   color: var(--color-text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.depth-btn:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+  color: var(--color-text);
 }
 
 .depth-btn.active {
@@ -195,6 +227,11 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   position: relative;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 70%),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--color-border) 55%, transparent) 1px, transparent 0);
+  background-size: auto, 22px 22px;
+  background-color: var(--color-bg);
 }
 
 .graph-loading {
@@ -206,8 +243,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   font-size: 13px;
   color: var(--color-text-muted);
-  background: var(--color-bg);
-  opacity: 0.92;
+  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+  backdrop-filter: blur(2px);
 }
 
 .graph-svg {
@@ -218,6 +255,11 @@ onBeforeUnmount(() => {
   min-height: 200px;
 }
 
+.graph-svg :deep(.graph-node:hover .graph-node__dot) {
+  stroke: var(--color-primary);
+  stroke-width: 2;
+}
+
 @media (max-width: 767px) {
   .graph-toolbar {
     flex-wrap: wrap;
@@ -225,8 +267,11 @@ onBeforeUnmount(() => {
     padding: 8px 10px;
   }
 
-  .graph-label {
+  .graph-toolbar__left {
     flex: 1 1 100%;
+  }
+
+  .graph-label {
     font-size: 12px;
   }
 
