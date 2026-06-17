@@ -1,6 +1,5 @@
 import { ref, type Ref } from 'vue'
-import { getPages } from '@/services/pageIndex'
-import { normalizePageSlug } from '@/utils/pageSlug'
+import { getPages, pageMatchesWikilinkQuery } from '@/services/pageIndex'
 import { caretCoordsInTextarea } from '@/components/editor/textareaCaret'
 import type { PageListItem } from '@/types'
 
@@ -80,11 +79,7 @@ export function useWikilinkAutocomplete(options: WikilinkAutocompleteOptions): W
     const pages = await getPages()
     if (reqId !== requestId) return
     const filtered = query
-      ? pages.filter((item) =>
-          item.title.toLowerCase().includes(query) ||
-          item.slug.toLowerCase().includes(query) ||
-          normalizePageSlug(item.title).includes(query)
-        )
+      ? pages.filter((item) => pageMatchesWikilinkQuery(item, chunk))
       : pages
     items.value = filtered
       .slice()
