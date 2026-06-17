@@ -54,6 +54,22 @@ export interface Backlink {
   title: string
 }
 
+export type BrokenLinkKind = 'WIKILINK' | 'MARKDOWN'
+
+export interface BrokenLink {
+  id: string | null
+  brokenTarget: string
+  kind: BrokenLinkKind
+  sourceSlug: string
+  sourceTitle: string
+  displayText?: string | null
+}
+
+export interface RewriteBrokenLinksResult {
+  pagesUpdated: number
+  skippedLocked: string[]
+}
+
 export interface Tag {
   id: string
   name: string

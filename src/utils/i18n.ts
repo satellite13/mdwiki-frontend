@@ -114,4 +114,37 @@ export const t = {
   attachments: {
     confirmDelete: (name: string) => `Delete "${name}"?`,
   },
+  brokenLinks: {
+    title: 'Broken links',
+    subtitle: 'Wikilinks and /page/ references that do not resolve to an existing document.',
+    refresh: 'Refresh',
+    empty: 'No broken links found.',
+    occurrences: (count: number) => `${count} occurrence${count === 1 ? '' : 's'}`,
+    fixAll: 'Fix all',
+    fixHere: 'Fix here',
+    open: 'Open',
+    colSource: 'Source page',
+    colType: 'Type',
+    colLabel: 'Link text',
+    colActions: 'Actions',
+    kindWikilink: '[[wikilink]]',
+    kindMarkdown: '[markdown](/page/…)',
+    fixDialogTitle: 'Replace broken link',
+    fixFrom: 'Replace',
+    fixOnPage: 'on page',
+    fixAllPages: 'in all pages',
+    pickTarget: 'Target page',
+    pickTargetPlaceholder: 'Search by title or slug…',
+    fixButton: 'Replace links',
+    fixAllConfirm: (from: string, to: string) =>
+      `Replace all references to "${from}" with "${to}" across the wiki?`,
+    fixOneConfirm: (from: string, to: string) =>
+      `Replace references to "${from}" with "${to}" on this page?`,
+    fixDone: (count: number) =>
+      `Updated ${count} page${count === 1 ? '' : 's'}.`,
+    fixDoneWithSkipped: (count: number, skipped: string) =>
+      `Updated ${count} page${count === 1 ? '' : 's'}. Skipped locked: ${skipped}.`,
+    fixFailed: 'Failed to replace links',
+    loadFailed: 'Failed to load broken links',
+  },
 } as const
