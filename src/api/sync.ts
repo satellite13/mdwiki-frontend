@@ -5,6 +5,7 @@ interface WikiSyncResult {
   added: number
   updated: number
   removed: number
+  attachmentsAdded?: number
 }
 
 /** Полная синхронизация markdown из wiki-content ↔ БД (только ADMIN на API). */

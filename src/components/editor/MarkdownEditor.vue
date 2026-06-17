@@ -901,6 +901,12 @@ defineExpose({
   color: #8ac5ff;
 }
 
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .wikilink-missing),
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .mdlink-internal-missing) {
+  color: #fbbf24;
+  background: color-mix(in srgb, #fbbf24 14%, transparent);
+}
+
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .external-link) {
   color: #a8b4c4;
 }
@@ -1134,6 +1140,11 @@ defineExpose({
   color: var(--color-wikilink);
   text-decoration: underline;
   text-decoration-style: dotted;
+}
+
+:deep(.markdown-body .wikilink-missing),
+:deep(.markdown-body .mdlink-internal-missing) {
+  color: var(--color-wikilink-missing);
 }
 
 :deep(.markdown-body .external-link) {

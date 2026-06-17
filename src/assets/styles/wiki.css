@@ -13,6 +13,14 @@
   vertical-align: baseline;
 }
 
+.wikilink-missing,
+.mdlink-internal-missing {
+  color: var(--color-wikilink-missing);
+  background: color-mix(in srgb, var(--color-wikilink-missing) 14%, transparent);
+  border-radius: 4px;
+  text-decoration-color: color-mix(in srgb, var(--color-wikilink-missing) 55%, transparent);
+}
+
 .wikilink-text {
   text-decoration: underline;
   text-decoration-style: dotted;

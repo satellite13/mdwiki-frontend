@@ -84,6 +84,12 @@ export function wikilinkPreviewHref(rawInner: string): string {
   return `/page/${encodeURIComponent(slug)}`
 }
 
+/** true, если индекс страниц уже загружен и цель `[[...]]` / `/page/...` не найдена. */
+export function isMissingPageReference(rawInner: string): boolean {
+  if (getCachedPages().length === 0) return false
+  return resolveWikilinkToSlug(rawInner) === null
+}
+
 /** Варианты slug для GET /pages/{slug} после перехода по ссылке (в т.ч. устаревший транслит в URL). */
 export function slugCandidatesForNavigation(urlSlug: string, pages: PageListItem[]): string[] {
   let decoded = urlSlug
