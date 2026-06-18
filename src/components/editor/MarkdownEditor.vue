@@ -110,6 +110,7 @@ const annotations = ref<Annotation[]>([])
 const annotationsVisible = ref(false)
 const annotationPopup = ref<{ selectedText: string; anchorContext: string; x: number; y: number } | null>(null)
 const floatingBtn = ref<{ x: number; y: number } | null>(null)
+const pendingAnnotation = ref<{ text: string; context: string } | null>(null)
 let annotationHighlightSpans: HTMLSpanElement[] = []
 
 const wikilink = useWikilinkAutocomplete({
@@ -793,8 +794,16 @@ function onReadingMouseUp() {
   const sel = window.getSelection()
   if (!sel || sel.isCollapsed || !sel.toString().trim()) {
     floatingBtn.value = null
+    pendingAnnotation.value = null
     return
   }
+  const selectedText = sel.toString().trim()
+  const container = getPreviewContentElement()
+  const fullText = container?.textContent || ''
+  const idx = fullText.indexOf(selectedText)
+  const ctxStart = Math.max(0, idx - 40)
+  const ctxEnd = Math.min(fullText.length, idx + selectedText.length + 40)
+  pendingAnnotation.value = { text: selectedText, context: fullText.slice(ctxStart, ctxEnd) }
   const range = sel.getRangeAt(0)
   const rect = range.getBoundingClientRect()
   floatingBtn.value = {
@@ -805,6 +814,7 @@ function onReadingMouseUp() {
 
 function onReadingMouseDown() {
   floatingBtn.value = null
+  pendingAnnotation.value = null
 }
 
 function onReadingTouchEnd() {
@@ -815,6 +825,13 @@ function onReadingTouchEnd() {
       floatingBtn.value = null
       return
     }
+    const selectedText = sel.toString().trim()
+    const container = getPreviewContentElement()
+    const fullText = container?.textContent || ''
+    const idx = fullText.indexOf(selectedText)
+    const ctxStart = Math.max(0, idx - 40)
+    const ctxEnd = Math.min(fullText.length, idx + selectedText.length + 40)
+    pendingAnnotation.value = { text: selectedText, context: fullText.slice(ctxStart, ctxEnd) }
     const range = sel.getRangeAt(0)
     const rect = range.getBoundingClientRect()
     floatingBtn.value = {
@@ -826,16 +843,24 @@ function onReadingTouchEnd() {
 
 function startAnnotation() {
   const sel = window.getSelection()
-  if (!sel || sel.isCollapsed) return
-  const selectedText = sel.toString().trim()
-  if (!selectedText) return
+  let selectedText: string
+  let anchorContext: string
 
-  const container = getPreviewContentElement()
-  const fullText = container?.textContent || ''
-  const idx = fullText.indexOf(selectedText)
-  const ctxStart = Math.max(0, idx - 40)
-  const ctxEnd = Math.min(fullText.length, idx + selectedText.length + 40)
-  const anchorContext = fullText.slice(ctxStart, ctxEnd)
+  if (pendingAnnotation.value) {
+    selectedText = pendingAnnotation.value.text
+    anchorContext = pendingAnnotation.value.context
+    pendingAnnotation.value = null
+  } else {
+    if (!sel || sel.isCollapsed) return
+    selectedText = sel.toString().trim()
+    if (!selectedText) return
+    const container = getPreviewContentElement()
+    const fullText = container?.textContent || ''
+    const idx = fullText.indexOf(selectedText)
+    const ctxStart = Math.max(0, idx - 40)
+    const ctxEnd = Math.min(fullText.length, idx + selectedText.length + 40)
+    anchorContext = fullText.slice(ctxStart, ctxEnd)
+  }
 
   const btn = floatingBtn.value
   annotationPopup.value = {
