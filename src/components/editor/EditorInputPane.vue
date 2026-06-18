@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import EditorFindBar from '@/components/editor/EditorFindBar.vue'
 
 type WikilinkItem = {
   title: string
@@ -12,6 +13,9 @@ defineProps<{
   wikilinkItems: WikilinkItem[]
   wikilinkSelected: number
   wikilinkMenuStyle?: Record<string, string | number>
+  findOpen: boolean
+  findQuery: string
+  findStatusLabel: string
 }>()
 
 const emit = defineEmits<{
@@ -22,6 +26,10 @@ const emit = defineEmits<{
   scroll: [event: Event]
   blur: [event: FocusEvent]
   selectWikilink: [index: number]
+  'update:findQuery': [value: string]
+  findNext: []
+  findPrev: []
+  findClose: []
 }>()
 
 const textareaEl = ref<HTMLTextAreaElement | null>(null)
@@ -33,6 +41,15 @@ defineExpose({
 
 <template>
   <div class="editor-pane">
+    <EditorFindBar
+      :open="findOpen"
+      :query="findQuery"
+      :status-label="findStatusLabel"
+      @update:query="emit('update:findQuery', $event)"
+      @next="emit('findNext')"
+      @prev="emit('findPrev')"
+      @close="emit('findClose')"
+    />
     <textarea
       ref="textareaEl"
       class="markdown-input"
@@ -45,19 +62,21 @@ defineExpose({
       @scroll="emit('scroll', $event)"
       @blur="emit('blur', $event)"
     />
-    <div v-if="wikilinkOpen" class="wikilink-suggestions" :style="wikilinkMenuStyle">
-      <button
-        v-for="(item, idx) in wikilinkItems"
-        :key="item.slug"
-        type="button"
-        class="wikilink-suggestion-item"
-        :class="{ active: idx === wikilinkSelected }"
-        @mousedown.prevent="emit('selectWikilink', idx)"
-      >
-        <span>{{ item.title }}</span>
-        <small>{{ item.slug }}</small>
-      </button>
-    </div>
+    <Teleport to="body">
+      <div v-if="wikilinkOpen" class="wikilink-suggestions" :style="wikilinkMenuStyle">
+        <button
+          v-for="(item, idx) in wikilinkItems"
+          :key="item.slug"
+          type="button"
+          class="wikilink-suggestion-item"
+          :class="{ active: idx === wikilinkSelected }"
+          @mousedown.prevent="emit('selectWikilink', idx)"
+        >
+          <span>{{ item.title }}</span>
+          <small>{{ item.slug }}</small>
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -94,7 +113,7 @@ defineExpose({
   border: 1px solid var(--color-border);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  z-index: 40;
+  z-index: 200;
   max-height: 240px;
   overflow: auto;
   padding: 4px;

@@ -114,6 +114,14 @@ export const t = {
   attachments: {
     confirmDelete: (name: string) => `Delete "${name}"?`,
   },
+  editor: {
+    findTitle: 'Find in document',
+    findPlaceholder: 'Search…',
+    findNoResults: 'No matches',
+    findNext: 'Next match',
+    findPrev: 'Previous match',
+    findClose: 'Close search',
+  },
   brokenLinks: {
     title: 'Broken links',
     subtitle: 'Wikilinks and /page/ references that do not resolve to an existing document.',
