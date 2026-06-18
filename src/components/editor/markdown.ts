@@ -21,7 +21,7 @@ import yaml from 'highlight.js/lib/languages/yaml'
 import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { protectWikilinkTablePipesInDocument, WIKILINK_TABLE_PIPE } from '@/utils/tablePipeCells'
-import { wikilinkPreviewHref } from '@/services/pageIndex'
+import { isMissingPageReference, wikilinkPreviewHref } from '@/services/pageIndex'
 import { classifyPreviewLinkHref } from '@/utils/previewLinks'
 
 const EXTERNAL_LINK_ICON =
@@ -91,13 +91,15 @@ function renderWikilinkLink(slugRaw: string, labelRaw: string | undefined, Token
   const slug = slugRaw.trim()
   const label = (labelRaw?.trim() || slug).trim()
   const href = wikilinkPreviewHref(slug)
+  const missing = isMissingPageReference(slug)
 
   const open = new Token('link_open', 'a', 1)
   open.attrs = [
     ['href', href],
-    ['class', 'wikilink'],
+    ['class', missing ? 'wikilink wikilink-missing' : 'wikilink'],
     ['data-wikilink', '1'],
-    ['data-slug', slug]
+    ['data-slug', slug],
+    ...(missing ? [['data-missing', '1'] as [string, string]] : [])
   ]
   open.level = level
   open.markup = 'wikilink'
@@ -174,6 +176,16 @@ function tagPlugin(md: MarkdownIt) {
   }
 }
 
+function pageSlugFromInternalHref(href: string): string | null {
+  const match = href.trim().match(/^\/page\/([^?#]+)/)
+  if (!match) return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
+}
+
 function linkClassifyPlugin(md: MarkdownIt) {
   const defaultLinkOpen = md.renderer.rules.link_open
   const defaultLinkClose = md.renderer.rules.link_close
@@ -193,7 +205,10 @@ function linkClassifyPlugin(md: MarkdownIt) {
       token.attrSet('target', '_blank')
       token.attrSet('rel', 'noopener noreferrer')
     } else {
-      token.attrSet('class', 'mdlink-internal')
+      const slug = pageSlugFromInternalHref(href)
+      const missing = slug !== null && isMissingPageReference(slug)
+      token.attrSet('class', missing ? 'mdlink-internal mdlink-internal-missing' : 'mdlink-internal')
+      if (missing) token.attrSet('data-missing', '1')
     }
 
     return defaultLinkOpen

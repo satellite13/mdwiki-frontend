@@ -1,6 +1,5 @@
 import { ref, type Ref } from 'vue'
-import { getPages } from '@/services/pageIndex'
-import { normalizePageSlug } from '@/utils/pageSlug'
+import { getCachedPages, getPages, pageMatchesWikilinkQuery } from '@/services/pageIndex'
 import { caretCoordsInTextarea } from '@/components/editor/textareaCaret'
 import type { PageListItem } from '@/types'
 
@@ -64,6 +63,19 @@ export function useWikilinkAutocomplete(options: WikilinkAutocompleteOptions): W
     menuStyle.value = { left: `${left}px`, top: `${top}px`, width: `${width}px` }
   }
 
+  function applyPages(pages: PageListItem[], chunk: string, query: string): void {
+    const filtered = query
+      ? pages.filter((item) => pageMatchesWikilinkQuery(item, chunk))
+      : pages
+    items.value = filtered
+      .slice()
+      .sort((a, b) => a.title.localeCompare(b.title, 'ru', { sensitivity: 'base' }))
+      .slice(0, MAX_SUGGESTIONS)
+    selected.value = 0
+    open.value = items.value.length > 0
+    updatePosition()
+  }
+
   async function refresh(): Promise<void> {
     const el = options.getEditor()
     if (!el) return
@@ -77,22 +89,21 @@ export function useWikilinkAutocomplete(options: WikilinkAutocompleteOptions): W
     to.value = cursor
     const query = chunk.trim().toLowerCase()
     const reqId = ++requestId
-    const pages = await getPages()
+
+    const cached = getCachedPages()
+    if (cached.length > 0) {
+      applyPages(cached, chunk, query)
+    }
+
+    let pages = cached
+    try {
+      pages = await getPages()
+    } catch {
+      if (cached.length === 0) return close()
+      return
+    }
     if (reqId !== requestId) return
-    const filtered = query
-      ? pages.filter((item) =>
-          item.title.toLowerCase().includes(query) ||
-          item.slug.toLowerCase().includes(query) ||
-          normalizePageSlug(item.title).includes(query)
-        )
-      : pages
-    items.value = filtered
-      .slice()
-      .sort((a, b) => a.title.localeCompare(b.title, 'ru', { sensitivity: 'base' }))
-      .slice(0, MAX_SUGGESTIONS)
-    selected.value = 0
-    open.value = items.value.length > 0
-    updatePosition()
+    applyPages(pages, chunk, query)
   }
 
   function moveDown(): void {

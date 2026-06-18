@@ -10,6 +10,8 @@ import { t } from '@/utils/i18n'
 import { readString, writeString } from '@/utils/localPreferences'
 import { useEditorHistory } from '@/composables/useEditorHistory'
 import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
+import { useEditorFind } from '@/composables/useEditorFind'
+import { getPages } from '@/services/pageIndex'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useHorizontalDragResize } from '@/composables/useHorizontalDragResize'
 import { normalizePageSlug } from '@/utils/pageSlug'
@@ -115,10 +117,18 @@ const wikilink = useWikilinkAutocomplete({
   getSource: () => markdownValue.value,
   getContainerRect: () => splitShellRef.value?.getBoundingClientRect() ?? null
 })
+const editorFind = useEditorFind({
+  getEditor: () => getEditorElement(),
+  getSource: () => markdownValue.value
+})
 const wikilinkOpen = wikilink.open
 const wikilinkItems = wikilink.items
 const wikilinkSelected = wikilink.selected
 const wikilinkMenuStyle = wikilink.menuStyle
+const findBarOpen = computed(() => editorFind.open.value)
+const findBarQuery = computed(() => editorFind.query.value)
+const findBarStatusLabel = computed(() => editorFind.statusLabel.value)
+let wikilinkBlurTimer: ReturnType<typeof setTimeout> | undefined
 
 const { startResizeDrag, clearDragListeners } = useHorizontalDragResize()
 
@@ -188,6 +198,7 @@ const quickInsertActions: ToolbarAction[] = [
 ]
 
 const historyActions = computed<ToolbarAction[]>(() => [
+  { key: 'find', title: t.editor.findTitle, ariaLabel: t.editor.findTitle, icon: 'search', onClick: () => openEditorFind() },
   { key: 'undo', title: 'Undo', ariaLabel: 'Undo', icon: 'undo', onClick: undo, disabled: !canUndo.value },
   { key: 'redo', title: 'Redo', ariaLabel: 'Redo', icon: 'redo', onClick: redo, disabled: !canRedo.value },
   { key: 'save', title: 'Save', ariaLabel: 'Save', icon: 'save', onClick: () => emit('save') }
@@ -230,6 +241,7 @@ watch(editorMode, (value) => {
   writeEditorModePref(value)
   emit('mode-change', value)
   wikilink.close()
+  editorFind.closeFind()
   void refreshPreview()
 })
 
@@ -459,7 +471,26 @@ function refreshWikilinkSuggestions() {
   void wikilink.refresh()
 }
 
+function cancelWikilinkBlur() {
+  if (wikilinkBlurTimer !== undefined) {
+    clearTimeout(wikilinkBlurTimer)
+    wikilinkBlurTimer = undefined
+  }
+}
+
+function onEditorBlur() {
+  cancelWikilinkBlur()
+  wikilinkBlurTimer = setTimeout(() => wikilink.close(), 120)
+}
+
+function openEditorFind() {
+  cancelWikilinkBlur()
+  wikilink.close()
+  editorFind.openFind()
+}
+
 function applyWikilinkSuggestion(index: number) {
+  cancelWikilinkBlur()
   const item = wikilink.selectIndex(index)
   if (!item) return
   const el = getEditorElement()
@@ -486,6 +517,12 @@ function onEditorInput(event: Event) {
 }
 
 function onEditorKeydown(event: KeyboardEvent) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
+    event.preventDefault()
+    openEditorFind()
+    return
+  }
+  if (editorFind.handleKeydown(event)) return
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
     event.preventDefault()
     emit('save')
@@ -823,10 +860,12 @@ function onAnnotationDeleted(id: string) {
 
 onMounted(() => {
   emit('mode-change', editorMode.value)
+  void getPages()
   void refreshPreview()
 })
 
 onBeforeUnmount(() => {
+  cancelWikilinkBlur()
   clearDragListeners()
 })
 
@@ -888,13 +927,20 @@ defineExpose({
         :wikilink-items="wikilinkItems"
         :wikilink-selected="wikilinkSelected"
         :wikilink-menu-style="wikilinkMenuStyle"
+        :find-open="findBarOpen"
+        :find-query="findBarQuery"
+        :find-status-label="findBarStatusLabel"
         @input="onEditorInput"
         @keydown="onEditorKeydown"
         @click="refreshWikilinkSuggestions"
         @keyup="refreshWikilinkSuggestions"
         @scroll="onEditorScroll"
-        @blur="wikilink.close()"
+        @blur="onEditorBlur"
         @select-wikilink="applyWikilinkSuggestion"
+        @update:find-query="editorFind.query.value = $event; editorFind.refreshMatches()"
+        @find-next="editorFind.findNext()"
+        @find-prev="editorFind.findPrev()"
+        @find-close="editorFind.closeFind()"
       />
       <VerticalPaneResizer
         v-if="editorMode === 'split' && !isMobile"
@@ -1134,6 +1180,12 @@ defineExpose({
   color: #8ac5ff;
 }
 
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .wikilink-missing),
+.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .mdlink-internal-missing) {
+  color: #fbbf24;
+  background: color-mix(in srgb, #fbbf24 14%, transparent);
+}
+
 .markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .external-link) {
   color: #a8b4c4;
 }
@@ -1367,6 +1419,11 @@ defineExpose({
   color: var(--color-wikilink);
   text-decoration: underline;
   text-decoration-style: dotted;
+}
+
+:deep(.markdown-body .wikilink-missing),
+:deep(.markdown-body .mdlink-internal-missing) {
+  color: var(--color-wikilink-missing);
 }
 
 :deep(.markdown-body .external-link) {

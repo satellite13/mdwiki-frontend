@@ -1,8 +1,9 @@
-import client from '@/api/client'
+import { listPages } from '@/api/pages'
 import type { PageListItem } from '@/types'
 import { normalizePageSlug, normalizeWikilinkKey } from '@/utils/pageSlug'
 
 const TTL_MS = 30_000
+const PAGE_FETCH_SIZE = 500
 
 interface IndexSnapshot {
   pages: PageListItem[]
@@ -21,18 +22,46 @@ export function invalidatePageIndex(): void {
   snapshot = null
 }
 
+/** Сопоставление страницы с текстом внутри `[[...]]` (подстрока title/slug и нормализованный ключ). */
+export function pageMatchesWikilinkQuery(item: PageListItem, rawQuery: string): boolean {
+  const query = rawQuery.trim().toLowerCase()
+  if (!query) return true
+  const queryKey = normalizeWikilinkKey(rawQuery)
+  const titleKey = normalizeWikilinkKey(item.title)
+  const slugKey = normalizeWikilinkKey(item.slug)
+  return (
+    item.title.toLowerCase().includes(query) ||
+    item.slug.toLowerCase().includes(query) ||
+    (queryKey.length > 0 && (titleKey.includes(queryKey) || slugKey.includes(queryKey)))
+  )
+}
+
 /** Внутренний запрос со схлопыванием одновременных обращений. */
 function fetchPages(): Promise<PageListItem[]> {
   if (pendingFetch) return pendingFetch
-  pendingFetch = client
-    .get<PageListItem[]>('/pages')
-    .then((res) => {
-      snapshot = { pages: res.data, fetchedAt: Date.now() }
-      return res.data
-    })
-    .finally(() => {
-      pendingFetch = null
-    })
+  pendingFetch = (async () => {
+    const all: PageListItem[] = []
+    let page = 0
+    let total = Number.POSITIVE_INFINITY
+
+    while (all.length < total) {
+      const res = await listPages({ page, size: PAGE_FETCH_SIZE })
+      const headerTotal = res.headers['x-total-count']
+      if (headerTotal != null && headerTotal !== '') {
+        total = Number(headerTotal)
+      } else if (res.data.length < PAGE_FETCH_SIZE) {
+        total = all.length + res.data.length
+      }
+      all.push(...res.data)
+      if (res.data.length === 0) break
+      page += 1
+    }
+
+    snapshot = { pages: all, fetchedAt: Date.now() }
+    return all
+  })().finally(() => {
+    pendingFetch = null
+  })
   return pendingFetch
 }
 
@@ -82,6 +111,12 @@ export function wikilinkPreviewHref(rawInner: string): string {
   const slug = resolved ?? normalizeWikilinkKey(rawInner.trim())
   if (!slug) return '#'
   return `/page/${encodeURIComponent(slug)}`
+}
+
+/** true, если индекс страниц уже загружен и цель `[[...]]` / `/page/...` не найдена. */
+export function isMissingPageReference(rawInner: string): boolean {
+  if (getCachedPages().length === 0) return false
+  return resolveWikilinkToSlug(rawInner) === null
 }
 
 /** Варианты slug для GET /pages/{slug} после перехода по ссылке (в т.ч. устаревший транслит в URL). */

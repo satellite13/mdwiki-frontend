@@ -1,5 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createMarkdownRenderer } from './markdown'
+
+vi.mock('@/services/pageIndex', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/pageIndex')>()
+  return {
+    ...actual,
+    isMissingPageReference: vi.fn(() => false)
+  }
+})
+
+import { isMissingPageReference } from '@/services/pageIndex'
+
+const mockedIsMissing = vi.mocked(isMissingPageReference)
+
+beforeEach(() => {
+  mockedIsMissing.mockReturnValue(false)
+})
 
 describe('createMarkdownRenderer task lists', () => {
   it('renders inline code in a task item without duplicated raw markdown text', () => {
@@ -97,5 +113,28 @@ describe('createMarkdownRenderer link classification', () => {
     expect(html).not.toContain('external-link')
     expect(html).not.toContain('mdlink-internal')
     expect(html).not.toContain('open_in_new')
+  })
+
+  it('marks missing wikilinks with wikilink-missing class', () => {
+    mockedIsMissing.mockImplementation((raw) => raw === 'ghost-page')
+    const md = createMarkdownRenderer()
+    const html = md.render('См. [[ghost-page|Призрак]] и [[real-page|Реальная]]')
+
+    expect(html).toContain('class="wikilink wikilink-missing"')
+    expect(html).toContain('data-missing="1"')
+    expect(html).toContain('>Призрак<')
+    expect(html).toContain('class="wikilink"')
+    expect(html).not.toContain('[[real-page')
+    expect(html).toContain('>Реальная<')
+    expect(html).not.toMatch(/real-page[^<]*wikilink-missing/)
+  })
+
+  it('marks missing internal /page links with mdlink-internal-missing class', () => {
+    mockedIsMissing.mockImplementation((raw) => raw === 'ghost-page')
+    const md = createMarkdownRenderer()
+    const html = md.render('[Призрак](/page/ghost-page)')
+
+    expect(html).toContain('class="mdlink-internal mdlink-internal-missing"')
+    expect(html).toContain('data-missing="1"')
   })
 })
