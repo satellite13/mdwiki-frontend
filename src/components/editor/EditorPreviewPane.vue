@@ -18,6 +18,9 @@ const emit = defineEmits<{
   click: [event: MouseEvent]
   scroll: [event: Event]
   selectHeading: [id: string]
+  mouseup: [event: MouseEvent]
+  mousedown: [event: MouseEvent]
+  touchend: [event: TouchEvent]
 }>()
 
 const rootEl = ref<HTMLElement | null>(null)
@@ -43,6 +46,9 @@ defineExpose({
     ]"
     @click="emit('click', $event)"
     @scroll="emit('scroll', $event)"
+    @mouseup="emit('mouseup', $event)"
+    @mousedown="emit('mousedown', $event)"
+    @touchend="emit('touchend', $event)"
   >
     <div class="reading-layout" :class="{ 'with-toc': props.showToc }">
       <div class="preview-content markdown-body" :style="props.readingPreviewStyle" v-html="props.previewHtml" />

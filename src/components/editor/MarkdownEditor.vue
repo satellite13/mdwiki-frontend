@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDialogStore } from '@/stores/dialog'
 import { useThemeStore } from '@/stores/theme'
 import { uploadAttachment } from '@/api/attachments'
+import { listAnnotations } from '@/api/annotations'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { downloadPagePdf } from '@/utils/exportPagePdf'
 import { t } from '@/utils/i18n'
@@ -18,6 +19,9 @@ import ReadingToolbar from '@/components/editor/ReadingToolbar.vue'
 import EditorToolbar from '@/components/editor/EditorToolbar.vue'
 import EditorPreviewPane from '@/components/editor/EditorPreviewPane.vue'
 import EditorInputPane from '@/components/editor/EditorInputPane.vue'
+import AnnotationPanel from '@/components/annotations/AnnotationPanel.vue'
+import AnnotationPopup from '@/components/annotations/AnnotationPopup.vue'
+import type { Annotation } from '@/types'
 import { usePreviewCopyDecorations } from '@/components/editor/usePreviewCopyDecorations'
 import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPipeline'
 import { useReadingToc } from '@/components/editor/useReadingToc'
@@ -99,6 +103,12 @@ const readingFontSize = ref(readReadingFontSizePref())
 const readingTheme = ref<ReadingTheme>(readReadingThemePref())
 const readingTocVisible = ref(true)
 const exportingPdf = ref(false)
+
+const annotations = ref<Annotation[]>([])
+const annotationsVisible = ref(false)
+const annotationPopup = ref<{ selectedText: string; anchorContext: string; x: number; y: number } | null>(null)
+const floatingBtn = ref<{ x: number; y: number } | null>(null)
+let annotationHighlightSpans: HTMLSpanElement[] = []
 
 const wikilink = useWikilinkAutocomplete({
   getEditor: () => getEditorElement(),
@@ -242,6 +252,18 @@ watch(
     await renderPreviewDiagrams()
   }
 )
+
+watch(editorMode, (mode) => {
+  if (mode === 'reading') {
+    annotationsVisible.value = false
+    void fetchAnnotations().then(() => {
+      void nextTick().then(() => applyAnnotationHighlights())
+    })
+  } else {
+    clearAnnotationHighlights()
+    annotationsVisible.value = false
+  }
+})
 
 function applyValue(value: string, options?: { keepHistory?: boolean }) {
   markdownValue.value = value
@@ -618,6 +640,9 @@ async function renderPreviewDiagrams() {
   previewCopyDecorations.decorateHeadingAnchors()
   previewCopyDecorations.decorateCodeCopyButtons()
   readingToc.buildReadingToc()
+  if (editorMode.value === 'reading') {
+    applyAnnotationHighlights()
+  }
 }
 
 async function refreshPreview() {
@@ -636,6 +661,164 @@ async function refreshPreview() {
 
 async function onPreviewClick(event: MouseEvent) {
   await previewCopyDecorations.onPreviewClick(event)
+}
+
+function getPageSlugFromUrl(): string | null {
+  const path = window.location.pathname
+  const match = path.match(/^\/page\/(.+)/)
+  return match ? match[1] : null
+}
+
+async function fetchAnnotations() {
+  const slug = getPageSlugFromUrl()
+  if (!slug) return
+  try {
+    const { data } = await listAnnotations(slug)
+    annotations.value = data
+  } catch {
+    annotations.value = []
+  }
+}
+
+function clearAnnotationHighlights() {
+  for (const span of annotationHighlightSpans) {
+    const parent = span.parentNode
+    if (parent) {
+      parent.replaceChild(document.createTextNode(span.textContent || ''), span)
+      parent.normalize()
+    }
+  }
+  annotationHighlightSpans = []
+}
+
+function applyAnnotationHighlights() {
+  clearAnnotationHighlights()
+  if (annotations.value.length === 0) return
+  const container = getPreviewContentElement()
+  if (!container) return
+
+  for (const annotation of annotations.value) {
+    const text = annotation.highlightedText
+    if (!text) continue
+    const color = annotation.color || '#ffeb3b'
+    highlightTextInNode(container, text, color)
+  }
+}
+
+function highlightTextInNode(root: HTMLElement, searchText: string, color: string) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => {
+      if (!node.textContent || !node.textContent.includes(searchText)) return NodeFilter.FILTER_REJECT
+      const parent = node.parentElement
+      if (!parent || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE' || parent.tagName === 'MARK') {
+        return NodeFilter.FILTER_REJECT
+      }
+      return NodeFilter.FILTER_ACCEPT
+    }
+  })
+
+  const nodes: Text[] = []
+  while (walker.nextNode()) {
+    nodes.push(walker.currentNode as Text)
+  }
+
+  for (const textNode of nodes) {
+    const content = textNode.textContent || ''
+    const idx = content.indexOf(searchText)
+    if (idx === -1) continue
+
+    const before = content.slice(0, idx)
+    const match = content.slice(idx, idx + searchText.length)
+    const after = content.slice(idx + searchText.length)
+
+    const parent = textNode.parentNode!
+    const beforeNode = document.createTextNode(before)
+    const markEl = document.createElement('mark')
+    markEl.className = 'annotation-highlight'
+    markEl.style.backgroundColor = color
+    markEl.style.borderRadius = '2px'
+    markEl.style.padding = '0 1px'
+    markEl.dataset.annotationText = searchText
+    markEl.textContent = match
+    const afterNode = document.createTextNode(after)
+
+    annotationHighlightSpans.push(markEl)
+    parent.insertBefore(beforeNode, textNode)
+    parent.insertBefore(markEl, textNode)
+    parent.insertBefore(afterNode, textNode)
+    parent.removeChild(textNode)
+    break
+  }
+}
+
+function onReadingMouseUp() {
+  if (editorMode.value !== 'reading') return
+  const sel = window.getSelection()
+  if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+    floatingBtn.value = null
+    return
+  }
+  const range = sel.getRangeAt(0)
+  const rect = range.getBoundingClientRect()
+  floatingBtn.value = {
+    x: rect.left + rect.width / 2 - 60,
+    y: rect.top - 36
+  }
+}
+
+function onReadingMouseDown() {
+  floatingBtn.value = null
+}
+
+function onReadingTouchEnd() {
+  setTimeout(() => {
+    if (editorMode.value !== 'reading') return
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+      floatingBtn.value = null
+      return
+    }
+    const range = sel.getRangeAt(0)
+    const rect = range.getBoundingClientRect()
+    floatingBtn.value = {
+      x: rect.left + rect.width / 2 - 60,
+      y: rect.top - 36
+    }
+  }, 10)
+}
+
+function startAnnotation() {
+  const sel = window.getSelection()
+  if (!sel || sel.isCollapsed) return
+  const selectedText = sel.toString().trim()
+  if (!selectedText) return
+
+  const container = getPreviewContentElement()
+  const fullText = container?.textContent || ''
+  const idx = fullText.indexOf(selectedText)
+  const ctxStart = Math.max(0, idx - 40)
+  const ctxEnd = Math.min(fullText.length, idx + selectedText.length + 40)
+  const anchorContext = fullText.slice(ctxStart, ctxEnd)
+
+  const btn = floatingBtn.value
+  annotationPopup.value = {
+    selectedText,
+    anchorContext,
+    x: (btn?.x ?? 200) - 140,
+    y: (btn?.y ?? 100) + 40
+  }
+  floatingBtn.value = null
+  window.getSelection()?.removeAllRanges()
+}
+
+function onAnnotationCreated(annotation: Annotation) {
+  annotations.value = [...annotations.value, annotation]
+  void nextTick().then(() => applyAnnotationHighlights())
+}
+
+function onAnnotationDeleted(id: string) {
+  annotations.value = annotations.value.filter((a) => a.id !== id)
+  void nextTick().then(() => applyAnnotationHighlights())
 }
 
 onMounted(() => {
@@ -673,9 +856,11 @@ defineExpose({
           :font-max="READING_FONT_MAX"
           :theme="readingTheme"
           :toc-visible="readingTocVisible"
+          :annotations-visible="annotationsVisible"
           @update:font-size="readingFontSize = $event"
           @update:theme="readingTheme = $event"
           @update:toc-visible="readingTocVisible = $event"
+          @update:annotations-visible="annotationsVisible = $event"
           @exit="exitReadingMode"
           @export-pdf="exportToPdf"
         />
@@ -718,8 +903,34 @@ defineExpose({
         @mousedown="startSplitDrag"
         @dblclick="resetSplitRatio"
       />
+      <div
+        v-if="editorMode === 'reading' && annotationsVisible"
+        class="reading-with-annotations"
+      >
+        <EditorPreviewPane
+          ref="previewPaneRef"
+          :is-reading="true"
+          :reading-theme="readingTheme"
+          :show-toc="previewHasToc"
+          :reading-toc-items="readingTocItems"
+          :preview-html="previewHtml"
+          :reading-preview-style="readingPreviewStyle"
+          @click="onPreviewClick"
+          @scroll="onPreviewScroll"
+          @select-heading="readingToc.scrollToHeading"
+          @mouseup="onReadingMouseUp"
+          @mousedown="onReadingMouseDown"
+          @touchend="onReadingTouchEnd"
+        />
+        <AnnotationPanel
+          :annotations="annotations"
+          :visible="annotationsVisible"
+          @update:visible="annotationsVisible = $event"
+          @deleted="onAnnotationDeleted"
+        />
+      </div>
       <EditorPreviewPane
-        v-if="editorMode !== 'editor'"
+        v-else-if="editorMode !== 'editor'"
         ref="previewPaneRef"
         :is-reading="editorMode === 'reading'"
         :reading-theme="readingTheme"
@@ -730,6 +941,9 @@ defineExpose({
         @click="onPreviewClick"
         @scroll="onPreviewScroll"
         @select-heading="readingToc.scrollToHeading"
+        @mouseup="onReadingMouseUp"
+        @mousedown="onReadingMouseDown"
+        @touchend="onReadingTouchEnd"
       />
     </div>
     <input
@@ -743,6 +957,25 @@ defineExpose({
     <p v-if="uploadError" class="upload-error">
       {{ uploadError }}
     </p>
+    <button
+      v-if="floatingBtn"
+      type="button"
+      class="annotation-floating-btn"
+      :style="{ left: floatingBtn.x + 'px', top: floatingBtn.y + 'px' }"
+      @click.stop="startAnnotation"
+    >
+      <span class="material-symbols-outlined notranslate" translate="no">chat_bubble</span>
+      Add annotation
+    </button>
+    <AnnotationPopup
+      v-if="annotationPopup"
+      :selected-text="annotationPopup.selectedText"
+      :anchor-context="annotationPopup.anchorContext"
+      :x="annotationPopup.x"
+      :y="annotationPopup.y"
+      @close="annotationPopup = null"
+      @created="onAnnotationCreated"
+    />
   </div>
 </template>
 
@@ -1276,4 +1509,52 @@ defineExpose({
   height: auto;
 }
 
+.reading-with-annotations {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.reading-with-annotations :deep(.preview-pane) {
+  flex: 1;
+  min-width: 0;
+}
+
+.annotation-floating-btn {
+  position: fixed;
+  z-index: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+  transition: transform 0.1s;
+}
+
+.annotation-floating-btn:hover {
+  transform: scale(1.05);
+}
+
+.annotation-floating-btn .material-symbols-outlined {
+  font-size: 16px;
+  line-height: 1;
+}
+
+:deep(.annotation-highlight) {
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+:deep(.annotation-highlight:hover) {
+  filter: brightness(0.85);
+}
 </style>

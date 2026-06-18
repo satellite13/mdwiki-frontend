@@ -8,12 +8,14 @@ const props = defineProps<{
   fontMax: number
   theme: ReadingTheme
   tocVisible: boolean
+  annotationsVisible?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:fontSize': [value: number]
   'update:theme': [value: ReadingTheme]
   'update:tocVisible': [value: boolean]
+  'update:annotationsVisible': [value: boolean]
   exit: []
   exportPdf: []
 }>()
@@ -75,6 +77,16 @@ function toggleToc() {
       @click="toggleToc"
     >
       <span class="material-symbols-outlined notranslate" translate="no">toc</span>
+    </button>
+    <button
+      type="button"
+      class="reading-annotations-toggle"
+      :class="{ active: props.annotationsVisible }"
+      title="Annotations"
+      aria-label="Annotations"
+      @click="emit('update:annotationsVisible', !(props.annotationsVisible ?? false))"
+    >
+      <span class="material-symbols-outlined notranslate" translate="no">chat_bubble</span>
     </button>
     <button
       type="button"
@@ -174,7 +186,8 @@ function toggleToc() {
 }
 
 .reading-export-btn,
-.reading-toc-toggle {
+.reading-toc-toggle,
+.reading-annotations-toggle {
   width: 30px;
   height: 30px;
   border: 1px solid var(--color-border);
@@ -187,13 +200,15 @@ function toggleToc() {
   padding: 0;
 }
 
-.reading-toc-toggle.active {
+.reading-toc-toggle.active,
+.reading-annotations-toggle.active {
   color: var(--color-primary);
   border-color: var(--color-primary);
 }
 
 .reading-export-btn .material-symbols-outlined,
-.reading-toc-toggle .material-symbols-outlined {
+.reading-toc-toggle .material-symbols-outlined,
+.reading-annotations-toggle .material-symbols-outlined {
   font-size: 18px;
   line-height: 1;
 }

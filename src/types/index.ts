@@ -111,6 +111,34 @@ export interface EmbeddingSettingsWarning {
   actualDimension: number
 }
 
+export interface Annotation {
+  id: string
+  pageId: string
+  highlightedText: string
+  anchorContext: string
+  comment: string | null
+  rangeStart: number | null
+  rangeEnd: number | null
+  color: string | null
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateAnnotationPayload {
+  highlightedText: string
+  anchorContext: string
+  comment?: string | null
+  rangeStart?: number | null
+  rangeEnd?: number | null
+  color?: string | null
+}
+
+export interface UpdateAnnotationPayload {
+  comment?: string | null
+  color?: string | null
+}
+
 export interface EmbeddingSettings {
   provider: 'openai' | 'ollama' | 'lmstudio'
   model: string
