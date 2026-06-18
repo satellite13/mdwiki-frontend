@@ -3,6 +3,7 @@ import { ref, onBeforeUnmount, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import * as apiKeysApi from '@/api/apiKeys'
+import { changePassword } from '@/api/auth'
 import type { ApiKey } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
@@ -16,6 +17,13 @@ const createdKey = ref<string | null>(null)
 const loading = ref(true)
 const copyState = ref<'idle' | 'ok' | 'fail'>('idle')
 let copyFeedbackTimer: number | null = null
+
+// Change password state
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const passwordLoading = ref(false)
+const showPassword = ref(false)
 
 async function fetchKeys() {
   loading.value = true
@@ -52,6 +60,36 @@ async function deleteKey(id: string) {
     await fetchKeys()
   } catch (e) {
     await dialog.alert(getApiErrorMessage(e, t.errors.deleteApiKeyFailed))
+  }
+}
+
+async function changePasswordAction() {
+  if (newPassword.value.length < 8) {
+    await dialog.alert(t.profile.passwordMinLength)
+    return
+  }
+  if (newPassword.value !== confirmPassword.value) {
+    await dialog.alert(t.profile.passwordsDoNotMatch)
+    return
+  }
+  if (!currentPassword.value) {
+    return
+  }
+
+  passwordLoading.value = true
+  try {
+    await changePassword({
+      currentPassword: currentPassword.value,
+      newPassword: newPassword.value
+    })
+    await dialog.alert(t.profile.passwordChanged)
+    currentPassword.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t.errors.changePasswordFailed))
+  } finally {
+    passwordLoading.value = false
   }
 }
 
@@ -107,6 +145,37 @@ onBeforeUnmount(() => {
       <p><strong>Username:</strong> {{ auth.username }}</p>
       <p><strong>Role:</strong> <span class="role-badge">{{ auth.role }}</span></p>
     </div>
+
+    <h2>{{ t.profile.changePasswordTitle }}</h2>
+    <p class="hint">Update your account password. You will need your current password to make changes.</p>
+
+    <form class="password-form" @submit.prevent="changePasswordAction">
+      <div class="form-field">
+        <label>{{ t.profile.currentPassword }}</label>
+        <input v-model="currentPassword" type="password" autocomplete="current-password" />
+      </div>
+      <div class="form-field">
+        <label>{{ t.profile.newPassword }}</label>
+        <div class="password-input-row">
+          <input
+            v-model="newPassword"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            :minlength="8"
+          />
+          <button type="button" class="btn-secondary toggle-btn" @click="showPassword = !showPassword">
+            {{ showPassword ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>{{ t.profile.confirmPassword }}</label>
+        <input v-model="confirmPassword" type="password" autocomplete="new-password" />
+      </div>
+      <button type="submit" class="btn-primary" :disabled="passwordLoading">
+        {{ passwordLoading ? 'Saving...' : t.common.save }}
+      </button>
+    </form>
 
     <h2>API Keys</h2>
     <p class="hint">API keys are used to authenticate MCP clients (Claude, etc.) with your wiki.</p>
@@ -187,6 +256,45 @@ onBeforeUnmount(() => {
   color: var(--color-text-muted);
   font-size: 14px;
   margin-bottom: 20px;
+}
+
+.password-form {
+  max-width: 420px;
+  margin-bottom: 8px;
+}
+
+.form-field {
+  margin-bottom: 16px;
+}
+
+.form-field label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.form-field input {
+  width: 100%;
+}
+
+.password-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.password-input-row input {
+  flex: 1;
+}
+
+.toggle-btn {
+  white-space: nowrap;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.password-form .btn-primary {
+  margin-top: 4px;
 }
 
 .key-created {
@@ -279,6 +387,15 @@ onBeforeUnmount(() => {
 
   .hint {
     font-size: 13px;
+  }
+
+  .password-form {
+    max-width: 100%;
+  }
+
+  .password-form .btn-primary {
+    width: 100%;
+    min-height: 44px;
   }
 
   .key-created {

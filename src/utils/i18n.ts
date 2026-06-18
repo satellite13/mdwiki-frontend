@@ -103,6 +103,7 @@ export const t = {
     loadApiKeysFailed: 'Failed to load API keys',
     createApiKeyFailed: 'Failed to create API key',
     deleteApiKeyFailed: 'Failed to delete API key',
+    changePasswordFailed: 'Failed to change password',
     searchFailed: 'Search failed',
     loadPageFailed: 'Failed to load page',
     loadTreeFailed: 'Failed to refresh tree',
@@ -110,6 +111,13 @@ export const t = {
   },
   profile: {
     confirmDeleteApiKey: 'Delete this API key?',
+    changePasswordTitle: 'Change Password',
+    currentPassword: 'Current password',
+    newPassword: 'New password',
+    confirmPassword: 'Confirm new password',
+    passwordMinLength: 'New password must be at least 8 characters',
+    passwordsDoNotMatch: 'Passwords do not match',
+    passwordChanged: 'Password changed successfully.',
   },
   attachments: {
     confirmDelete: (name: string) => `Delete "${name}"?`,
