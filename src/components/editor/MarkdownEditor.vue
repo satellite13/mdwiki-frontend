@@ -1606,6 +1606,17 @@ defineExpose({
   line-height: 1;
 }
 
+@media (max-width: 768px) {
+  .annotation-floating-btn {
+    padding: 10px 18px;
+    font-size: 14px;
+    border-radius: 10px;
+    transform: translateX(-50%);
+    left: 50% !important;
+    top: 20px !important;
+  }
+}
+
 :deep(.annotation-highlight) {
   cursor: pointer;
   transition: filter 0.15s;

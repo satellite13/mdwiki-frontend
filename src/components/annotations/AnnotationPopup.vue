@@ -275,4 +275,15 @@ onBeforeUnmount(() => {
 .btn-secondary:hover {
   background: var(--color-bg-hover);
 }
+
+@media (max-width: 768px) {
+  .annotation-popup {
+    position: fixed;
+    left: 16px !important;
+    right: 16px;
+    top: auto !important;
+    bottom: 16px;
+    width: auto;
+  }
+}
 </style>

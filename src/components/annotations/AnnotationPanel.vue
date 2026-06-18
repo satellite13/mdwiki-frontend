@@ -203,4 +203,20 @@ async function onDelete(annotation: Annotation) {
   font-size: 16px;
   line-height: 1;
 }
+
+@media (max-width: 768px) {
+  .annotation-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 50vh;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    border-radius: 12px 12px 0 0;
+    z-index: 1000;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  }
+}
 </style>
