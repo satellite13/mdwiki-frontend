@@ -111,6 +111,7 @@ const annotationsVisible = ref(false)
 const annotationPopup = ref<{ selectedText: string; anchorContext: string; x: number; y: number } | null>(null)
 const floatingBtn = ref<{ x: number; y: number } | null>(null)
 const pendingAnnotation = ref<{ text: string; context: string } | null>(null)
+const tooltipAnnotation = ref<{ annotation: Annotation; x: number; y: number } | null>(null)
 let annotationHighlightSpans: HTMLSpanElement[] = []
 
 const wikilink = useWikilinkAutocomplete({
@@ -781,6 +782,16 @@ function highlightTextInNode(root: HTMLElement, searchText: string, color: strin
     const afterNode = document.createTextNode(after)
 
     annotationHighlightSpans.push(markEl)
+    markEl.addEventListener('click', (e) => {
+      const ann = annotations.value.find(a => a.highlightedText === searchText)
+      if (!ann) return
+      const rect = (e.target as HTMLElement).getBoundingClientRect()
+      tooltipAnnotation.value = {
+        annotation: ann,
+        x: rect.left + rect.width / 2,
+        y: rect.top - 8
+      }
+    })
     parent.insertBefore(beforeNode, textNode)
     parent.insertBefore(markEl, textNode)
     parent.insertBefore(afterNode, textNode)
@@ -881,6 +892,11 @@ function onAnnotationCreated(annotation: Annotation) {
 function onAnnotationDeleted(id: string) {
   annotations.value = annotations.value.filter((a) => a.id !== id)
   void nextTick().then(() => applyAnnotationHighlights())
+}
+
+function onPreviewClick(event: MouseEvent) {
+  tooltipAnnotation.value = null
+  void previewCopyDecorations.onPreviewClick(event)
 }
 
 onMounted(() => {
@@ -1047,6 +1063,22 @@ defineExpose({
       @close="annotationPopup = null"
       @created="onAnnotationCreated"
     />
+    <div
+      v-if="tooltipAnnotation"
+      class="annotation-tooltip"
+      :style="{ left: tooltipAnnotation.x + 'px', top: tooltipAnnotation.y + 'px' }"
+      @click.stop="tooltipAnnotation = null"
+    >
+      <div class="tooltip-text">
+        <q>{{ tooltipAnnotation.annotation.highlightedText }}</q>
+      </div>
+      <div v-if="tooltipAnnotation.annotation.comment" class="tooltip-comment">
+        {{ tooltipAnnotation.annotation.comment }}
+      </div>
+      <div class="tooltip-meta">
+        <span>{{ tooltipAnnotation.annotation.createdBy }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1649,5 +1681,54 @@ defineExpose({
 
 :deep(.annotation-highlight:hover) {
   filter: brightness(0.85);
+}
+
+.annotation-tooltip {
+  position: fixed;
+  z-index: 600;
+  transform: translate(-50%, -100%);
+  max-width: 320px;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  pointer-events: auto;
+}
+
+.annotation-tooltip .tooltip-text q {
+  font-style: italic;
+  font-size: 12px;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.annotation-tooltip .tooltip-comment {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--color-bg-hover);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.annotation-tooltip .tooltip-meta {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--color-text-faint);
+}
+
+@media (max-width: 768px) {
+  .annotation-tooltip {
+    position: fixed;
+    left: 16px !important;
+    right: 16px;
+    top: auto !important;
+    bottom: 16px;
+    max-width: none;
+    transform: none;
+  }
 }
 </style>
