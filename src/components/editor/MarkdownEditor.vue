@@ -699,6 +699,7 @@ async function refreshPreview() {
 }
 
 async function onPreviewClick(event: MouseEvent) {
+  tooltipAnnotation.value = null
   await previewCopyDecorations.onPreviewClick(event)
 }
 
@@ -783,6 +784,7 @@ function highlightTextInNode(root: HTMLElement, searchText: string, color: strin
 
     annotationHighlightSpans.push(markEl)
     markEl.addEventListener('click', (e) => {
+      e.stopPropagation()
       const ann = annotations.value.find(a => a.highlightedText === searchText)
       if (!ann) return
       const rect = (e.target as HTMLElement).getBoundingClientRect()
@@ -894,15 +896,15 @@ function onAnnotationDeleted(id: string) {
   void nextTick().then(() => applyAnnotationHighlights())
 }
 
-function onPreviewClick(event: MouseEvent) {
-  tooltipAnnotation.value = null
-  void previewCopyDecorations.onPreviewClick(event)
-}
-
 onMounted(() => {
   emit('mode-change', editorMode.value)
   void getPages()
   void refreshPreview()
+  if (editorMode.value === 'reading') {
+    void fetchAnnotations().then(() => {
+      void nextTick().then(() => applyAnnotationHighlights())
+    })
+  }
 })
 
 onBeforeUnmount(() => {
