@@ -137,4 +137,22 @@ describe('createMarkdownRenderer link classification', () => {
     expect(html).toContain('class="mdlink-internal mdlink-internal-missing"')
     expect(html).toContain('data-missing="1"')
   })
+
+  it('does not render wikilinks inside inline code as links', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('Use `[[wikilinks]]` syntax')
+
+    expect(html).toContain('<code>')
+    expect(html).toContain('[[wikilinks]]')
+    expect(html).not.toContain('class="wikilink"')
+  })
+
+  it('does not render wikilinks inside nested backtick code as links', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('Use `` `[[wikilinks]]` `` syntax')
+
+    expect(html).toContain('<code>')
+    expect(html).toContain('`[[wikilinks]]`')
+    expect(html).not.toContain('class="wikilink"')
+  })
 })
