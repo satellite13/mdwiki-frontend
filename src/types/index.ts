@@ -70,6 +70,25 @@ export interface RewriteBrokenLinksResult {
   skippedLocked: string[]
 }
 
+export interface OpenTask {
+  documentId: string
+  slug: string
+  documentTitle: string
+  text: string
+  sourceOffset: number
+  sourceLine: string
+  updatedAt: string
+  locked: boolean
+}
+
+export interface CompleteTaskPayload {
+  documentId: string
+  updatedAt: string
+  sourceOffset: number
+  sourceLine: string
+  summary?: string
+}
+
 export interface Tag {
   id: string
   name: string

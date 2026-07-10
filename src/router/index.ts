@@ -16,6 +16,7 @@ const router = createRouter({
         { path: 'search', name: 'search', component: () => import('@/components/search/SearchPage.vue') },
         { path: 'graph', name: 'wiki-graph', component: () => import('@/components/graph/WikiGraphPage.vue') },
         { path: 'broken-links', name: 'broken-links', component: () => import('@/components/links/BrokenLinksPage.vue') },
+        { path: 'tasks', name: 'open-tasks', component: () => import('@/components/tasks/OpenTasksPage.vue') },
         { path: 'attachments', name: 'attachments', component: () => import('@/components/attachments/AttachmentsPage.vue') },
         { path: 'profile', name: 'profile', component: () => import('@/components/profile/ProfilePage.vue') },
         { path: 'admin/users', name: 'admin-users', component: () => import('@/components/admin/AdminUsersPage.vue'), meta: { requiresAdmin: true } },

@@ -94,6 +94,7 @@ function onNavClick() {
     <nav class="header-nav hide-mobile" aria-label="Main navigation">
       <router-link :to="graphLinkTo" class="nav-link" title="All pages and links in the wiki" @click="onNavClick">Graph</router-link>
       <router-link to="/broken-links" class="nav-link" @click="onNavClick">Broken links</router-link>
+      <router-link to="/tasks" class="nav-link" @click="onNavClick">Tasks</router-link>
       <router-link to="/attachments" class="nav-link" @click="onNavClick">Attachments</router-link>
       <router-link to="/profile" class="nav-link" @click="onNavClick">{{ auth.username }}</router-link>
       <router-link
@@ -167,6 +168,7 @@ function onNavClick() {
         <div class="mobile-nav-title">MDWiki</div>
         <router-link :to="graphLinkTo" class="mobile-nav-link" @click="onNavClick">Graph</router-link>
         <router-link to="/broken-links" class="mobile-nav-link" @click="onNavClick">Broken links</router-link>
+        <router-link to="/tasks" class="mobile-nav-link" @click="onNavClick">Tasks</router-link>
         <router-link to="/attachments" class="mobile-nav-link" @click="onNavClick">Attachments</router-link>
         <router-link to="/profile" class="mobile-nav-link" @click="onNavClick">{{ auth.username }}</router-link>
         <router-link
