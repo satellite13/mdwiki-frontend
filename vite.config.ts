@@ -10,6 +10,8 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 }
 
 function gitShortSha(): string {
+  const fromEnv = process.env.APP_GIT_SHA?.trim()
+  if (fromEnv) return fromEnv
   try {
     return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim() || 'unknown'
   } catch {

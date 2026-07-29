@@ -52,7 +52,10 @@ if [[ ! -d "${CHART_DIR}" ]]; then
 fi
 
 echo "Building image ${IMAGE_REPOSITORY}:${IMAGE_TAG}"
-docker build -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" "${ROOT_DIR}"
+docker build \
+  --build-arg "APP_GIT_SHA=${DEFAULT_SHA}" \
+  -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" \
+  "${ROOT_DIR}"
 
 if [[ "${PUSH_IMAGE}" == "true" ]]; then
   echo "Pushing image ${IMAGE_REPOSITORY}:${IMAGE_TAG}"
