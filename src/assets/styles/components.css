@@ -57,6 +57,102 @@
   font-size: 15px;
 }
 
+/* ============================================
+   Grouped list pages (BrokenLinks, OpenTasks)
+   ============================================ */
+
+.grouped-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 2rem;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.page-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-muted, #656d76);
+}
+
+.empty-state {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--color-text-muted, #656d76);
+  border: 1px dashed var(--color-border, #d0d7de);
+  border-radius: 12px;
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.group-card {
+  border: 1px solid var(--color-border, #d0d7de);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-surface, #fff);
+}
+
+.group-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.group-meta {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted, #656d76);
+  font-size: 0.9rem;
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--color-wikilink, #0d9488);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.field-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border, #d0d7de);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--color-bg, #fff);
+  color: inherit;
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 @media (max-width: 767px) {
   .auth-page {
     min-height: 100dvh;

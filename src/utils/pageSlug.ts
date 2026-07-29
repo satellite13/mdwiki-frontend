@@ -52,3 +52,10 @@ export function titleForStubPage(slugFromRoute: string, normalizedSlug: string):
   }
   return slugToDefaultTitle(normalizedSlug)
 }
+
+/** Извлекает slug страницы из текущего URL (/page/:slug). null вне страницы просмотра. */
+export function getPageSlugFromUrl(): string | null {
+  const path = window.location.pathname
+  const match = path.match(/^\/page\/(.+)/)
+  return match ? match[1] : null
+}

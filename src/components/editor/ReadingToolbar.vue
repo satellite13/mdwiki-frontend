@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type ReadingTheme = 'white' | 'paper' | 'dark'
+import type { ReadingTheme } from '@/types'
 
 const props = defineProps<{
   title?: string

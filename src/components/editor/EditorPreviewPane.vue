@@ -2,8 +2,7 @@
 import { ref } from 'vue'
 import ReadingToc from './ReadingToc.vue'
 import type { TocItem } from './tocTypes'
-
-type ReadingTheme = 'white' | 'paper' | 'dark'
+import type { ReadingTheme } from '@/types'
 
 const props = defineProps<{
   isReading: boolean

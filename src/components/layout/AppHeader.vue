@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -10,6 +10,7 @@ import { useEditorUiStore } from '@/stores/editorUi'
 import { postWikiFullSync } from '@/api/sync'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
+import ThemeModeIcon from './ThemeModeIcon.vue'
 
 const auth = useAuthStore()
 const folderStore = useFolderStore()
@@ -46,6 +47,15 @@ const graphLinkTo = computed(() => {
   }
   return { name: 'wiki-graph' }
 })
+
+// Общие ссылки desktop- и mobile-навигации (Admin/sync/logout добавляются отдельно).
+const navLinks = computed<{ to: RouteLocationRaw; label: string; title?: string }[]>(() => [
+  { to: graphLinkTo.value, label: 'Graph', title: 'All pages and links in the wiki' },
+  { to: '/broken-links', label: 'Broken links' },
+  { to: '/tasks', label: 'Tasks' },
+  { to: '/attachments', label: 'Attachments' },
+  { to: '/profile', label: auth.username ?? '' }
+])
 
 const themeTitle = computed(() => {
   const m = themeStore.mode
@@ -92,11 +102,16 @@ function onNavClick() {
     </form>
 
     <nav class="header-nav hide-mobile" aria-label="Main navigation">
-      <router-link :to="graphLinkTo" class="nav-link" title="All pages and links in the wiki" @click="onNavClick">Graph</router-link>
-      <router-link to="/broken-links" class="nav-link" @click="onNavClick">Broken links</router-link>
-      <router-link to="/tasks" class="nav-link" @click="onNavClick">Tasks</router-link>
-      <router-link to="/attachments" class="nav-link" @click="onNavClick">Attachments</router-link>
-      <router-link to="/profile" class="nav-link" @click="onNavClick">{{ auth.username }}</router-link>
+      <router-link
+        v-for="link in navLinks"
+        :key="link.label"
+        :to="link.to"
+        class="nav-link"
+        :title="link.title"
+        @click="onNavClick"
+      >
+        {{ link.label }}
+      </router-link>
       <router-link
         v-if="auth.isAdmin"
         to="/admin/users"
@@ -117,36 +132,14 @@ function onNavClick() {
         {{ syncWikiLoading ? '…' : t.admin.syncWikiButton }}
       </button>
       <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
-        <!-- Sun (light) -->
-        <svg v-if="themeStore.mode === 'light'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-        <!-- Moon (dark) -->
-        <svg v-else-if="themeStore.mode === 'dark'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-        <!-- Monitor (system) -->
-        <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-        </svg>
+        <ThemeModeIcon :mode="themeStore.mode" />
       </button>
       <button class="btn-secondary logout-btn hide-narrow" @click="logout">Logout</button>
     </nav>
 
     <div class="header-actions-mobile show-mobile-only">
       <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
-        <!-- Sun (light) -->
-        <svg v-if="themeStore.mode === 'light'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-        <!-- Moon (dark) -->
-        <svg v-else-if="themeStore.mode === 'dark'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-        <!-- Monitor (system) -->
-        <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-        </svg>
+        <ThemeModeIcon :mode="themeStore.mode" />
       </button>
       <button
         type="button"
@@ -166,11 +159,15 @@ function onNavClick() {
         aria-label="Mobile navigation"
       >
         <div class="mobile-nav-title">MDWiki</div>
-        <router-link :to="graphLinkTo" class="mobile-nav-link" @click="onNavClick">Graph</router-link>
-        <router-link to="/broken-links" class="mobile-nav-link" @click="onNavClick">Broken links</router-link>
-        <router-link to="/tasks" class="mobile-nav-link" @click="onNavClick">Tasks</router-link>
-        <router-link to="/attachments" class="mobile-nav-link" @click="onNavClick">Attachments</router-link>
-        <router-link to="/profile" class="mobile-nav-link" @click="onNavClick">{{ auth.username }}</router-link>
+        <router-link
+          v-for="link in navLinks"
+          :key="link.label"
+          :to="link.to"
+          class="mobile-nav-link"
+          @click="onNavClick"
+        >
+          {{ link.label }}
+        </router-link>
         <router-link
           v-if="auth.isAdmin"
           to="/admin/users"

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
+import AppModal from '@/components/ui/AppModal.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import { invalidatePageIndex } from '@/services/pageIndex'
 
@@ -109,7 +110,7 @@ onMounted(fetchOpenTasks)
 </script>
 
 <template>
-  <div class="open-tasks-page">
+  <div class="grouped-page">
     <div class="page-header">
       <div>
         <h1>{{ t.tasks.title }}</h1>
@@ -127,7 +128,7 @@ onMounted(fetchOpenTasks)
     </div>
 
     <div v-else class="groups">
-      <section v-for="group in groups" :key="group.documentId" class="task-group">
+      <section v-for="group in groups" :key="group.documentId" class="group-card">
         <div class="group-header">
           <div>
             <button
@@ -157,111 +158,42 @@ onMounted(fetchOpenTasks)
       </section>
     </div>
 
-    <div v-if="completingTask" class="complete-overlay" @click.self="closeCompleteDialog">
-      <div class="complete-dialog" role="dialog" aria-modal="true" :aria-label="t.tasks.completeDialogTitle">
-        <h2>{{ t.tasks.completeDialogTitle }}</h2>
-        <p class="complete-task-text">{{ completingTask.text }}</p>
+    <AppModal v-if="completingTask" :label="t.tasks.completeDialogTitle" @close="closeCompleteDialog">
+      <h2>{{ t.tasks.completeDialogTitle }}</h2>
+      <p class="complete-task-text">{{ completingTask.text }}</p>
 
-        <label class="field-label" for="task-summary">{{ t.tasks.summaryLabel }}</label>
-        <textarea
-          id="task-summary"
-          v-model="summary"
-          class="field-input"
-          rows="4"
-          :placeholder="t.tasks.summaryPlaceholder"
-        />
+      <label class="field-label" for="task-summary">{{ t.tasks.summaryLabel }}</label>
+      <textarea
+        id="task-summary"
+        v-model="summary"
+        class="field-input"
+        rows="4"
+        :placeholder="t.tasks.summaryPlaceholder"
+      />
 
-        <div class="complete-actions">
-          <button type="button" class="btn-secondary" :disabled="completing" @click="closeCompleteDialog">
-            {{ t.common.cancel }}
-          </button>
-          <button
-            type="button"
-            class="btn-primary"
-            data-testid="confirm-complete"
-            :disabled="completing"
-            @click="completeTask"
-          >
-            {{ completing ? '…' : t.tasks.complete }}
-          </button>
-        </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" :disabled="completing" @click="closeCompleteDialog">
+          {{ t.common.cancel }}
+        </button>
+        <button
+          type="button"
+          class="btn-primary"
+          data-testid="confirm-complete"
+          :disabled="completing"
+          @click="completeTask"
+        >
+          {{ completing ? '…' : t.tasks.complete }}
+        </button>
       </div>
-    </div>
+    </AppModal>
   </div>
 </template>
 
 <style scoped>
-.open-tasks-page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 2rem;
-}
-
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.page-subtitle {
-  margin: 0.35rem 0 0;
-  color: var(--color-text-muted, #656d76);
-}
-
-.empty-state {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: var(--color-text-muted, #656d76);
-  border: 1px dashed var(--color-border, #d0d7de);
-  border-radius: 12px;
-}
-
-.groups {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.task-group {
-  border: 1px solid var(--color-border, #d0d7de);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--color-surface, #fff);
-}
-
 .group-header {
   padding: 1rem 1rem 0.75rem;
   border-bottom: 1px solid var(--color-border, #d0d7de);
   background: color-mix(in srgb, var(--color-border, #d0d7de) 18%, transparent);
-}
-
-.group-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  word-break: break-word;
-}
-
-.group-meta {
-  margin: 0.25rem 0 0;
-  color: var(--color-text-muted, #656d76);
-  font-size: 0.9rem;
-}
-
-.link-btn {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--color-wikilink, #0d9488);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.link-btn:hover {
-  text-decoration: underline;
 }
 
 .task-list {
@@ -297,54 +229,10 @@ onMounted(fetchOpenTasks)
   word-break: break-word;
 }
 
-.complete-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  z-index: 1000;
-}
-
-.complete-dialog {
-  width: min(520px, 100%);
-  background: var(--color-surface, #fff);
-  border-radius: 12px;
-  padding: 1.25rem;
-  box-shadow: var(--shadow, 0 8px 30px rgba(0, 0, 0, 0.12));
-}
-
 .complete-task-text {
   margin: 0.5rem 0 1rem;
   color: var(--color-text-muted, #656d76);
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.field-label {
-  display: block;
-  margin-bottom: 0.35rem;
-  font-weight: 600;
-}
-
-.field-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--color-border, #d0d7de);
-  border-radius: 8px;
-  font: inherit;
-  background: var(--color-bg, #fff);
-  color: inherit;
-  resize: vertical;
-}
-
-.complete-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
 }
 </style>

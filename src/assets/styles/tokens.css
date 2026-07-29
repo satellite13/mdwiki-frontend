@@ -30,6 +30,9 @@
   --radius: 8px;
   --shadow: 0 1px 2px rgba(36, 41, 47, 0.06);
 
+  /* Всплывающие поверхности с backdrop-blur (контекстное меню) */
+  --color-surface-glass: rgba(255, 255, 255, 0.85);
+
   /* Breakpoints (for reference in JS; media queries use px literals) */
   --bp-mobile-max: 767px;
   --bp-tablet-max: 1023px;
@@ -70,6 +73,7 @@
   --color-external-link: #a8abb2;
   --color-tag: #fcc419;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --color-surface-glass: rgba(26, 27, 30, 0.85);
 }
 
 /* Smooth theme transitions — disabled when user prefers reduced motion */

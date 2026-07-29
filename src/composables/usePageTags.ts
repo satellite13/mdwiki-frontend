@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { useTagStore } from '@/stores/tags'
-import * as pagesApi from '@/api/pages'
+import { getPages } from '@/services/pageIndex'
 import type { FolderTreeNode } from '@/types'
 
 export function usePageTags() {
@@ -48,20 +48,9 @@ export function usePageTags() {
   }
 
   async function refreshPageTagsIndex() {
-    const pageSize = 200
-    let pageNumber = 0
-    let total = 0
-    const pages: Array<{ slug: string; tags: string[] }> = []
-
-    do {
-      const response = await pagesApi.listPages({ page: pageNumber, size: pageSize })
-      if (response.data.length === 0) break
-      pages.push(...response.data)
-      const totalHeader = Number(response.headers['x-total-count'])
-      total = Number.isFinite(totalHeader) ? totalHeader : pages.length
-      pageNumber += 1
-    } while (pages.length < total)
-
+    // Используем общий кэш pageIndex вместо отдельного цикла пагинации:
+    // список страниц с тегами уже загружается там со схлопыванием запросов.
+    const pages = await getPages()
     pageTagsBySlug.value = Object.fromEntries(pages.map((page) => [page.slug, page.tags]))
   }
 

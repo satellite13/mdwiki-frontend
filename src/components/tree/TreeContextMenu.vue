@@ -73,7 +73,7 @@ onBeforeUnmount(() => {
 .context-menu {
   position: fixed;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--color-surface-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--color-border);

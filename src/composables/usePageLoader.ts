@@ -2,7 +2,9 @@ import type { Ref } from 'vue'
 import type { Router } from 'vue-router'
 import * as pagesApi from '@/api/pages'
 import { getPages, slugCandidatesForNavigation } from '@/services/pageIndex'
-import { isApiErrorWithStatus } from '@/utils/apiError'
+import { useDialogStore } from '@/stores/dialog'
+import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
+import { t } from '@/utils/i18n'
 import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
 import type { Backlink, Page } from '@/types'
 
@@ -29,12 +31,19 @@ export function usePageLoader(
   state: LoaderState,
   deps: LoaderDependencies
 ) {
+  const dialog = useDialogStore()
+
   function decodeRouteSlug(slugParam: string): string {
     try {
       return decodeURIComponent(slugParam)
     } catch {
       return slugParam
     }
+  }
+
+  async function failWithMessage(e: unknown) {
+    state.loading.value = false
+    await dialog.alert(getApiErrorMessage(e, t.errors.loadPageFailed))
   }
 
   async function loadPage(slugParam: string) {
@@ -60,7 +69,7 @@ export function usePageLoader(
         break
       } catch (e) {
         if (!isApiErrorWithStatus(e, 404)) {
-          state.loading.value = false
+          await failWithMessage(e)
           return
         }
       }
@@ -86,7 +95,7 @@ export function usePageLoader(
         }
       } catch (e) {
         if (!isApiErrorWithStatus(e, 409)) {
-          state.loading.value = false
+          await failWithMessage(e)
           return
         }
         try {
@@ -96,8 +105,8 @@ export function usePageLoader(
           if (data.slug !== slugParam) {
             await deps.router.replace(`/page/${data.slug}`)
           }
-        } catch {
-          state.loading.value = false
+        } catch (retryError) {
+          await failWithMessage(retryError)
           return
         }
       }

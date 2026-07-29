@@ -12,14 +12,19 @@ interface IndexSnapshot {
 
 let snapshot: IndexSnapshot | null = null
 let pendingFetch: Promise<PageListItem[]> | null = null
+let generation = 0
 
 /**
  * Полностью сбросить индекс страниц (кэш списка + данные для preview/резолва).
  * Вызывается после создания/обновления/удаления/перемещения страницы и
  * при `tree-updated` SSE-событии.
+ *
+ * Инкремент generation аннулирует результат fetch'а, который ещё в полёте:
+ * иначе завершившийся запрос перезапишет snapshot устаревшими данными.
  */
 export function invalidatePageIndex(): void {
   snapshot = null
+  generation += 1
 }
 
 /** Сопоставление страницы с текстом внутри `[[...]]` (подстрока title/slug и нормализованный ключ). */
@@ -39,6 +44,7 @@ export function pageMatchesWikilinkQuery(item: PageListItem, rawQuery: string): 
 /** Внутренний запрос со схлопыванием одновременных обращений. */
 function fetchPages(): Promise<PageListItem[]> {
   if (pendingFetch) return pendingFetch
+  const startedGeneration = generation
   pendingFetch = (async () => {
     const all: PageListItem[] = []
     let page = 0
@@ -57,7 +63,10 @@ function fetchPages(): Promise<PageListItem[]> {
       page += 1
     }
 
-    snapshot = { pages: all, fetchedAt: Date.now() }
+    // Пока шёл запрос, индекс могли инвалидировать — не воскрешаем устаревший кэш
+    if (startedGeneration === generation) {
+      snapshot = { pages: all, fetchedAt: Date.now() }
+    }
     return all
   })().finally(() => {
     pendingFetch = null

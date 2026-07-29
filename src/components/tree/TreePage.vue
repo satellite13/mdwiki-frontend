@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
-import { useFolderStore } from '@/stores/folders'
 import type { FolderTreeNode } from '@/types'
 import { t } from '@/utils/i18n'
-import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
-import { serializeDndPayload } from '@/utils/dndPayload'
+import { useTreeDragSource } from '@/composables/useTreeDnd'
 
 const props = defineProps<{
   node: FolderTreeNode
@@ -20,40 +18,22 @@ const emit = defineEmits<{
 }>()
 
 const auth = useAuthStore()
-const folderStore = useFolderStore()
 
-function onDragStart(e: DragEvent) {
-  if (!auth.isEditor) return
-  if (!props.node.slug) return
-  e.dataTransfer!.setData('text/plain', serializeDndPayload({ type: 'page', slug: props.node.slug }))
-  e.dataTransfer!.effectAllowed = 'move'
-  dndLog('page dragstart', {
-    slug: props.node.slug,
-    name: props.node.name,
-    types: e.dataTransfer ? [...e.dataTransfer.types] : [],
-  })
-}
-
-function onDragOverPage(e: DragEvent) {
-  if (!auth.isEditor) return
-  e.preventDefault()
-  e.dataTransfer!.dropEffect = 'move'
-  dndLogDragOverThrottled(`page:${props.node.slug}`, {
-    slug: props.node.slug,
-  })
-}
-
-function onDragEnd(e: DragEvent) {
-  dndLog('page dragend', {
-    slug: props.node.slug,
-    dropEffect: e.dataTransfer?.dropEffect ?? null,
-  })
-  folderStore.notifyTreeDragEnd()
-}
+const { onDragStart, onDragOverAllow, onDragEnd } = useTreeDragSource({
+  payload: () => (props.node.slug ? { type: 'page', slug: props.node.slug } : null),
+  zoneLabel: 'page',
+  dragOverLogKey: `page:${props.node.slug}`,
+  logContext: () => ({ slug: props.node.slug, name: props.node.name })
+})
 
 function onContextMenu(e: MouseEvent) {
   e.preventDefault()
   emit('contextmenu', e, props.node)
+}
+
+function onSelect() {
+  if (!props.node.slug) return
+  emit('select', props.node.slug)
 }
 </script>
 
@@ -63,10 +43,10 @@ function onContextMenu(e: MouseEvent) {
     :style="{ paddingLeft: `${depth * 16 + 24}px`, '--stagger-index': staggerIndex ?? 0 }"
     :draggable="auth.isEditor"
     @dragstart="onDragStart"
-    @dragover="onDragOverPage"
+    @dragover="onDragOverAllow"
     @dragend="onDragEnd"
     @contextmenu="onContextMenu"
-    @click="emit('select', node.slug!)"
+    @click="onSelect"
   >
     <span class="page-icon">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none">

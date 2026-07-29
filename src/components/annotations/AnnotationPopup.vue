@@ -2,6 +2,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { createAnnotation } from '@/api/annotations'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { getPageSlugFromUrl } from '@/utils/pageSlug'
 import type { Annotation } from '@/types'
 
 const props = defineProps<{
@@ -53,12 +54,6 @@ async function save() {
   } finally {
     saving.value = false
   }
-}
-
-function getPageSlugFromUrl(): string | null {
-  const path = window.location.pathname
-  const match = path.match(/^\/page\/(.+)/)
-  return match ? match[1] : null
 }
 
 function onKeydown(e: KeyboardEvent) {

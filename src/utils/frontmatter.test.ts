@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { stripMarkdownFrontmatter } from './frontmatter'
+import { setFrontmatterField, stripMarkdownFrontmatter } from './frontmatter'
 
 describe('stripMarkdownFrontmatter', () => {
   it('removes a simple YAML frontmatter block at the start', () => {
@@ -65,5 +65,37 @@ describe('stripMarkdownFrontmatter', () => {
       '## Хвост'
     ].join('\n')
     expect(stripMarkdownFrontmatter(src)).toBe('# После фронтматтера\n\n---\n\n## Хвост')
+  })
+})
+
+describe('setFrontmatterField', () => {
+  it('creates frontmatter when absent', () => {
+    expect(setFrontmatterField('# Title\n\nbody', 'locked', true)).toBe(
+      '---\nlocked: true\n---\n\n# Title\n\nbody'
+    )
+  })
+
+  it('adds the key to an existing frontmatter block', () => {
+    const src = '---\ntitle: Doc\n---\n\nbody'
+    expect(setFrontmatterField(src, 'locked', true)).toBe(
+      '---\ntitle: Doc\nlocked: true\n---\n\nbody'
+    )
+  })
+
+  it('keeps the opening fence when updating an existing key (regression)', () => {
+    const src = '---\ntitle: Doc\nlocked: false\n---\n\nbody'
+    expect(setFrontmatterField(src, 'locked', true)).toBe(
+      '---\ntitle: Doc\nlocked: true\n---\n\nbody'
+    )
+  })
+
+  it('removes the key without dropping the opening fence', () => {
+    const src = '---\ntitle: Doc\nlocked: true\n---\n\nbody'
+    expect(setFrontmatterField(src, 'locked', false)).toBe('---\ntitle: Doc\n---\n\nbody')
+  })
+
+  it('returns source unchanged when removing a missing key', () => {
+    const src = '---\ntitle: Doc\n---\n\nbody'
+    expect(setFrontmatterField(src, 'locked', false)).toBe(src)
   })
 })

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { readString, writeString } from '@/utils/localPreferences'
 
 type Theme = 'light' | 'dark'
@@ -21,6 +21,7 @@ export const useThemeStore = defineStore('theme', () => {
   const mode = ref<ThemeMode>(readStoredMode())
   const systemDark = ref<boolean>(resolveSystemIsDark())
   let mediaQuery: MediaQueryList | null = null
+  let systemChangeHandler: ((e: MediaQueryListEvent) => void) | null = null
 
   const resolved = computed<Theme>(() => {
     if (mode.value === 'system') return systemDark.value ? 'dark' : 'light'
@@ -32,18 +33,19 @@ export const useThemeStore = defineStore('theme', () => {
   function listenSystem() {
     if (!mediaQuery) {
       mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      const handler = (e: MediaQueryListEvent) => {
+      systemChangeHandler = (e: MediaQueryListEvent) => {
         systemDark.value = e.matches
         if (mode.value === 'system') apply()
       }
-      mediaQuery.addEventListener('change', handler)
+      mediaQuery.addEventListener('change', systemChangeHandler)
     }
   }
 
   function unlistenSystem() {
-    if (mediaQuery) {
-      mediaQuery.removeEventListener('change', () => {})
+    if (mediaQuery && systemChangeHandler) {
+      mediaQuery.removeEventListener('change', systemChangeHandler)
       mediaQuery = null
+      systemChangeHandler = null
     }
   }
 
@@ -56,19 +58,19 @@ export const useThemeStore = defineStore('theme', () => {
     mode.value = m
     apply()
     if (m === 'system') listenSystem()
+    else unlistenSystem()
   }
 
   function toggle() {
     mode.value = mode.value === 'light' ? 'dark' : mode.value === 'dark' ? 'system' : 'light'
     apply()
     if (mode.value === 'system') listenSystem()
+    else unlistenSystem()
   }
 
   // Init
   if (mode.value === 'system') listenSystem()
   apply()
-
-  onUnmounted(() => unlistenSystem())
 
   return { mode, resolved, isDark, toggle, apply, setTheme }
 })

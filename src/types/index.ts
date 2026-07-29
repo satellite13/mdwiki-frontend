@@ -182,3 +182,5 @@ export interface EmbeddingSettings {
   expectedDimension: number
   warning?: EmbeddingSettingsWarning | null
 }
+
+export type ReadingTheme = 'white' | 'paper' | 'dark'

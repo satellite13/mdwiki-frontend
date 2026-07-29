@@ -106,6 +106,7 @@ export const t = {
     changePasswordFailed: 'Failed to change password',
     searchFailed: 'Search failed',
     loadPageFailed: 'Failed to load page',
+    loadGraphFailed: 'Failed to load graph',
     loadTreeFailed: 'Failed to refresh tree',
     loadTagsFailed: 'Failed to load tags',
   },

@@ -7,6 +7,7 @@ const PDF_MARGIN_MM = 10
 export function sanitizePdfFilename(title: string): string {
   const base = title.trim() || 'page'
   const cleaned = base
+    // eslint-disable-next-line no-control-regex -- намеренно вырезаем управляющие символы из имени файла
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '')
     .replace(/\s+/g, ' ')
     .trim()

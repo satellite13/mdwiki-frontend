@@ -84,7 +84,7 @@ export function setFrontmatterField(markdown: string, key: string, value: boolea
           const updated = inner.map((ln: string) =>
             ln.replace(new RegExp(`^\\s*${key}\\s*:\\s*(true|false)\\s*$`), `${key}: true`)
           )
-          return [...updated, ...lines.slice(i)].join('\n')
+          return [firstLine, ...updated, ...lines.slice(i)].join('\n')
         } else {
           // Нет — добавляем после заголовка title если есть, иначе в начало
           const titleIdx = inner.findIndex((ln: string) => /^\s*title\s*:/.test(ln))

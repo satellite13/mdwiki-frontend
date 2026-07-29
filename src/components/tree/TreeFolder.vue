@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
-import { useMovePage } from '@/composables/useMovePage'
+import { useTreeDragSource, useTreeDropTarget } from '@/composables/useTreeDnd'
 import type { FolderTreeNode } from '@/types'
 import { t } from '@/utils/i18n'
-import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
-import { parseDndPayload, serializeDndPayload } from '@/utils/dndPayload'
 import TreePage from './TreePage.vue'
 
 const props = defineProps<{
@@ -26,101 +24,27 @@ const emit = defineEmits<{
 
 const folderStore = useFolderStore()
 const auth = useAuthStore()
-const { movePage } = useMovePage()
 const expanded = computed(() => folderStore.isExpanded(props.node.id))
-const isDragOver = ref(false)
 
 const folders = computed(() => props.node.children.filter(c => c.type === 'folder'))
 const pages = computed(() => props.node.children.filter(c => c.type === 'page'))
 
-watch(
-  () => folderStore.treeDragGeneration,
-  () => {
-    isDragOver.value = false
-  }
-)
+const { isDragOver, onDragOver, onDragLeave, onDrop } = useTreeDropTarget({
+  targetFolderId: props.node.id,
+  zoneLabel: 'folder',
+  dragOverLogKey: `folder:${props.node.id}`,
+  stopOnDrop: true,
+  logContext: () => ({ folderId: props.node.id, folderName: props.node.name, depth: props.depth })
+})
+
+const { onDragStart, onDragEnd } = useTreeDragSource({
+  payload: () => ({ type: 'folder', id: props.node.id }),
+  zoneLabel: 'folder',
+  logContext: () => ({ folderId: props.node.id, name: props.node.name })
+})
 
 function toggle() {
   folderStore.toggleFolder(props.node.id)
-}
-
-function onDragStart(e: DragEvent) {
-  if (!auth.isEditor) return
-  e.dataTransfer!.setData('text/plain', serializeDndPayload({ type: 'folder', id: props.node.id }))
-  e.dataTransfer!.effectAllowed = 'move'
-  dndLog('folder dragstart', {
-    folderId: props.node.id,
-    name: props.node.name,
-    types: e.dataTransfer ? [...e.dataTransfer.types] : [],
-  })
-}
-
-function onDragOver(e: DragEvent) {
-  if (!auth.isEditor) return
-  e.preventDefault()
-  e.dataTransfer!.dropEffect = 'move'
-  isDragOver.value = true
-  const t = e.target as HTMLElement | null
-  dndLogDragOverThrottled(`folder:${props.node.id}`, {
-    folderId: props.node.id,
-    folderName: props.node.name,
-    eventTarget: t?.className ?? t?.tagName,
-    currentTarget: (e.currentTarget as HTMLElement)?.className,
-    depth: props.depth,
-  })
-}
-
-function onDragLeave(e: DragEvent) {
-  const cur = e.currentTarget as HTMLElement
-  const rel = e.relatedTarget as Node | null
-  if (rel && cur.contains(rel)) return
-  // WebKit: relatedTarget часто null при движении внутри той же зоны — не сбрасываем (см. notifyTreeDragEnd).
-  if (rel === null) return
-  dndLog('folder dragleave (left folder)', {
-    folderId: props.node.id,
-    relatedTag: 'tagName' in rel ? (rel as HTMLElement).tagName : null,
-  })
-  isDragOver.value = false
-}
-
-async function onDrop(e: DragEvent) {
-  if (!auth.isEditor) return
-  e.preventDefault()
-  e.stopPropagation()
-  isDragOver.value = false
-  const raw = e.dataTransfer?.getData('text/plain') ?? ''
-  dndLog('folder drop (raw)', {
-    folderId: props.node.id,
-    folderName: props.node.name,
-    rawLength: raw.length,
-    raw: raw.slice(0, 200),
-    dataTransferTypes: e.dataTransfer ? [...e.dataTransfer.types] : [],
-  })
-  const data = parseDndPayload(raw)
-  dndLog('folder drop (parsed)', { folderId: props.node.id, data })
-  if (!data) return
-  try {
-    if (data.type === 'page') {
-      dndLog('folder drop → movePage', { slug: data.slug, toFolderId: props.node.id })
-      await movePage(data.slug, props.node.id)
-    } else if (data.type === 'folder' && data.id !== props.node.id) {
-      if (folderStore.isFolderDescendant(data.id, props.node.id)) {
-        dndLog('folder drop (skip descendant move)', {
-          folderId: data.id,
-          attemptedParentId: props.node.id,
-        })
-        return
-      }
-      dndLog('folder drop → moveFolder', { folderId: data.id, toParentId: props.node.id })
-      await folderStore.moveFolder(data.id, props.node.id)
-    }
-  } catch (err) {
-    dndLog('folder drop (api error)', { message: err instanceof Error ? err.message : String(err) })
-  }
-}
-
-function onFolderDragEnd() {
-  folderStore.notifyTreeDragEnd()
 }
 
 function onContextMenu(e: MouseEvent) {
@@ -141,7 +65,7 @@ function onContextMenu(e: MouseEvent) {
       :style="{ paddingLeft: `${depth * 16 + 8}px`, '--stagger-index': staggerIndex ?? 0 }"
       :draggable="auth.isEditor"
       @dragstart="onDragStart"
-      @dragend="onFolderDragEnd"
+      @dragend="onDragEnd"
       @contextmenu="onContextMenu"
       @click="toggle"
     >

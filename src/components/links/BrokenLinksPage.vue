@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { t } from '@/utils/i18n'
+import AppModal from '@/components/ui/AppModal.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
 interface BrokenLinkGroup {
@@ -133,7 +134,7 @@ onMounted(fetchBrokenLinks)
 </script>
 
 <template>
-  <div class="broken-links-page">
+  <div class="grouped-page">
     <div class="page-header">
       <div>
         <h1>{{ t.brokenLinks.title }}</h1>
@@ -151,7 +152,7 @@ onMounted(fetchBrokenLinks)
     </div>
 
     <div v-else class="groups">
-      <section v-for="group in groups" :key="group.brokenTarget" class="link-group">
+      <section v-for="group in groups" :key="group.brokenTarget" class="group-card">
         <div class="group-header">
           <div>
             <h2 class="group-title">{{ group.brokenTarget }}</h2>
@@ -206,94 +207,52 @@ onMounted(fetchBrokenLinks)
       </section>
     </div>
 
-    <div v-if="fixOpen" class="fix-overlay" @click.self="closeFixDialog">
-      <div class="fix-dialog" role="dialog" aria-modal="true" :aria-label="t.brokenLinks.fixDialogTitle">
-        <h2>{{ t.brokenLinks.fixDialogTitle }}</h2>
-        <p class="fix-from">
-          {{ t.brokenLinks.fixFrom }} <code>{{ fixFromTarget }}</code>
-          <span v-if="!fixBulk && fixSourceSlug"> · {{ t.brokenLinks.fixOnPage }} <code>{{ fixSourceSlug }}</code></span>
-          <span v-else-if="fixBulk"> · {{ t.brokenLinks.fixAllPages }}</span>
-        </p>
+    <AppModal v-if="fixOpen" :label="t.brokenLinks.fixDialogTitle" @close="closeFixDialog">
+      <h2>{{ t.brokenLinks.fixDialogTitle }}</h2>
+      <p class="fix-from">
+        {{ t.brokenLinks.fixFrom }} <code>{{ fixFromTarget }}</code>
+        <span v-if="!fixBulk && fixSourceSlug"> · {{ t.brokenLinks.fixOnPage }} <code>{{ fixSourceSlug }}</code></span>
+        <span v-else-if="fixBulk"> · {{ t.brokenLinks.fixAllPages }}</span>
+      </p>
 
-        <label class="field-label" for="fix-page-query">{{ t.brokenLinks.pickTarget }}</label>
-        <input
-          id="fix-page-query"
-          v-model="pageQuery"
-          type="text"
-          class="field-input"
-          autocomplete="off"
-          :placeholder="t.brokenLinks.pickTargetPlaceholder"
-          @input="refreshPageSuggestions"
-        />
+      <label class="field-label" for="fix-page-query">{{ t.brokenLinks.pickTarget }}</label>
+      <input
+        id="fix-page-query"
+        v-model="pageQuery"
+        type="text"
+        class="field-input"
+        autocomplete="off"
+        :placeholder="t.brokenLinks.pickTargetPlaceholder"
+        @input="refreshPageSuggestions"
+      />
 
-        <ul v-if="pageSuggestions.length > 0" class="page-suggestions">
-          <li v-for="page in pageSuggestions" :key="page.slug">
-            <button
-              type="button"
-              class="suggestion-btn"
-              :class="{ active: selectedPage?.slug === page.slug }"
-              @click="choosePage(page)"
-            >
-              <span>{{ page.title }}</span>
-              <small>{{ page.slug }}</small>
-            </button>
-          </li>
-        </ul>
-
-        <div class="fix-actions">
-          <button type="button" class="btn-secondary" :disabled="fixing" @click="closeFixDialog">
-            {{ t.common.cancel }}
+      <ul v-if="pageSuggestions.length > 0" class="page-suggestions">
+        <li v-for="page in pageSuggestions" :key="page.slug">
+          <button
+            type="button"
+            class="suggestion-btn"
+            :class="{ active: selectedPage?.slug === page.slug }"
+            @click="choosePage(page)"
+          >
+            <span>{{ page.title }}</span>
+            <small>{{ page.slug }}</small>
           </button>
-          <button type="button" class="btn-primary" :disabled="!selectedPage || fixing" @click="applyFix">
-            {{ fixing ? '…' : t.brokenLinks.fixButton }}
-          </button>
-        </div>
+        </li>
+      </ul>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" :disabled="fixing" @click="closeFixDialog">
+          {{ t.common.cancel }}
+        </button>
+        <button type="button" class="btn-primary" :disabled="!selectedPage || fixing" @click="applyFix">
+          {{ fixing ? '…' : t.brokenLinks.fixButton }}
+        </button>
       </div>
-    </div>
+    </AppModal>
   </div>
 </template>
 
 <style scoped>
-.broken-links-page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 2rem;
-}
-
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.page-subtitle {
-  margin: 0.35rem 0 0;
-  color: var(--color-text-muted, #656d76);
-}
-
-.empty-state {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: var(--color-text-muted, #656d76);
-  border: 1px dashed var(--color-border, #d0d7de);
-  border-radius: 12px;
-}
-
-.groups {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.link-group {
-  border: 1px solid var(--color-border, #d0d7de);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--color-surface, #fff);
-}
-
 .group-header {
   display: flex;
   align-items: center;
@@ -302,32 +261,6 @@ onMounted(fetchBrokenLinks)
   padding: 1rem 1rem 0.75rem;
   border-bottom: 1px solid var(--color-border, #d0d7de);
   background: color-mix(in srgb, var(--color-border, #d0d7de) 18%, transparent);
-}
-
-.group-title {
-  margin: 0;
-  font-size: 1.05rem;
-  word-break: break-word;
-}
-
-.group-meta {
-  margin: 0.25rem 0 0;
-  color: var(--color-text-muted, #656d76);
-  font-size: 0.9rem;
-}
-
-.link-btn {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--color-wikilink, #0d9488);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.link-btn:hover {
-  text-decoration: underline;
 }
 
 .slug-hint {
@@ -342,45 +275,9 @@ onMounted(fetchBrokenLinks)
   gap: 0.5rem;
 }
 
-.fix-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  z-index: 1000;
-}
-
-.fix-dialog {
-  width: min(520px, 100%);
-  background: var(--color-surface, #fff);
-  border-radius: 12px;
-  padding: 1.25rem;
-  box-shadow: var(--shadow, 0 8px 30px rgba(0, 0, 0, 0.12));
-}
-
 .fix-from {
   margin: 0.5rem 0 1rem;
   color: var(--color-text-muted, #656d76);
-}
-
-.field-label {
-  display: block;
-  margin-bottom: 0.35rem;
-  font-weight: 600;
-}
-
-.field-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--color-border, #d0d7de);
-  border-radius: 8px;
-  font: inherit;
-  background: var(--color-bg, #fff);
-  color: inherit;
 }
 
 .page-suggestions {
@@ -415,12 +312,5 @@ onMounted(fetchBrokenLinks)
 
 .suggestion-btn small {
   color: var(--color-text-muted, #656d76);
-}
-
-.fix-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
 }
 </style>

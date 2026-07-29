@@ -19,6 +19,7 @@ import typescript from 'highlight.js/lib/languages/typescript'
 import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
 import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
+import { escapeHtml } from '@/utils/htmlEscape'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { protectWikilinkTablePipesInDocument, WIKILINK_TABLE_PIPE } from '@/utils/tablePipeCells'
 import { isMissingPageReference, wikilinkPreviewHref } from '@/services/pageIndex'
@@ -65,14 +66,6 @@ function registerHighlightLanguages() {
     hljs.registerLanguage(name, definition)
   }
   highlightLanguagesRegistered = true
-}
-
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 function frontmatterStripPlugin(md: MarkdownIt) {

@@ -200,7 +200,6 @@ export function assignClusters(slugs: string[], edges: GraphEdge[]): Map<string,
   }
   if (singles.length) {
     for (const slug of singles) result.set(slug, clusterId)
-    clusterId++
   }
   return result
 }

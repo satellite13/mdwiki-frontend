@@ -95,7 +95,7 @@ export function useWikilinkAutocomplete(options: WikilinkAutocompleteOptions): W
       applyPages(cached, chunk, query)
     }
 
-    let pages = cached
+    let pages: PageListItem[]
     try {
       pages = await getPages()
     } catch {

@@ -3,6 +3,9 @@ import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { getPageGraph, getWikiGraph } from '@/api/graph'
 import type { GraphNode, GraphEdge } from '@/api/graph'
+import { useDialogStore } from '@/stores/dialog'
+import { getApiErrorMessage } from '@/utils/apiError'
+import { t } from '@/utils/i18n'
 import { renderGraph, type GraphRenderHandle } from './graphRenderer'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
@@ -16,6 +19,7 @@ const props = withDefaults(
 )
 
 const router = useRouter()
+const dialog = useDialogStore()
 const depth = ref(1)
 const loading = ref(false)
 const svgRef = ref<SVGSVGElement | null>(null)
@@ -51,7 +55,7 @@ async function loadGraph() {
     const { data } =
       props.variant === 'wiki'
         ? await getWikiGraph(props.highlightSlug ?? undefined)
-        : await getPageGraph(props.slug!, depth.value)
+        : await getPageGraph(props.slug, depth.value)
     lastNodes = data.nodes
     lastEdges = data.edges
     loading.value = false
@@ -67,6 +71,7 @@ async function loadGraph() {
     lastNodes = []
     lastEdges = []
     loading.value = false
+    await dialog.alert(getApiErrorMessage(e, t.errors.loadGraphFailed))
   }
 }
 

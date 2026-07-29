@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
-import { useMovePage } from '@/composables/useMovePage'
 import { usePageTags } from '@/composables/usePageTags'
 import { useTreeSse } from '@/composables/useTreeSse'
 import { useTreeActions } from '@/composables/useTreeActions'
+import { useTreeDropTarget } from '@/composables/useTreeDnd'
 import { invalidatePageIndex } from '@/services/pageIndex'
-import { parseDndPayload } from '@/utils/dndPayload'
 import { t } from '@/utils/i18n'
-import { dndLog, dndLogDragOverThrottled } from '@/utils/dndDebug'
 import type { FolderTreeNode } from '@/types'
 import TreeFolder from './TreeFolder.vue'
 import TreePage from './TreePage.vue'
@@ -23,7 +21,6 @@ const route = useRoute()
 const folderStore = useFolderStore()
 const auth = useAuthStore()
 const dialog = useDialogStore()
-const { movePage } = useMovePage()
 
 const activeSlug = computed(() => (route.params.slug as string) || null)
 
@@ -122,63 +119,17 @@ async function onAddSubfolder(parentId: string) {
   await treeActions.createNewFolder(parentId)
 }
 
-const rootDragOver = ref(false)
-
-watch(
-  () => folderStore.treeDragGeneration,
-  () => {
-    rootDragOver.value = false
-  }
-)
-
-function onRootDragOver(e: DragEvent) {
-  if (!auth.isEditor) return
-  e.preventDefault()
-  e.dataTransfer!.dropEffect = 'move'
-  rootDragOver.value = true
-  const target = e.target as HTMLElement | null
-  dndLogDragOverThrottled('root:document-tree', {
-    eventTarget: target?.className ?? target?.tagName
-  })
-}
-
-function onRootDragLeave(e: DragEvent) {
-  if (!auth.isEditor) return
-  const cur = e.currentTarget as HTMLElement
-  const rel = e.relatedTarget as Node | null
-  if (rel && cur.contains(rel)) return
-  if (rel === null) return
-  dndLog('root dragleave (left tree)', {
-    relatedTag: 'tagName' in rel ? (rel as HTMLElement).tagName : null
-  })
-  rootDragOver.value = false
-}
-
-async function onRootDrop(e: DragEvent) {
-  if (!auth.isEditor) return
-  e.preventDefault()
-  rootDragOver.value = false
-  const raw = e.dataTransfer?.getData('text/plain') ?? ''
-  dndLog('root drop (raw)', {
-    rawLength: raw.length,
-    raw: raw.slice(0, 200),
-    types: e.dataTransfer ? [...e.dataTransfer.types] : []
-  })
-  const data = parseDndPayload(raw)
-  dndLog('root drop (parsed)', { data })
-  if (!data) return
-  try {
-    if (data.type === 'page') {
-      dndLog('root drop → movePage', { slug: data.slug, toRoot: true })
-      await movePage(data.slug, null)
-    } else if (data.type === 'folder') {
-      dndLog('root drop → moveFolder', { folderId: data.id, toRoot: true })
-      await folderStore.moveFolder(data.id, null)
-    }
-  } catch (err) {
-    dndLog('root drop (api error)', { message: err instanceof Error ? err.message : String(err) })
-  }
-}
+const {
+  isDragOver: rootDragOver,
+  onDragOver: onRootDragOver,
+  onDragLeave: onRootDragLeave,
+  onDrop: onRootDrop
+} = useTreeDropTarget({
+  targetFolderId: null,
+  zoneLabel: 'root',
+  dragOverLogKey: 'root:document-tree',
+  stopOnDrop: false
+})
 
 async function refreshTree() {
   if (treeRefreshInFlight) return

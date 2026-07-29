@@ -6,6 +6,7 @@ import type { RagSearchResult } from '@/types'
 import { useDialogStore } from '@/stores/dialog'
 import { useTagStore } from '@/stores/tags'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { escapeHtml } from '@/utils/htmlEscape'
 import { t } from '@/utils/i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
@@ -48,15 +49,18 @@ function toggleTag(tag: string) {
 }
 
 function highlightSnippet(snippet: string, q: string): string {
-  if (!q.trim()) return snippet
+  // Сниппет приходит из пользовательского контента — сначала экранируем HTML,
+  // затем подсвечиваем совпадения (иначе v-html открывает stored XSS).
+  const safeSnippet = escapeHtml(snippet)
+  if (!q.trim()) return safeSnippet
   const words = q
     .split(/[\s,]+/)
     .map(w => w.trim())
     .filter(w => w.length > 2)
-  if (words.length === 0) return snippet
-  const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  if (words.length === 0) return safeSnippet
+  const escaped = words.map(w => escapeHtml(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   const pattern = new RegExp(`(${escaped.join('|')})`, 'gi')
-  return snippet.replace(pattern, '<mark class="search-highlight">$1</mark>')
+  return safeSnippet.replace(pattern, '<mark class="search-highlight">$1</mark>')
 }
 
 async function doSearch() {

@@ -3,7 +3,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDialogStore } from '@/stores/dialog'
 import { useThemeStore } from '@/stores/theme'
 import { uploadAttachment } from '@/api/attachments'
-import { listAnnotations } from '@/api/annotations'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { downloadPagePdf } from '@/utils/exportPagePdf'
 import { t } from '@/utils/i18n'
@@ -15,7 +14,7 @@ import { getPages } from '@/services/pageIndex'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useHorizontalDragResize } from '@/composables/useHorizontalDragResize'
 import { normalizePageSlug } from '@/utils/pageSlug'
-import { formatPipeTableAtCursor } from '@/utils/formatMarkdownTable'
+import { sanitizeHtml } from '@/utils/sanitizeHtml'
 import VerticalPaneResizer from '@/components/ui/VerticalPaneResizer.vue'
 import ReadingToolbar from '@/components/editor/ReadingToolbar.vue'
 import EditorToolbar from '@/components/editor/EditorToolbar.vue'
@@ -23,12 +22,13 @@ import EditorPreviewPane from '@/components/editor/EditorPreviewPane.vue'
 import EditorInputPane from '@/components/editor/EditorInputPane.vue'
 import AnnotationPanel from '@/components/annotations/AnnotationPanel.vue'
 import AnnotationPopup from '@/components/annotations/AnnotationPopup.vue'
-import type { Annotation } from '@/types'
+import type { ReadingTheme } from '@/types'
 import { usePreviewCopyDecorations } from '@/components/editor/usePreviewCopyDecorations'
 import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPipeline'
 import { useReadingToc } from '@/components/editor/useReadingToc'
 import { useSplitScrollSync } from '@/components/editor/useSplitScrollSync'
-import type { ToolbarAction } from './toolbarTypes'
+import { useAnnotations } from '@/components/editor/useAnnotations'
+import { useToolbarActions } from '@/components/editor/useToolbarActions'
 import type MarkdownIt from 'markdown-it'
 import { renderStructurizrSvg } from './structurizr'
 import {
@@ -46,20 +46,8 @@ const READING_THEME_KEY = 'mdwiki-reading-theme'
 const READING_FONT_MIN = 14
 const READING_FONT_MAX = 28
 
-type ReadingTheme = 'white' | 'paper' | 'dark'
-
-const EMOJI_ITEMS = [
-  '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
-  '🙂', '😉', '😍', '😘', '😗', '😚', '😋', '😎',
-  '🤩', '🤔', '🫠', '😐', '😑', '🙄', '😴', '🤯',
-  '🥳', '😭', '😡', '👍', '👎', '👏', '🙏', '🔥',
-  '✨', '💡', '🎯', '✅', '❌', '⚠️', '🚀', '📌',
-  '📎', '📷', '🧠', '🔧', '📝', '💬', '🌟', '💯'
-]
-
 let markdownRenderer: MarkdownIt | null = null
 let markdownRendererPromise: Promise<MarkdownIt> | null = null
-let previewRenderToken = 0
 
 async function getMarkdownRenderer(): Promise<MarkdownIt> {
   if (markdownRenderer) return markdownRenderer
@@ -106,14 +94,6 @@ const readingTheme = ref<ReadingTheme>(readReadingThemePref())
 const readingTocVisible = ref(true)
 const exportingPdf = ref(false)
 
-const annotations = ref<Annotation[]>([])
-const annotationsVisible = ref(false)
-const annotationPopup = ref<{ selectedText: string; anchorContext: string; x: number; y: number } | null>(null)
-const floatingBtn = ref<{ x: number; y: number } | null>(null)
-const pendingAnnotation = ref<{ text: string; context: string } | null>(null)
-const tooltipAnnotation = ref<{ annotation: Annotation; x: number; y: number } | null>(null)
-let annotationHighlightSpans: HTMLSpanElement[] = []
-
 const wikilink = useWikilinkAutocomplete({
   getEditor: () => getEditorElement(),
   getSource: () => markdownValue.value,
@@ -137,7 +117,6 @@ const { startResizeDrag, clearDragListeners } = useHorizontalDragResize()
 const previewHtml = ref('')
 const canUndo = history.canUndo
 const canRedo = history.canRedo
-const emojiItems = computed(() => EMOJI_ITEMS)
 const editorShellStyle = computed(() => {
   if (editorMode.value !== 'split') return undefined
   if (isMobile.value) {
@@ -165,53 +144,58 @@ const splitScrollSync = useSplitScrollSync({
   getPreview: () => getPreviewPaneElement()
 })
 
-const inlineFormatActions: ToolbarAction[] = [
-  { key: 'bold', title: 'Bold', ariaLabel: 'Bold', icon: 'format_bold', onClick: () => wrapSelection('**', '**') },
-  { key: 'italic', title: 'Italic', ariaLabel: 'Italic', icon: 'format_italic', onClick: () => wrapSelection('*', '*') },
-  { key: 'underline', title: 'Underline', ariaLabel: 'Underline', icon: 'format_underlined', onClick: () => wrapSelection('<u>', '</u>') },
-  { key: 'strikethrough', title: 'Strikethrough', ariaLabel: 'Strikethrough', icon: 'strikethrough_s', onClick: () => wrapSelection('~~', '~~') },
-  { key: 'highlight', title: 'Highlight', ariaLabel: 'Highlight', icon: 'ink_highlighter', onClick: () => wrapSelection('==', '==') },
-  { key: 'superscript', title: 'Superscript', ariaLabel: 'Superscript', icon: 'superscript', onClick: () => wrapSelection('^', '^') },
-  { key: 'subscript', title: 'Subscript', ariaLabel: 'Subscript', icon: 'subscript', onClick: () => wrapSelection('~', '~') },
-  { key: 'inline-code', title: 'Inline code', ariaLabel: 'Inline code', icon: 'code', onClick: () => wrapSelection('`', '`') }
-]
+const {
+  annotations,
+  annotationsVisible,
+  annotationPopup,
+  floatingBtn,
+  tooltipAnnotation,
+  fetchAnnotations,
+  applyAnnotationHighlights,
+  onReadingMouseUp,
+  onReadingMouseDown,
+  onReadingTouchEnd,
+  startAnnotation,
+  onAnnotationCreated,
+  onAnnotationDeleted,
+  handleModeChange: handleAnnotationModeChange,
+  dispose: disposeAnnotations
+} = useAnnotations({
+  getPreviewContentElement,
+  getEditorMode: () => editorMode.value
+})
 
-const listAndBlockActions: ToolbarAction[] = [
-  { key: 'bulleted', title: 'Bulleted list', ariaLabel: 'Bulleted list', icon: 'format_list_bulleted', onClick: () => insertLinePrefix('- ', 'list item') },
-  { key: 'numbered', title: 'Numbered list', ariaLabel: 'Numbered list', icon: 'format_list_numbered', onClick: () => insertLinePrefix('1. ', 'list item') },
-  { key: 'task', title: 'Task list', ariaLabel: 'Task list', icon: 'checklist', onClick: () => insertLinePrefix('- [ ] ', 'task') },
-  { key: 'quote', title: 'Quote', ariaLabel: 'Quote', icon: 'format_quote', onClick: () => insertLinePrefix('> ', 'quote') },
-  { key: 'code-block', title: 'Code block', ariaLabel: 'Code block', icon: 'data_object', onClick: () => insertText('\n```\ncode\n```\n') }
-]
+const {
+  emojiItems,
+  inlineFormatActions,
+  listAndBlockActions,
+  quickInsertActions,
+  historyActions,
+  modeSwitchActions,
+  applyHeading,
+  applyTableSize,
+  applyEmoji,
+  insertText,
+  continueListOnEnter
+} = useToolbarActions({
+  getEditor: getEditorElement,
+  getValue: () => markdownValue.value,
+  applyValue: (value) => applyValue(value),
+  closeWikilink: () => wikilink.close(),
+  refreshWikilinkSuggestions,
+  triggerUpload,
+  openEditorFind,
+  undo,
+  redo,
+  canUndo,
+  canRedo,
+  onSave: () => emit('save'),
+  setMode,
+  editorMode
+})
 
-const quickInsertActions: ToolbarAction[] = [
-  { key: 'link', title: 'Link', ariaLabel: 'Link', icon: 'link', onClick: () => wrapSelection('[', '](https://example.com)', 'link text') },
-  { key: 'upload-image', title: 'Insert image', ariaLabel: 'Insert image', icon: 'image', onClick: triggerUpload },
-  {
-    key: 'format-table',
-    title: 'Выровнять markdown-таблицу под курсором',
-    ariaLabel: 'Выровнять markdown-таблицу под курсором',
-    icon: 'format_align_justify',
-    onClick: formatMarkdownTableAtCursor
-  },
-  { key: 'wiki-link', title: 'Wiki link', ariaLabel: 'Wiki link', icon: 'article_shortcut', onClick: () => wrapSelection('[[', ']]', 'Page Title') },
-  { key: 'tag', title: 'Tag', ariaLabel: 'Tag', icon: 'sell', onClick: () => insertText(' #tag') },
-  { key: 'insert-date', title: 'Insert current date', ariaLabel: 'Insert current date', icon: 'calendar_today', onClick: insertCurrentDate }
-]
-
-const historyActions = computed<ToolbarAction[]>(() => [
-  { key: 'find', title: t.editor.findTitle, ariaLabel: t.editor.findTitle, icon: 'search', onClick: () => openEditorFind() },
-  { key: 'undo', title: 'Undo', ariaLabel: 'Undo', icon: 'undo', onClick: undo, disabled: !canUndo.value },
-  { key: 'redo', title: 'Redo', ariaLabel: 'Redo', icon: 'redo', onClick: redo, disabled: !canRedo.value },
-  { key: 'save', title: 'Save', ariaLabel: 'Save', icon: 'save', onClick: () => emit('save') }
-])
-
-const modeSwitchActions = computed<ToolbarAction[]>(() => [
-  { key: 'mode-editor', title: 'Editor', ariaLabel: 'Editor', icon: 'edit_note', active: editorMode.value === 'editor', onClick: () => setMode('editor') },
-  { key: 'mode-split', title: 'Split', ariaLabel: 'Split', icon: 'split_scene', active: editorMode.value === 'split', onClick: () => setMode('split') },
-  { key: 'mode-preview', title: 'Preview', ariaLabel: 'Preview', icon: 'preview', active: editorMode.value === 'preview', onClick: () => setMode('preview') },
-  { key: 'mode-reading', title: 'Reading', ariaLabel: 'Reading', icon: 'menu_book', onClick: () => setMode('reading') }
-])
+// Токен последнего рендера превью — в инстансе компонента, а не в модульном синглтоне.
+let previewRenderToken = 0
 
 function readReadingThemePref(): ReadingTheme {
   const value = readString(READING_THEME_KEY)
@@ -245,6 +229,7 @@ watch(editorMode, (value) => {
   wikilink.close()
   editorFind.closeFind()
   void refreshPreview()
+  handleAnnotationModeChange(value)
 })
 
 watch(markdownValue, () => {
@@ -266,18 +251,6 @@ watch(
     await renderPreviewDiagrams()
   }
 )
-
-watch(editorMode, (mode) => {
-  if (mode === 'reading') {
-    annotationsVisible.value = false
-    void fetchAnnotations().then(() => {
-      void nextTick().then(() => applyAnnotationHighlights())
-    })
-  } else {
-    clearAnnotationHighlights()
-    annotationsVisible.value = false
-  }
-})
 
 function applyValue(value: string, options?: { keepHistory?: boolean }) {
   markdownValue.value = value
@@ -305,168 +278,6 @@ function redo() {
   if (value === null) return
   markdownValue.value = value
   emit('update:modelValue', value)
-}
-
-function applySelection(transform: (selected: string) => { text: string; cursorOffset?: number }) {
-  const el = getEditorElement()
-  if (!el) return
-  const start = el.selectionStart
-  const end = el.selectionEnd
-  const selected = markdownValue.value.slice(start, end)
-  const { text, cursorOffset } = transform(selected)
-  const nextValue = markdownValue.value.slice(0, start) + text + markdownValue.value.slice(end)
-  applyValue(nextValue)
-
-  nextTick(() => {
-    const nextPos = start + (cursorOffset ?? text.length)
-    el.focus()
-    el.setSelectionRange(nextPos, nextPos)
-    refreshWikilinkSuggestions()
-  })
-}
-
-function wrapSelection(prefix: string, suffix: string, fallback = 'text') {
-  applySelection((selected) => {
-    const content = selected || fallback
-    const text = `${prefix}${content}${suffix}`
-    return { text, cursorOffset: selected ? text.length : prefix.length + fallback.length }
-  })
-}
-
-function insertLinePrefix(prefix: string, fallback = 'item') {
-  applySelection((selected) => {
-    if (!selected) {
-      const text = `${prefix}${fallback}`
-      return { text, cursorOffset: text.length }
-    }
-    const text = selected
-      .split('\n')
-      .map((line) => `${prefix}${line}`)
-      .join('\n')
-    return { text, cursorOffset: text.length }
-  })
-}
-
-function insertText(text: string) {
-  applySelection(() => ({ text, cursorOffset: text.length }))
-}
-
-function applyHeading(level: number) {
-  insertLinePrefix(`${'#'.repeat(level)} `, `Heading ${level}`)
-}
-
-function applyTableSize(cols: number, rows: number) {
-  const head = `| ${Array.from({ length: cols }, (_, idx) => `Col ${idx + 1}`).join(' | ')} |\n`
-  const sep = `|${Array.from({ length: cols }, () => '---').join('|')}|\n`
-  const body = Array.from({ length: rows - 1 }, (_, r) => `| ${Array.from({ length: cols }, (_, c) => `R${r + 1}C${c + 1}`).join(' | ')} |\n`).join('')
-  insertText(`\n${head}${sep}${body}`)
-}
-
-function applyEmoji(emoji: string) {
-  insertText(emoji)
-}
-
-function insertCurrentDate() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  insertText(`${year}-${month}-${day}`)
-}
-
-function formatMarkdownTableAtCursor() {
-  wikilink.close()
-  const el = getEditorElement()
-  if (!el) return
-  const cursor = Math.min(el.selectionStart, el.selectionEnd)
-  const result = formatPipeTableAtCursor(markdownValue.value, cursor)
-  if (!result) return
-  applyValue(result.text)
-  nextTick(() => {
-    el.focus()
-    el.setSelectionRange(result.cursor, result.cursor)
-    refreshWikilinkSuggestions()
-  })
-}
-
-function continueListOnEnter(): boolean {
-  const el = getEditorElement()
-  if (!el) return false
-  if (el.selectionStart !== el.selectionEnd) return false
-
-  const pos = el.selectionStart
-  const src = markdownValue.value
-  const lineStart = src.lastIndexOf('\n', Math.max(0, pos - 1)) + 1
-  const nextNl = src.indexOf('\n', pos)
-  const lineEnd = nextNl === -1 ? src.length : nextNl
-  const before = src.slice(lineStart, pos)
-  const after = src.slice(pos, lineEnd)
-  if (after.trim().length > 0) return false
-
-  const task = before.match(/^(\s*)([-*+])\s\[( |x|X)\]\s(.*)$/)
-  if (task) {
-    const [, indent, bullet, state, text] = task
-    if (!text.trim()) {
-      const next = `${src.slice(0, lineStart)}${src.slice(lineEnd + 1)}`
-      applyValue(next)
-      nextTick(() => {
-        const p = lineStart
-        el.setSelectionRange(p, p)
-      })
-      return true
-    }
-    const insert = `\n${indent}${bullet} [${state === ' ' ? ' ' : ' '}] `
-    applyValue(`${src.slice(0, pos)}${insert}${src.slice(pos)}`)
-    nextTick(() => {
-      const p = pos + insert.length
-      el.setSelectionRange(p, p)
-    })
-    return true
-  }
-
-  const ordered = before.match(/^(\s*)(\d+)\.\s(.*)$/)
-  if (ordered) {
-    const [, indent, numRaw, text] = ordered
-    if (!text.trim()) {
-      const next = `${src.slice(0, lineStart)}${src.slice(lineEnd + 1)}`
-      applyValue(next)
-      nextTick(() => {
-        const p = lineStart
-        el.setSelectionRange(p, p)
-      })
-      return true
-    }
-    const insert = `\n${indent}${Number(numRaw) + 1}. `
-    applyValue(`${src.slice(0, pos)}${insert}${src.slice(pos)}`)
-    nextTick(() => {
-      const p = pos + insert.length
-      el.setSelectionRange(p, p)
-    })
-    return true
-  }
-
-  const bullet = before.match(/^(\s*)([-*+])\s(.*)$/)
-  if (bullet) {
-    const [, indent, marker, text] = bullet
-    if (!text.trim()) {
-      const next = `${src.slice(0, lineStart)}${src.slice(lineEnd + 1)}`
-      applyValue(next)
-      nextTick(() => {
-        const p = lineStart
-        el.setSelectionRange(p, p)
-      })
-      return true
-    }
-    const insert = `\n${indent}${marker} `
-    applyValue(`${src.slice(0, pos)}${insert}${src.slice(pos)}`)
-    nextTick(() => {
-      const p = pos + insert.length
-      el.setSelectionRange(p, p)
-    })
-    return true
-  }
-
-  return false
 }
 
 function refreshWikilinkSuggestions() {
@@ -692,7 +503,7 @@ async function refreshPreview() {
   }
   const renderer = await getMarkdownRenderer()
   if (token !== previewRenderToken) return
-  previewHtml.value = renderer.render(markdownValue.value)
+  previewHtml.value = sanitizeHtml(renderer.render(markdownValue.value))
   await nextTick()
   if (token !== previewRenderToken) return
   await renderPreviewDiagrams()
@@ -701,199 +512,6 @@ async function refreshPreview() {
 async function onPreviewClick(event: MouseEvent) {
   tooltipAnnotation.value = null
   await previewCopyDecorations.onPreviewClick(event)
-}
-
-function getPageSlugFromUrl(): string | null {
-  const path = window.location.pathname
-  const match = path.match(/^\/page\/(.+)/)
-  return match ? match[1] : null
-}
-
-async function fetchAnnotations() {
-  const slug = getPageSlugFromUrl()
-  if (!slug) return
-  try {
-    const { data } = await listAnnotations(slug)
-    annotations.value = data
-  } catch {
-    annotations.value = []
-  }
-}
-
-function clearAnnotationHighlights() {
-  for (const span of annotationHighlightSpans) {
-    const parent = span.parentNode
-    if (parent) {
-      parent.replaceChild(document.createTextNode(span.textContent || ''), span)
-      parent.normalize()
-    }
-  }
-  annotationHighlightSpans = []
-}
-
-function applyAnnotationHighlights() {
-  clearAnnotationHighlights()
-  if (annotations.value.length === 0) return
-  const container = getPreviewContentElement()
-  if (!container) return
-
-  for (const annotation of annotations.value) {
-    const text = annotation.highlightedText
-    if (!text) continue
-    const color = annotation.color || '#ffeb3b'
-    highlightTextInNode(container, text, color)
-  }
-}
-
-function highlightTextInNode(root: HTMLElement, searchText: string, color: string) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) => {
-      if (!node.textContent || !node.textContent.includes(searchText)) return NodeFilter.FILTER_REJECT
-      const parent = node.parentElement
-      if (!parent || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE' || parent.tagName === 'MARK') {
-        return NodeFilter.FILTER_REJECT
-      }
-      return NodeFilter.FILTER_ACCEPT
-    }
-  })
-
-  const nodes: Text[] = []
-  while (walker.nextNode()) {
-    nodes.push(walker.currentNode as Text)
-  }
-
-  for (const textNode of nodes) {
-    const content = textNode.textContent || ''
-    const idx = content.indexOf(searchText)
-    if (idx === -1) continue
-
-    const before = content.slice(0, idx)
-    const match = content.slice(idx, idx + searchText.length)
-    const after = content.slice(idx + searchText.length)
-
-    const parent = textNode.parentNode!
-    const beforeNode = document.createTextNode(before)
-    const markEl = document.createElement('mark')
-    markEl.className = 'annotation-highlight'
-    markEl.style.backgroundColor = color
-    markEl.style.borderRadius = '2px'
-    markEl.style.padding = '0 1px'
-    markEl.dataset.annotationText = searchText
-    markEl.textContent = match
-    const afterNode = document.createTextNode(after)
-
-    annotationHighlightSpans.push(markEl)
-    markEl.addEventListener('click', (e) => {
-      e.stopPropagation()
-      const ann = annotations.value.find(a => a.highlightedText === searchText)
-      if (!ann) return
-      const rect = (e.target as HTMLElement).getBoundingClientRect()
-      tooltipAnnotation.value = {
-        annotation: ann,
-        x: rect.left + rect.width / 2,
-        y: rect.top - 8
-      }
-    })
-    parent.insertBefore(beforeNode, textNode)
-    parent.insertBefore(markEl, textNode)
-    parent.insertBefore(afterNode, textNode)
-    parent.removeChild(textNode)
-    break
-  }
-}
-
-function onReadingMouseUp() {
-  if (editorMode.value !== 'reading') return
-  const sel = window.getSelection()
-  if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-    floatingBtn.value = null
-    pendingAnnotation.value = null
-    return
-  }
-  const selectedText = sel.toString().trim()
-  const container = getPreviewContentElement()
-  const fullText = container?.textContent || ''
-  const idx = fullText.indexOf(selectedText)
-  const ctxStart = Math.max(0, idx - 40)
-  const ctxEnd = Math.min(fullText.length, idx + selectedText.length + 40)
-  pendingAnnotation.value = { text: selectedText, context: fullText.slice(ctxStart, ctxEnd) }
-  const range = sel.getRangeAt(0)
-  const rect = range.getBoundingClientRect()
-  floatingBtn.value = {
-    x: rect.left + rect.width / 2 - 60,
-    y: rect.top - 36
-  }
-}
-
-function onReadingMouseDown() {
-  floatingBtn.value = null
-  pendingAnnotation.value = null
-}
-
-function onReadingTouchEnd() {
-  setTimeout(() => {
-    if (editorMode.value !== 'reading') return
-    const sel = window.getSelection()
-    if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-      floatingBtn.value = null
-      return
-    }
-    const selectedText = sel.toString().trim()
-    const container = getPreviewContentElement()
-    const fullText = container?.textContent || ''
-    const idx = fullText.indexOf(selectedText)
-    const ctxStart = Math.max(0, idx - 40)
-    const ctxEnd = Math.min(fullText.length, idx + selectedText.length + 40)
-    pendingAnnotation.value = { text: selectedText, context: fullText.slice(ctxStart, ctxEnd) }
-    const range = sel.getRangeAt(0)
-    const rect = range.getBoundingClientRect()
-    floatingBtn.value = {
-      x: rect.left + rect.width / 2 - 60,
-      y: rect.top - 36
-    }
-  }, 10)
-}
-
-function startAnnotation() {
-  const sel = window.getSelection()
-  let selectedText: string
-  let anchorContext: string
-
-  if (pendingAnnotation.value) {
-    selectedText = pendingAnnotation.value.text
-    anchorContext = pendingAnnotation.value.context
-    pendingAnnotation.value = null
-  } else {
-    if (!sel || sel.isCollapsed) return
-    selectedText = sel.toString().trim()
-    if (!selectedText) return
-    const container = getPreviewContentElement()
-    const fullText = container?.textContent || ''
-    const idx = fullText.indexOf(selectedText)
-    const ctxStart = Math.max(0, idx - 40)
-    const ctxEnd = Math.min(fullText.length, idx + selectedText.length + 40)
-    anchorContext = fullText.slice(ctxStart, ctxEnd)
-  }
-
-  const btn = floatingBtn.value
-  annotationPopup.value = {
-    selectedText,
-    anchorContext,
-    x: (btn?.x ?? 200) - 140,
-    y: (btn?.y ?? 100) + 40
-  }
-  floatingBtn.value = null
-  window.getSelection()?.removeAllRanges()
-}
-
-function onAnnotationCreated(annotation: Annotation) {
-  annotations.value = [...annotations.value, annotation]
-  void nextTick().then(() => applyAnnotationHighlights())
-}
-
-function onAnnotationDeleted(id: string) {
-  annotations.value = annotations.value.filter((a) => a.id !== id)
-  void nextTick().then(() => applyAnnotationHighlights())
 }
 
 onMounted(() => {
@@ -910,6 +528,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelWikilinkBlur()
   clearDragListeners()
+  disposeAnnotations()
 })
 
 defineExpose({
@@ -1084,6 +703,8 @@ defineExpose({
   </div>
 </template>
 
+<style scoped src="./readingThemes.css" />
+
 <style scoped>
 .markdown-editor-wrapper {
   height: 100%;
@@ -1095,42 +716,6 @@ defineExpose({
 
 .markdown-editor-wrapper.reading-mode {
   gap: 0;
-}
-
-.markdown-editor-wrapper.reading-theme-white {
-  --color-bg: #ffffff;
-  --color-bg-secondary: #f6f8fb;
-  --color-bg-hover: #edf2f8;
-  --color-border: #d3dce7;
-  --color-text: #1f2937;
-  --color-text-muted: #5f6f84;
-  --color-text-faint: #8a96a6;
-  --color-wikilink: #2563a8;
-  --color-tag: #a26a16;
-}
-
-.markdown-editor-wrapper.reading-theme-paper {
-  --color-bg: #f6f1e3;
-  --color-bg-secondary: #efe6d3;
-  --color-bg-hover: #e7dbc1;
-  --color-border: #d8cbb3;
-  --color-text: #2d2a22;
-  --color-text-muted: #6d624d;
-  --color-text-faint: #8c816c;
-  --color-wikilink: #5f4bb6;
-  --color-tag: #946a14;
-}
-
-.markdown-editor-wrapper.reading-theme-dark {
-  --color-bg: #0f1115;
-  --color-bg-secondary: #171b22;
-  --color-bg-hover: #212734;
-  --color-border: #2b3442;
-  --color-text: #e7ecf3;
-  --color-text-muted: #9ca8bb;
-  --color-text-faint: #76859c;
-  --color-wikilink: #8ac5ff;
-  --color-tag: #f4bf73;
 }
 
 .toolbar {
@@ -1201,180 +786,6 @@ defineExpose({
   .toolbar {
     padding: 6px;
   }
-}
-
-.markdown-editor-wrapper.reading-theme-white .toolbar,
-.markdown-editor-wrapper.reading-theme-white :deep(.preview-pane.reading-theme-white) {
-  background: #ffffff;
-}
-
-.markdown-editor-wrapper.reading-theme-paper .toolbar,
-.markdown-editor-wrapper.reading-theme-paper :deep(.preview-pane.reading-theme-paper) {
-  background: #f6f1e3;
-}
-
-.markdown-editor-wrapper.reading-theme-dark .toolbar,
-.markdown-editor-wrapper.reading-theme-dark :deep(.preview-pane.reading-theme-dark) {
-  background: #0f1115;
-  color: #e7ecf3;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body),
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body) {
-  color: var(--color-text);
-}
-
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h1),
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h2),
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h3),
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h4),
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h5),
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body h6) {
-  color: #f7fbff;
-}
-
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .wikilink),
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .mdlink-internal) {
-  color: #8ac5ff;
-}
-
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .wikilink-missing),
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .mdlink-internal-missing) {
-  color: #fbbf24;
-  background: color-mix(in srgb, #fbbf24 14%, transparent);
-}
-
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .external-link) {
-  color: #a8b4c4;
-}
-
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body .hashtag) {
-  color: #f4bf73;
-  background: color-mix(in srgb, #f4bf73 15%, transparent);
-  border-color: color-mix(in srgb, #f4bf73 25%, transparent);
-}
-
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body code:not(pre code)) {
-  background: #273243;
-  color: #f5fbff;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body pre code.hljs) {
-  background: #f6f8fa;
-  color: #24292f;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-comment),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-quote) {
-  color: #5f6b78;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-keyword),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-selector-tag),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-subst) {
-  color: #9b1c31;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-number),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-literal),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-variable),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-template-variable),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-tag .hljs-attr) {
-  color: #0f4f96;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-string),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-doctag) {
-  color: #23631c;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-title),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-section),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-selector-id) {
-  color: #6f42c1;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-type),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-class .hljs-title) {
-  color: #7f5b0a;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-tag),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-name),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-attribute) {
-  color: #176236;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-regexp),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-link) {
-  color: #0d4f77;
-}
-
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-built_in),
-.markdown-editor-wrapper.reading-theme-white :deep(.markdown-body .hljs-builtin-name) {
-  color: #8a3f05;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body pre code.hljs) {
-  background: #efe7d6;
-  color: #2d2a22;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-comment),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-quote) {
-  color: #7b6f5a;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-keyword),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-selector-tag),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-subst) {
-  color: #813232;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-number),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-literal),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-variable),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-template-variable),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-tag .hljs-attr) {
-  color: #1f4f88;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-string),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-doctag) {
-  color: #2f6f26;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-title),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-section),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-selector-id) {
-  color: #5f3f96;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-type),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-class .hljs-title) {
-  color: #7a5d22;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-tag),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-name),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-attribute) {
-  color: #225b32;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-regexp),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-link) {
-  color: #2b5974;
-}
-
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-built_in),
-.markdown-editor-wrapper.reading-theme-paper :deep(.markdown-body .hljs-builtin-name) {
-  color: #7d401f;
-}
-
-.markdown-editor-wrapper.reading-theme-dark :deep(.markdown-body pre code.hljs) {
-  background: #272822;
-  color: #f8f8f2;
 }
 
 .visually-hidden {

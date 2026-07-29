@@ -5,6 +5,7 @@ import { useDialogStore } from '@/stores/dialog'
 import * as attachmentsApi from '@/api/attachments'
 import type { Attachment } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { copyTextToClipboard } from '@/utils/clipboard'
 import { t } from '@/utils/i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
@@ -75,10 +76,10 @@ async function deleteAttachment(att: Attachment) {
   }
 }
 
-function copyLink(att: Attachment) {
+async function copyLink(att: Attachment) {
   const isImage = att.contentType.startsWith('image/')
   const md = isImage ? `![${att.originalName}](${att.url})` : `[${att.originalName}](${att.url})`
-  navigator.clipboard.writeText(md)
+  await copyTextToClipboard(md)
 }
 
 function formatSize(bytes: number): string {

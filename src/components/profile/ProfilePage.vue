@@ -6,11 +6,13 @@ import * as apiKeysApi from '@/api/apiKeys'
 import { changePassword } from '@/api/auth'
 import type { ApiKey } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { copyTextToClipboard } from '@/utils/clipboard'
 import { t } from '@/utils/i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
 const auth = useAuthStore()
 const dialog = useDialogStore()
+const PASSWORD_MIN_LENGTH = 8
 const keys = ref<ApiKey[]>([])
 const newKeyName = ref('')
 const createdKey = ref<string | null>(null)
@@ -64,7 +66,7 @@ async function deleteKey(id: string) {
 }
 
 async function changePasswordAction() {
-  if (newPassword.value.length < 8) {
+  if (newPassword.value.length < PASSWORD_MIN_LENGTH) {
     await dialog.alert(t.profile.passwordMinLength)
     return
   }
@@ -90,27 +92,6 @@ async function changePasswordAction() {
     await dialog.alert(getApiErrorMessage(e, t.errors.changePasswordFailed))
   } finally {
     passwordLoading.value = false
-  }
-}
-
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    try {
-      const textarea = document.createElement('textarea')
-      textarea.value = text
-      textarea.style.position = 'fixed'
-      textarea.style.opacity = '0'
-      document.body.appendChild(textarea)
-      textarea.select()
-      const copied = document.execCommand('copy')
-      document.body.removeChild(textarea)
-      return copied
-    } catch {
-      return false
-    }
   }
 }
 
@@ -161,7 +142,7 @@ onBeforeUnmount(() => {
             v-model="newPassword"
             :type="showPassword ? 'text' : 'password'"
             autocomplete="new-password"
-            :minlength="8"
+            :minlength="PASSWORD_MIN_LENGTH"
           />
           <button type="button" class="btn-secondary toggle-btn" @click="showPassword = !showPassword">
             {{ showPassword ? 'Hide' : 'Show' }}

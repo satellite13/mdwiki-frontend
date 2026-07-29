@@ -92,7 +92,7 @@ describe('OpenTasksPage', () => {
     expect(wrapper.text()).toContain('Release notes')
     expect(wrapper.text()).toContain('2 tasks')
     expect(wrapper.text()).toContain('Roadmap')
-    expect(wrapper.findAll('.task-group')).toHaveLength(2)
+    expect(wrapper.findAll('.group-card')).toHaveLength(2)
 
     await wrapper.get('[data-testid="open-document-release-notes"]').trigger('click')
     expect(mockPush).toHaveBeenCalledWith({ name: 'page', params: { slug: 'release-notes' } })
