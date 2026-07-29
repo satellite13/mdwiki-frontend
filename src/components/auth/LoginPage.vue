@@ -31,15 +31,15 @@ async function onSubmit() {
 <template>
   <div class="auth-page">
     <div class="auth-card">
-      <h1>Login</h1>
+      <h1>{{ t('auth.login') }}</h1>
 
       <form @submit.prevent="onSubmit">
-        <div class="field"><label>Username</label><input v-model="username" required autocomplete="username" /></div>
-        <div class="field"><label>Password</label><input v-model="password" type="password" required autocomplete="current-password" /></div>
+        <div class="field"><label>{{ t('auth.username') }}</label><input v-model="username" required autocomplete="username" /></div>
+        <div class="field"><label>{{ t('auth.password') }}</label><input v-model="password" type="password" required autocomplete="current-password" /></div>
         <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit" class="btn-primary">Login</button>
+        <button type="submit" class="btn-primary">{{ t('auth.login') }}</button>
       </form>
-      <p class="switch">Don't have an account? <router-link to="/register">Register</router-link></p>
+      <p class="switch">{{ t('auth.noAccount') }} <router-link to="/register">{{ t('auth.register') }}</router-link></p>
     </div>
   </div>
 </template>

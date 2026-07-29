@@ -93,7 +93,7 @@ function onNavClick() {
     <button
       type="button"
       class="icon-btn sidebar-toggle show-mobile-only"
-      aria-label="Open documents"
+      :aria-label="t('header.openDocuments')"
       @click="editorUi.toggleMobileSidebar()"
     >
       <span class="material-symbols-outlined notranslate" translate="no">menu</span>
@@ -154,7 +154,7 @@ function onNavClick() {
       <button
         type="button"
         class="icon-btn"
-        aria-label="Navigation menu"
+        :aria-label="t('header.navMenu')"
         :aria-expanded="mobileNavOpen"
         @click="editorUi.toggleMobileNav()"
       >

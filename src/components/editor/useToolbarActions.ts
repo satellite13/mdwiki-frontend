@@ -195,28 +195,28 @@ export function useToolbarActions(options: ToolbarActionsOptions) {
     return false
   }
 
-  const inlineFormatActions: ToolbarAction[] = [
-    { key: 'bold', title: 'Bold', ariaLabel: 'Bold', icon: 'format_bold', onClick: () => wrapSelection('**', '**') },
-    { key: 'italic', title: 'Italic', ariaLabel: 'Italic', icon: 'format_italic', onClick: () => wrapSelection('*', '*') },
-    { key: 'underline', title: 'Underline', ariaLabel: 'Underline', icon: 'format_underlined', onClick: () => wrapSelection('<u>', '</u>') },
-    { key: 'strikethrough', title: 'Strikethrough', ariaLabel: 'Strikethrough', icon: 'strikethrough_s', onClick: () => wrapSelection('~~', '~~') },
-    { key: 'highlight', title: 'Highlight', ariaLabel: 'Highlight', icon: 'ink_highlighter', onClick: () => wrapSelection('==', '==') },
-    { key: 'superscript', title: 'Superscript', ariaLabel: 'Superscript', icon: 'superscript', onClick: () => wrapSelection('^', '^') },
-    { key: 'subscript', title: 'Subscript', ariaLabel: 'Subscript', icon: 'subscript', onClick: () => wrapSelection('~', '~') },
-    { key: 'inline-code', title: 'Inline code', ariaLabel: 'Inline code', icon: 'code', onClick: () => wrapSelection('`', '`') }
-  ]
+  const inlineFormatActions = computed<ToolbarAction[]>(() => [
+    { key: 'bold', title: t('editor.bold'), ariaLabel: t('editor.bold'), icon: 'format_bold', onClick: () => wrapSelection('**', '**') },
+    { key: 'italic', title: t('editor.italic'), ariaLabel: t('editor.italic'), icon: 'format_italic', onClick: () => wrapSelection('*', '*') },
+    { key: 'underline', title: t('editor.underline'), ariaLabel: t('editor.underline'), icon: 'format_underlined', onClick: () => wrapSelection('<u>', '</u>') },
+    { key: 'strikethrough', title: t('editor.strikethrough'), ariaLabel: t('editor.strikethrough'), icon: 'strikethrough_s', onClick: () => wrapSelection('~~', '~~') },
+    { key: 'highlight', title: t('editor.highlight'), ariaLabel: t('editor.highlight'), icon: 'ink_highlighter', onClick: () => wrapSelection('==', '==') },
+    { key: 'superscript', title: t('editor.superscript'), ariaLabel: t('editor.superscript'), icon: 'superscript', onClick: () => wrapSelection('^', '^') },
+    { key: 'subscript', title: t('editor.subscript'), ariaLabel: t('editor.subscript'), icon: 'subscript', onClick: () => wrapSelection('~', '~') },
+    { key: 'inline-code', title: t('editor.inlineCode'), ariaLabel: t('editor.inlineCode'), icon: 'code', onClick: () => wrapSelection('`', '`') }
+  ])
 
-  const listAndBlockActions: ToolbarAction[] = [
-    { key: 'bulleted', title: 'Bulleted list', ariaLabel: 'Bulleted list', icon: 'format_list_bulleted', onClick: () => insertLinePrefix('- ', 'list item') },
-    { key: 'numbered', title: 'Numbered list', ariaLabel: 'Numbered list', icon: 'format_list_numbered', onClick: () => insertLinePrefix('1. ', 'list item') },
-    { key: 'task', title: 'Task list', ariaLabel: 'Task list', icon: 'checklist', onClick: () => insertLinePrefix('- [ ] ', 'task') },
-    { key: 'quote', title: 'Quote', ariaLabel: 'Quote', icon: 'format_quote', onClick: () => insertLinePrefix('> ', 'quote') },
-    { key: 'code-block', title: 'Code block', ariaLabel: 'Code block', icon: 'data_object', onClick: () => insertText('\n```\ncode\n```\n') }
-  ]
+  const listAndBlockActions = computed<ToolbarAction[]>(() => [
+    { key: 'bulleted', title: t('editor.bulletedList'), ariaLabel: t('editor.bulletedList'), icon: 'format_list_bulleted', onClick: () => insertLinePrefix('- ', 'list item') },
+    { key: 'numbered', title: t('editor.numberedList'), ariaLabel: t('editor.numberedList'), icon: 'format_list_numbered', onClick: () => insertLinePrefix('1. ', 'list item') },
+    { key: 'task', title: t('editor.taskList'), ariaLabel: t('editor.taskList'), icon: 'checklist', onClick: () => insertLinePrefix('- [ ] ', 'task') },
+    { key: 'quote', title: t('editor.quote'), ariaLabel: t('editor.quote'), icon: 'format_quote', onClick: () => insertLinePrefix('> ', 'quote') },
+    { key: 'code-block', title: t('editor.codeBlock'), ariaLabel: t('editor.codeBlock'), icon: 'data_object', onClick: () => insertText('\n```\ncode\n```\n') }
+  ])
 
-  const quickInsertActions: ToolbarAction[] = [
-    { key: 'link', title: 'Link', ariaLabel: 'Link', icon: 'link', onClick: () => wrapSelection('[', '](https://example.com)', 'link text') },
-    { key: 'upload-image', title: 'Insert image', ariaLabel: 'Insert image', icon: 'image', onClick: options.triggerUpload },
+  const quickInsertActions = computed<ToolbarAction[]>(() => [
+    { key: 'link', title: t('editor.link'), ariaLabel: t('editor.link'), icon: 'link', onClick: () => wrapSelection('[', '](https://example.com)', 'link text') },
+    { key: 'upload-image', title: t('editor.insertImage'), ariaLabel: t('editor.insertImage'), icon: 'image', onClick: options.triggerUpload },
     {
       key: 'format-table',
       title: t('editor.formatTable'),
@@ -224,23 +224,23 @@ export function useToolbarActions(options: ToolbarActionsOptions) {
       icon: 'format_align_justify',
       onClick: formatMarkdownTableAtCursor
     },
-    { key: 'wiki-link', title: 'Wiki link', ariaLabel: 'Wiki link', icon: 'article_shortcut', onClick: () => wrapSelection('[[', ']]', 'Page Title') },
-    { key: 'tag', title: 'Tag', ariaLabel: 'Tag', icon: 'sell', onClick: () => insertText(' #tag') },
-    { key: 'insert-date', title: 'Insert current date', ariaLabel: 'Insert current date', icon: 'calendar_today', onClick: insertCurrentDate }
-  ]
+    { key: 'wiki-link', title: t('editor.wikiLink'), ariaLabel: t('editor.wikiLink'), icon: 'article_shortcut', onClick: () => wrapSelection('[[', ']]', 'Page Title') },
+    { key: 'tag', title: t('editor.tag'), ariaLabel: t('editor.tag'), icon: 'sell', onClick: () => insertText(' #tag') },
+    { key: 'insert-date', title: t('editor.insertDate'), ariaLabel: t('editor.insertDate'), icon: 'calendar_today', onClick: insertCurrentDate }
+  ])
 
   const historyActions = computed<ToolbarAction[]>(() => [
     { key: 'find', title: t('editor.findTitle'), ariaLabel: t('editor.findTitle'), icon: 'search', onClick: () => options.openEditorFind() },
-    { key: 'undo', title: 'Undo', ariaLabel: 'Undo', icon: 'undo', onClick: options.undo, disabled: !options.canUndo.value },
-    { key: 'redo', title: 'Redo', ariaLabel: 'Redo', icon: 'redo', onClick: options.redo, disabled: !options.canRedo.value },
-    { key: 'save', title: 'Save', ariaLabel: 'Save', icon: 'save', onClick: options.onSave }
+    { key: 'undo', title: t('editor.undo'), ariaLabel: t('editor.undo'), icon: 'undo', onClick: options.undo, disabled: !options.canUndo.value },
+    { key: 'redo', title: t('editor.redo'), ariaLabel: t('editor.redo'), icon: 'redo', onClick: options.redo, disabled: !options.canRedo.value },
+    { key: 'save', title: t('common.save'), ariaLabel: t('common.save'), icon: 'save', onClick: options.onSave }
   ])
 
   const modeSwitchActions = computed<ToolbarAction[]>(() => [
-    { key: 'mode-editor', title: 'Editor', ariaLabel: 'Editor', icon: 'edit_note', active: options.editorMode.value === 'editor', onClick: () => options.setMode('editor') },
-    { key: 'mode-split', title: 'Split', ariaLabel: 'Split', icon: 'split_scene', active: options.editorMode.value === 'split', onClick: () => options.setMode('split') },
-    { key: 'mode-preview', title: 'Preview', ariaLabel: 'Preview', icon: 'preview', active: options.editorMode.value === 'preview', onClick: () => options.setMode('preview') },
-    { key: 'mode-reading', title: 'Reading', ariaLabel: 'Reading', icon: 'menu_book', onClick: () => options.setMode('reading') }
+    { key: 'mode-editor', title: t('editor.modeEditor'), ariaLabel: t('editor.modeEditor'), icon: 'edit_note', active: options.editorMode.value === 'editor', onClick: () => options.setMode('editor') },
+    { key: 'mode-split', title: t('editor.modeSplit'), ariaLabel: t('editor.modeSplit'), icon: 'split_scene', active: options.editorMode.value === 'split', onClick: () => options.setMode('split') },
+    { key: 'mode-preview', title: t('editor.modePreview'), ariaLabel: t('editor.modePreview'), icon: 'preview', active: options.editorMode.value === 'preview', onClick: () => options.setMode('preview') },
+    { key: 'mode-reading', title: t('editor.modeReading'), ariaLabel: t('editor.modeReading'), icon: 'menu_book', onClick: () => options.setMode('reading') }
   ])
 
   return {

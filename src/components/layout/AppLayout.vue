@@ -8,6 +8,7 @@ import VerticalPaneResizer from '@/components/ui/VerticalPaneResizer.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useHorizontalDragResize } from '@/composables/useHorizontalDragResize'
 import { useEditorUiStore } from '@/stores/editorUi'
+import { useI18n } from 'vue-i18n'
 import {
   clampDocumentsSidebarWidth,
   DEFAULT_DOCUMENTS_SIDEBAR_WIDTH,
@@ -15,6 +16,7 @@ import {
   writeDocumentsSidebarWidthPref
 } from './sidebarPreferences'
 
+const { t } = useI18n()
 const route = useRoute()
 const editorUi = useEditorUiStore()
 const { isReadingMode, mobileSidebarOpen } = storeToRefs(editorUi)
@@ -108,7 +110,7 @@ onBeforeUnmount(() => {
         v-if="showMobileSidebar && mobileSidebarOpen"
         type="button"
         class="sidebar-backdrop"
-        aria-label="Close sidebar"
+        :aria-label="t('layout.closeSidebar')"
         @click="editorUi.closeMobileSidebar()"
       />
       <VerticalPaneResizer

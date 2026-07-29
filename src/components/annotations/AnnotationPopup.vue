@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { createAnnotation } from '@/api/annotations'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { getPageSlugFromUrl } from '@/utils/pageSlug'
 import type { Annotation } from '@/types'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   selectedText: string
@@ -22,13 +25,13 @@ const color = ref('#ffeb3b')
 const saving = ref(false)
 const error = ref('')
 
-const COLOR_OPTIONS = [
-  { value: '#ffeb3b', label: 'Yellow' },
-  { value: '#a5d6a7', label: 'Green' },
-  { value: '#ef9a9a', label: 'Red' },
-  { value: '#90caf9', label: 'Blue' },
-  { value: '#ce93d8', label: 'Purple' }
-]
+const COLOR_OPTIONS = computed(() => [
+  { value: '#ffeb3b', label: t('annotations.colorYellow') },
+  { value: '#a5d6a7', label: t('annotations.colorGreen') },
+  { value: '#ef9a9a', label: t('annotations.colorRed') },
+  { value: '#90caf9', label: t('annotations.colorBlue') },
+  { value: '#ce93d8', label: t('annotations.colorPurple') }
+])
 
 async function save() {
   saving.value = true
@@ -36,7 +39,7 @@ async function save() {
   try {
     const pageSlug = getPageSlugFromUrl()
     if (!pageSlug) {
-      error.value = 'Could not determine page slug'
+      error.value = t('annotations.slugUnknown')
       return
     }
     const res = await createAnnotation(pageSlug, {
@@ -50,7 +53,7 @@ async function save() {
     emit('created', res.data)
     emit('close')
   } catch (e) {
-    error.value = getApiErrorMessage(e, 'Failed to create annotation')
+    error.value = getApiErrorMessage(e, t('annotations.createFailed'))
   } finally {
     saving.value = false
   }
@@ -78,8 +81,8 @@ onBeforeUnmount(() => {
     @click.stop
   >
     <div class="popup-header">
-      <span class="popup-title">Add annotation</span>
-      <button type="button" class="popup-close" aria-label="Close" @click="emit('close')">
+      <span class="popup-title">{{ t('annotations.add') }}</span>
+      <button type="button" class="popup-close" :aria-label="t('common.close')" @click="emit('close')">
         <span class="material-symbols-outlined notranslate" translate="no">close</span>
       </button>
     </div>
@@ -90,7 +93,7 @@ onBeforeUnmount(() => {
       <textarea
         v-model="comment"
         class="popup-comment"
-        placeholder="Add a comment..."
+        :placeholder="t('annotations.addComment')"
         rows="3"
         autofocus
       />
@@ -110,9 +113,9 @@ onBeforeUnmount(() => {
       <div v-if="error" class="popup-error">{{ error }}</div>
     </div>
     <div class="popup-footer">
-      <button type="button" class="btn-secondary" @click="emit('close')">Cancel</button>
+      <button type="button" class="btn-secondary" @click="emit('close')">{{ t('common.cancel') }}</button>
       <button type="button" class="btn-primary" :disabled="saving" @click="save">
-        {{ saving ? 'Saving...' : 'Save' }}
+        {{ saving ? t('common.saving') : t('common.save') }}
       </button>
     </div>
   </div>

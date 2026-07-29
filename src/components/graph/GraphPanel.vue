@@ -119,11 +119,11 @@ onBeforeUnmount(() => {
   <div class="graph-panel" :class="{ 'graph-panel--wiki': variant === 'wiki' }">
     <div class="graph-toolbar">
       <div class="graph-toolbar__left">
-        <span class="graph-label">{{ variant === 'wiki' ? 'Wiki graph' : 'Page graph' }}</span>
-        <span v-if="variant === 'wiki' && lastNodes.length" class="graph-meta">{{ lastNodes.length }} nodes</span>
+        <span class="graph-label">{{ variant === 'wiki' ? t('graph.wikiGraph') : t('graph.pageGraph') }}</span>
+        <span v-if="variant === 'wiki' && lastNodes.length" class="graph-meta">{{ t('graph.nodes', { count: lastNodes.length }) }}</span>
       </div>
       <div v-if="variant === 'page'" class="depth-controls">
-        <span class="depth-label">Depth</span>
+        <span class="depth-label">{{ t('graph.depth') }}</span>
         <button
           v-for="d in [1, 2, 3]"
           :key="d"

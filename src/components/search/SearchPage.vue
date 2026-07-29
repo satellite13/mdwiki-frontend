@@ -18,12 +18,12 @@ const query = ref((route.query.q as string) || '')
 const selectedTag = ref<string | null>(null)
 const minScore = ref<number>(0)
 
-const scoreOptions = [
-  { label: 'All scores', value: 0 },
+const scoreOptions = computed(() => [
+  { label: t('search.allScores'), value: 0 },
   { label: '50%+', value: 0.5 },
   { label: '75%+', value: 0.75 },
   { label: '90%+', value: 0.9 },
-]
+])
 
 const resultTags = computed(() => {
   const tagSet = new Set<string>()
@@ -86,23 +86,23 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
 
 <template>
   <div class="search-page">
-    <h1>Search Results</h1>
-    <p v-if="query" class="query-info">Results for "<strong>{{ query }}</strong>"</p>
+    <h1>{{ t('search.title') }}</h1>
+    <p v-if="query" class="query-info">{{ t('search.resultsFor', { query }) }}</p>
 
     <div v-if="results.length > 0" class="filters">
       <div v-if="resultTags.length > 0" class="tag-filter">
-        <span class="filter-label">Tags:</span>
+        <span class="filter-label">{{ t('search.tagsLabel') }}</span>
         <button
           v-for="tag in resultTags"
           :key="tag"
           :class="['tag-chip', { active: selectedTag === tag }]"
           @click="toggleTag(tag)"
         >{{ tag }}</button>
-        <button v-if="selectedTag" class="tag-chip clear" @click="selectedTag = null">clear</button>
+        <button v-if="selectedTag" class="tag-chip clear" @click="selectedTag = null">{{ t('search.clearTag') }}</button>
       </div>
 
       <div class="score-filter">
-        <span class="filter-label">Score:</span>
+        <span class="filter-label">{{ t('search.scoreLabel') }}</span>
         <select v-model.number="minScore" class="score-select">
           <option v-for="o in scoreOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
         </select>
@@ -110,8 +110,8 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
     </div>
 
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="search" /></div>
-    <div v-else-if="filteredResults.length === 0 && results.length > 0" class="state-placeholder">No results match the selected filters.</div>
-    <div v-else-if="results.length === 0" class="state-placeholder">No results found.</div>
+    <div v-else-if="filteredResults.length === 0 && results.length > 0" class="state-placeholder">{{ t('search.noFilteredResults') }}</div>
+    <div v-else-if="results.length === 0" class="state-placeholder">{{ t('search.noResults') }}</div>
     <ul v-else class="results">
       <li v-for="(r, index) in filteredResults" :key="r.pageSlug + index" class="result-card" :style="{ animationDelay: `${Math.min(index, 15) * 0.05}s` }">
         <router-link :to="`/page/${r.pageSlug}`">

@@ -608,7 +608,7 @@ defineExpose({
       <VerticalPaneResizer
         v-if="editorMode === 'split' && !isMobile"
         :dragging="splitDragging"
-        ariaLabel="Resize split panes"
+        :ariaLabel="t('editor.splitResize')"
         @mousedown="startSplitDrag"
         @dblclick="resetSplitRatio"
       />

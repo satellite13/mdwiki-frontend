@@ -98,7 +98,7 @@ onMounted(fetchAttachments)
 
 <template>
   <div class="attachments-page">
-    <h1>Attachments</h1>
+    <h1>{{ t('attachments.title') }}</h1>
 
     <div
       v-if="auth.isEditor"
@@ -107,23 +107,23 @@ onMounted(fetchAttachments)
       @dragover="onDragOver"
       @dragleave="onDragLeave"
     >
-      <p v-if="uploading">Uploading...</p>
-      <p v-else>Drag files here or <label class="file-label"><input type="file" multiple @change="onFileInput" hidden />browse</label></p>
+      <p v-if="uploading">{{ t('attachments.uploading') }}</p>
+      <p v-else>{{ t('attachments.dropHint') }} <label class="file-label"><input type="file" multiple @change="onFileInput" hidden />{{ t('attachments.browse') }}</label></p>
     </div>
 
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
-    <div v-else-if="attachments.length === 0" class="state-placeholder">No attachments yet.</div>
+    <div v-else-if="attachments.length === 0" class="state-placeholder">{{ t('attachments.empty') }}</div>
     <div v-else class="table-scroll">
     <table class="data-table attachments-table">
       <thead>
         <tr>
           <th></th>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Size</th>
-          <th>Uploaded by</th>
-          <th>Date</th>
-          <th>Actions</th>
+          <th>{{ t('attachments.colName') }}</th>
+          <th>{{ t('attachments.colType') }}</th>
+          <th>{{ t('attachments.colSize') }}</th>
+          <th>{{ t('attachments.colUploadedBy') }}</th>
+          <th>{{ t('attachments.colDate') }}</th>
+          <th>{{ t('attachments.colActions') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -141,8 +141,8 @@ onMounted(fetchAttachments)
           <td class="date-cell" data-label="Date">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
           <td class="actions-cell">
             <div class="actions-inner">
-              <button class="btn-secondary btn-sm" type="button" @click="copyLink(att)" title="Copy markdown link">Copy link</button>
-              <button v-if="auth.isEditor" class="btn-danger btn-sm" type="button" @click="deleteAttachment(att)">Delete</button>
+              <button class="btn-secondary btn-sm" type="button" @click="copyLink(att)" :title="t('attachments.copyMarkdownLink')">{{ t('attachments.copyLink') }}</button>
+              <button v-if="auth.isEditor" class="btn-danger btn-sm" type="button" @click="deleteAttachment(att)">{{ t('tree.delete') }}</button>
             </div>
           </td>
         </tr>

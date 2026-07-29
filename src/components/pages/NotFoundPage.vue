@@ -1,8 +1,14 @@
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+</script>
+
 <template>
   <div class="not-found-page">
     <h1>404</h1>
-    <p class="hint">Page not found.</p>
-    <router-link to="/" class="btn-secondary">Back to documents</router-link>
+    <p class="hint">{{ t('notFound.title') }}</p>
+    <router-link to="/" class="btn-secondary">{{ t('notFound.back') }}</router-link>
   </div>
 </template>
 

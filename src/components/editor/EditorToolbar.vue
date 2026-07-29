@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import IconActionButton from '@/components/ui/IconActionButton.vue'
 import ToolbarDropdown from '@/components/ui/ToolbarDropdown.vue'
 import type { ToolbarAction } from './toolbarTypes'
 
+const { t } = useI18n()
 const TABLE_GRID_MAX = 8
 const headingLevels = [1, 2, 3, 4, 5] as const
 
@@ -95,8 +97,8 @@ function onEmojiClick(emoji: string) {
   <ToolbarDropdown v-model="headingMenuOpen" class="heading-menu">
     <template #trigger>
       <IconActionButton
-        title="Heading levels"
-        ariaLabel="Heading levels"
+        :title="t('toolbar.headingLevels')"
+        :ariaLabel="t('toolbar.headingLevels')"
         icon="title"
         @click="toggleHeadingMenu"
       />
@@ -133,8 +135,8 @@ function onEmojiClick(emoji: string) {
   <ToolbarDropdown v-model="tableMenuOpen" class="table-menu">
     <template #trigger>
       <IconActionButton
-        title="Insert table"
-        ariaLabel="Insert table"
+        :title="t('toolbar.insertTable')"
+        :ariaLabel="t('toolbar.insertTable')"
         icon="grid_on"
         @click="toggleTableMenu"
       />
@@ -161,8 +163,8 @@ function onEmojiClick(emoji: string) {
   <ToolbarDropdown v-model="emojiMenuOpen" class="emoji-menu">
     <template #trigger>
       <IconActionButton
-        title="Insert emoji"
-        ariaLabel="Insert emoji"
+        :title="t('toolbar.insertEmoji')"
+        :ariaLabel="t('toolbar.insertEmoji')"
         icon="sentiment_satisfied"
         @click="toggleEmojiMenu"
       />

@@ -79,7 +79,7 @@ function toggleLock() {
 <template>
   <div class="workspace" :class="{ 'reading-mode': editorUi.isReadingMode }" v-if="page">
     <nav v-if="page.folderPath && page.folderPath.length" class="breadcrumbs">
-      <router-link to="/" class="breadcrumb-home" aria-label="Home">
+      <router-link to="/" class="breadcrumb-home" :aria-label="t('common.home')">
         <span class="material-symbols-outlined notranslate" translate="no">home</span>
       </router-link>
       <template v-for="folder in page.folderPath" :key="folder.id">
@@ -96,17 +96,17 @@ function toggleLock() {
         :class="{ 'title-input-locked': isLocked }"
         :value="title"
         @input="onTitleInput"
-        placeholder="Page title"
+        :placeholder="t('workspace.pageTitle')"
         :disabled="isLocked"
       />
-      <span v-if="isDirty()" class="unsaved-dot" title="Unsaved changes"></span>
+      <span v-if="isDirty()" class="unsaved-dot" :title="t('workspace.unsavedChanges')"></span>
       <span v-if="saveError" class="save-error" @click="clearSaveError">{{ saveError }}</span>
       <button
         type="button"
         class="lock-btn"
         :class="{ locked: isLocked }"
-        :title="isLocked ? 'Unlock page' : 'Lock page (read-only)'"
-        :aria-label="isLocked ? 'Unlock page' : 'Lock page'"
+        :title="isLocked ? t('workspace.unlockPage') : t('workspace.lockPageReadonly')"
+        :aria-label="isLocked ? t('workspace.unlockPage') : t('workspace.lockPage')"
         @click="toggleLock"
       >
         <span class="material-symbols-outlined notranslate" translate="no">{{ isLocked ? 'lock' : 'lock_open' }}</span>
@@ -124,7 +124,7 @@ function toggleLock() {
       <button
         class="graph-toggle"
         @click="toggleGraph"
-        :title="showGraph ? 'Hide neighborhood graph' : 'Neighborhood graph (this page and linked pages, depth 1–3)'"
+        :title="showGraph ? t('workspace.graphHide') : t('workspace.graphShow')"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" :stroke="showGraph ? 'var(--color-primary)' : 'currentColor'" stroke-width="2">
           <circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/>
@@ -132,8 +132,8 @@ function toggleLock() {
         </svg>
       </button>
       <span :class="['save-status', saveStatus]">
-        <template v-if="saveStatus === 'saving'">Saving...</template>
-        <template v-else-if="saveStatus === 'saved'">Saved</template>
+        <template v-if="saveStatus === 'saving'">{{ t('common.saving') }}</template>
+        <template v-else-if="saveStatus === 'saved'">{{ t('workspace.saved') }}</template>
       </span>
     </div>
 
@@ -154,7 +154,7 @@ function toggleLock() {
 
     <div class="backlinks-panel" v-if="!editorUi.isReadingMode && backlinks.length">
       <details>
-        <summary>Backlinks ({{ backlinks.length }})</summary>
+        <summary>{{ t('workspace.backlinks', { count: backlinks.length }) }}</summary>
         <ul>
           <li v-for="bl in backlinks" :key="bl.slug">
             <router-link :to="`/page/${bl.slug}`">{{ bl.title }}</router-link>
@@ -165,14 +165,14 @@ function toggleLock() {
   </div>
   <div v-else-if="loading" class="state-placeholder"><SkeletonPage variant="editor" /></div>
   <div v-else class="empty-workspace">
-    <p>Select a page from the sidebar or create a new one.</p>
+    <p>{{ t('workspace.emptyHint') }}</p>
     <button
       v-if="isMobile"
       type="button"
       class="btn-secondary open-sidebar-btn"
       @click="editorUi.openMobileSidebar()"
     >
-      Open documents
+      {{ t('common.openDocuments') }}
     </button>
   </div>
 </template>

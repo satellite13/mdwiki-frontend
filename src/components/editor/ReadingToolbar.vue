@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ReadingTheme } from '@/types'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   title?: string
@@ -20,11 +24,11 @@ const emit = defineEmits<{
   exportPdf: []
 }>()
 
-const themeOptions: Array<{ id: ReadingTheme; ariaLabel: string; title: string; className: string }> = [
-  { id: 'white', ariaLabel: 'White background', title: 'White', className: 'theme-white' },
-  { id: 'paper', ariaLabel: 'Paper background', title: 'Paper', className: 'theme-paper' },
-  { id: 'dark', ariaLabel: 'Dark background', title: 'Dark', className: 'theme-dark' }
-]
+const themeOptions = computed<Array<{ id: ReadingTheme; ariaLabel: string; title: string; className: string }>>(() => [
+  { id: 'white', ariaLabel: t('reading.themeWhiteBg'), title: t('reading.themeWhite'), className: 'theme-white' },
+  { id: 'paper', ariaLabel: t('reading.themePaperBg'), title: t('reading.themePaper'), className: 'theme-paper' },
+  { id: 'dark', ariaLabel: t('reading.themeDarkBg'), title: t('reading.themeDark'), className: 'theme-dark' }
+])
 
 function onFontInput(event: Event) {
   const target = event.target as HTMLInputElement

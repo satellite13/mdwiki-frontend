@@ -63,7 +63,7 @@ onMounted(fetchUsers)
 
 <template>
   <div class="admin-users">
-    <div class="admin-nav" aria-label="Admin sections">
+    <div class="admin-nav" :aria-label="t('admin.sections')">
       <router-link to="/admin/users" class="admin-nav-link">{{ t('admin.openUsersSettings') }}</router-link>
       <router-link to="/admin/embedding" class="admin-nav-link">{{ t('admin.openEmbeddingSettings') }}</router-link>
     </div>
@@ -71,7 +71,7 @@ onMounted(fetchUsers)
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
     <div v-else class="table-scroll">
     <table class="data-table users-table">
-      <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+      <thead><tr><th>{{ t('admin.colUsername') }}</th><th>{{ t('admin.colEmail') }}</th><th>{{ t('admin.colRole') }}</th><th>{{ t('admin.colActions') }}</th></tr></thead>
       <tbody>
         <tr v-for="user in users" :key="user.id">
           <td class="user-name" data-label="Username">{{ user.username }}</td>

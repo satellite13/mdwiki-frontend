@@ -27,16 +27,16 @@ async function onSubmit() {
 <template>
   <div class="auth-page">
     <div class="auth-card">
-      <h1>Register</h1>
+      <h1>{{ t('auth.register') }}</h1>
 
       <form @submit.prevent="onSubmit">
-        <div class="field"><label>Username</label><input v-model="username" required autocomplete="username" /></div>
-        <div class="field"><label>Email</label><input v-model="email" type="email" required autocomplete="email" /></div>
-        <div class="field"><label>Password</label><input v-model="password" type="password" required minlength="8" autocomplete="new-password" /></div>
+        <div class="field"><label>{{ t('auth.username') }}</label><input v-model="username" required autocomplete="username" /></div>
+        <div class="field"><label>{{ t('auth.email') }}</label><input v-model="email" type="email" required autocomplete="email" /></div>
+        <div class="field"><label>{{ t('auth.password') }}</label><input v-model="password" type="password" required minlength="8" autocomplete="new-password" /></div>
         <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit" class="btn-primary">Register</button>
+        <button type="submit" class="btn-primary">{{ t('auth.register') }}</button>
       </form>
-      <p class="switch">Already have an account? <router-link to="/login">Login</router-link></p>
+      <p class="switch">{{ t('auth.haveAccount') }} <router-link to="/login">{{ t('auth.login') }}</router-link></p>
     </div>
   </div>
 </template>

@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import SkeletonLoader from './SkeletonLoader.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 withDefaults(defineProps<{
   variant?: 'page' | 'editor' | 'table' | 'search' | 'tree' | 'graph' | 'form'
@@ -10,7 +13,7 @@ withDefaults(defineProps<{
 
 <template>
   <!-- Page skeleton: title + paragraphs -->
-  <div v-if="variant === 'page'" class="skeleton-page" aria-busy="true" aria-label="Loading page">
+  <div v-if="variant === 'page'" class="skeleton-page" aria-busy="true" :aria-label="t('skeleton.page')">
     <SkeletonLoader width="60%" height="28px" variant="block" />
     <SkeletonLoader width="100%" height="16px" />
     <SkeletonLoader width="92%" height="16px" />
@@ -20,7 +23,7 @@ withDefaults(defineProps<{
   </div>
 
   <!-- Editor skeleton: two columns -->
-  <div v-else-if="variant === 'editor'" class="skeleton-editor" aria-busy="true" aria-label="Loading editor">
+  <div v-else-if="variant === 'editor'" class="skeleton-editor" aria-busy="true" :aria-label="t('skeleton.editor')">
     <div class="skeleton-editor-col">
       <SkeletonLoader width="100%" height="16px" :count="8" />
     </div>
@@ -31,19 +34,19 @@ withDefaults(defineProps<{
   </div>
 
   <!-- Table skeleton: header + rows -->
-  <div v-else-if="variant === 'table'" class="skeleton-table" aria-busy="true" aria-label="Loading table">
+  <div v-else-if="variant === 'table'" class="skeleton-table" aria-busy="true" :aria-label="t('skeleton.table')">
     <SkeletonLoader width="100%" height="36px" variant="block" />
     <SkeletonLoader width="100%" height="20px" :count="5" />
   </div>
 
   <!-- Search skeleton: results -->
-  <div v-else-if="variant === 'search'" class="skeleton-search" aria-busy="true" aria-label="Searching">
+  <div v-else-if="variant === 'search'" class="skeleton-search" aria-busy="true" :aria-label="t('skeleton.searching')">
     <SkeletonLoader width="40%" height="24px" variant="block" />
     <SkeletonLoader width="100%" height="64px" variant="block" :count="4" />
   </div>
 
   <!-- Tree skeleton: sidebar folders/pages -->
-  <div v-else-if="variant === 'tree'" class="skeleton-tree" aria-busy="true" aria-label="Loading documents">
+  <div v-else-if="variant === 'tree'" class="skeleton-tree" aria-busy="true" :aria-label="t('skeleton.documents')">
     <SkeletonLoader width="70%" height="14px" />
     <SkeletonLoader width="60%" height="14px" :style="{ marginLeft: '16px' }" />
     <SkeletonLoader width="55%" height="14px" :style="{ marginLeft: '16px' }" />
@@ -53,12 +56,12 @@ withDefaults(defineProps<{
   </div>
 
   <!-- Graph skeleton: canvas placeholder -->
-  <div v-else-if="variant === 'graph'" class="skeleton-graph" aria-busy="true" aria-label="Loading graph">
+  <div v-else-if="variant === 'graph'" class="skeleton-graph" aria-busy="true" :aria-label="t('skeleton.graph')">
     <SkeletonLoader width="100%" height="100%" variant="block" />
   </div>
 
   <!-- Form skeleton: fields + button -->
-  <div v-else-if="variant === 'form'" class="skeleton-form" aria-busy="true" aria-label="Loading form">
+  <div v-else-if="variant === 'form'" class="skeleton-form" aria-busy="true" :aria-label="t('skeleton.form')">
     <SkeletonLoader width="30%" height="24px" variant="block" />
     <SkeletonLoader width="100%" height="14px" />
     <SkeletonLoader width="100%" height="36px" variant="block" />

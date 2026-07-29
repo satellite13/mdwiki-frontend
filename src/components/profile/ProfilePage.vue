@@ -109,7 +109,7 @@ async function copyKey() {
   const copied = await copyTextToClipboard(createdKey.value)
   setCopyFeedback(copied ? 'ok' : 'fail')
   if (!copied) {
-    await dialog.alert('Unable to copy key automatically. Please copy it manually.')
+    await dialog.alert(t('profile.copyManual'))
   }
 }
 
@@ -122,14 +122,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="profile-page">
-    <h1>Profile</h1>
+    <h1>{{ t('profile.title') }}</h1>
     <div class="profile-card">
-      <p><strong>Username:</strong> {{ auth.username }}</p>
-      <p><strong>Role:</strong> <span class="role-badge">{{ auth.role }}</span></p>
+      <p><strong>{{ t('profile.usernameLabel') }}</strong> {{ auth.username }}</p>
+      <p><strong>{{ t('profile.roleLabel') }}</strong> <span class="role-badge">{{ auth.role }}</span></p>
     </div>
 
     <h2>{{ t('profile.changePasswordTitle') }}</h2>
-    <p class="hint">Update your account password. You will need your current password to make changes.</p>
+    <p class="hint">{{ t('profile.changePasswordHint') }}</p>
 
     <form class="password-form" @submit.prevent="changePasswordAction">
       <div class="form-field">
@@ -146,7 +146,7 @@ onBeforeUnmount(() => {
             :minlength="PASSWORD_MIN_LENGTH"
           />
           <button type="button" class="btn-secondary toggle-btn" @click="showPassword = !showPassword">
-            {{ showPassword ? 'Hide' : 'Show' }}
+            {{ showPassword ? t('common.hide') : t('common.show') }}
           </button>
         </div>
       </div>
@@ -155,42 +155,42 @@ onBeforeUnmount(() => {
         <input v-model="confirmPassword" type="password" autocomplete="new-password" />
       </div>
       <button type="submit" class="btn-primary" :disabled="passwordLoading">
-        {{ passwordLoading ? 'Saving...' : t('common.save') }}
+        {{ passwordLoading ? t('common.saving') : t('common.save') }}
       </button>
     </form>
 
-    <h2>API Keys</h2>
-    <p class="hint">API keys are used to authenticate MCP clients (Claude, etc.) with your wiki.</p>
+    <h2>{{ t('profile.apiKeysTitle') }}</h2>
+    <p class="hint">{{ t('profile.apiKeysHint') }}</p>
 
     <div v-if="createdKey" class="key-created">
-      <p><strong>New key created!</strong> Copy it now — it won't be shown again.</p>
+      <p><strong>{{ t('profile.keyCreatedTitle') }}</strong> {{ t('profile.keyCreatedCopyHint') }}</p>
       <div class="key-display">
         <code>{{ createdKey }}</code>
         <button class="btn-secondary" :class="{ copied: copyState === 'ok', failed: copyState === 'fail' }" @click="copyKey">
-          {{ copyState === 'ok' ? 'Copied' : copyState === 'fail' ? 'Failed' : 'Copy' }}
+          {{ copyState === 'ok' ? t('profile.copied') : copyState === 'fail' ? t('profile.copyStateFailed') : t('profile.copy') }}
         </button>
       </div>
-      <button class="btn-secondary" @click="createdKey = null">Dismiss</button>
+      <button class="btn-secondary" @click="createdKey = null">{{ t('profile.dismiss') }}</button>
     </div>
 
     <div class="create-key">
-      <input v-model="newKeyName" placeholder="Key name (e.g. Claude Desktop)" />
-      <button class="btn-primary" @click="createKey">Create Key</button>
+      <input v-model="newKeyName" :placeholder="t('profile.keyNamePlaceholder')" />
+      <button class="btn-primary" @click="createKey">{{ t('profile.createKey') }}</button>
     </div>
 
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
     <table v-else-if="keys.length" class="data-table keys-table">
-      <thead><tr><th>Name</th><th>Created</th><th>Last Used</th><th></th></tr></thead>
+      <thead><tr><th>{{ t('profile.colName') }}</th><th>{{ t('profile.colCreated') }}</th><th>{{ t('profile.colLastUsed') }}</th><th></th></tr></thead>
       <tbody>
         <tr v-for="key in keys" :key="key.id">
           <td class="key-name">{{ key.name }}</td>
           <td class="key-date">{{ new Date(key.createdAt).toLocaleDateString() }}</td>
-          <td class="key-date">{{ key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never' }}</td>
-          <td><button class="btn-danger btn-sm" @click="deleteKey(key.id)">Delete</button></td>
+          <td class="key-date">{{ key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : t('common.never') }}</td>
+          <td><button class="btn-danger btn-sm" @click="deleteKey(key.id)">{{ t('tree.delete') }}</button></td>
         </tr>
       </tbody>
     </table>
-    <p v-else class="state-placeholder">No API keys yet.</p>
+    <p v-else class="state-placeholder">{{ t('profile.noApiKeys') }}</p>
   </div>
 </template>
 

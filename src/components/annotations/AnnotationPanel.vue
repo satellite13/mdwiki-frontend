@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useDialogStore } from '@/stores/dialog'
 import { deleteAnnotation } from '@/api/annotations'
 import type { Annotation } from '@/types'
@@ -14,6 +15,7 @@ const emit = defineEmits<{
   deleted: [id: string]
 }>()
 
+const { t } = useI18n()
 const dialog = useDialogStore()
 
 const sortedAnnotations = computed(() =>
@@ -26,7 +28,7 @@ function formatDate(dateStr: string) {
 
 async function onDelete(annotation: Annotation) {
   const confirmed = await dialog.confirm(
-    `Delete annotation: "${annotation.highlightedText.substring(0, 80)}"?`,
+    t('annotations.deleteConfirm', { text: annotation.highlightedText.substring(0, 80) }),
     { danger: true }
   )
   if (confirmed) {
@@ -39,12 +41,12 @@ async function onDelete(annotation: Annotation) {
 <template>
   <div v-if="visible" class="annotation-panel">
     <div class="annotation-panel-header">
-      <h3>Annotations ({{ annotations.length }})</h3>
+      <h3>{{ t('annotations.panel', { count: annotations.length }) }}</h3>
       <button
         type="button"
         class="annotation-panel-close"
-        title="Close annotations"
-        aria-label="Close annotations"
+        :title="t('annotations.closePanel')"
+        :aria-label="t('annotations.closePanel')"
         @click="emit('update:visible', false)"
       >
         <span class="material-symbols-outlined notranslate" translate="no">close</span>
@@ -52,7 +54,7 @@ async function onDelete(annotation: Annotation) {
     </div>
     <div class="annotation-panel-body">
       <div v-if="annotations.length === 0" class="annotation-empty">
-        No annotations yet. Select text in the page to add one.
+        {{ t('annotations.empty') }}
       </div>
       <div
         v-for="a in sortedAnnotations"
@@ -71,8 +73,8 @@ async function onDelete(annotation: Annotation) {
         <button
           type="button"
           class="annotation-item-delete"
-          title="Delete annotation"
-          aria-label="Delete annotation"
+          :title="t('annotations.delete')"
+          :aria-label="t('annotations.delete')"
           @click="onDelete(a)"
         >
           <span class="material-symbols-outlined notranslate" translate="no">delete</span>
