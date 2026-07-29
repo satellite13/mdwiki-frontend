@@ -12,7 +12,6 @@ TIMEOUT="${TIMEOUT:-5m}"
 IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-mdwiki-frontend}"
 DEFAULT_SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD)"
 VERSION_TAG="$(git -C "${ROOT_DIR}" describe --tags --always)"
-EXACT_VERSION_TAG="$(git -C "${ROOT_DIR}" describe --tags --exact-match HEAD 2>/dev/null || true)"
 DEFAULT_DIRTY_SUFFIX=""
 if [[ -n "$(git -C "${ROOT_DIR}" status --porcelain)" ]]; then
   DEFAULT_DIRTY_SUFFIX="-dirty"
@@ -60,23 +59,9 @@ docker build \
   -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" \
   "${ROOT_DIR}"
 
-# Keep sha tag as an alias for convenience.
-if [[ "${IMAGE_TAG}" != "${DEFAULT_SHA}" ]]; then
-  docker tag "${IMAGE_REPOSITORY}:${IMAGE_TAG}" "${IMAGE_REPOSITORY}:${DEFAULT_SHA}"
-fi
-if [[ -n "${EXACT_VERSION_TAG}" && "${IMAGE_TAG}" != "${EXACT_VERSION_TAG}" ]]; then
-  docker tag "${IMAGE_REPOSITORY}:${IMAGE_TAG}" "${IMAGE_REPOSITORY}:${EXACT_VERSION_TAG}"
-fi
-
 if [[ "${PUSH_IMAGE}" == "true" ]]; then
   echo "Pushing image ${IMAGE_REPOSITORY}:${IMAGE_TAG}"
   docker push "${IMAGE_REPOSITORY}:${IMAGE_TAG}"
-  if [[ "${IMAGE_TAG}" != "${DEFAULT_SHA}" ]]; then
-    docker push "${IMAGE_REPOSITORY}:${DEFAULT_SHA}"
-  fi
-  if [[ -n "${EXACT_VERSION_TAG}" && "${IMAGE_TAG}" != "${EXACT_VERSION_TAG}" ]]; then
-    docker push "${IMAGE_REPOSITORY}:${EXACT_VERSION_TAG}"
-  fi
 else
   echo "Skipping push (PUSH_IMAGE=${PUSH_IMAGE})"
 fi

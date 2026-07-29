@@ -2,7 +2,9 @@
 
 SPA для [mdwiki-api](../mdwiki-api): Vue 3 + TypeScript + Vite. Редактор
 Markdown с превью, деревом документов, графом связей, вложениями,
-тегами, wiki-ссылками и страницей битых ссылок.
+тегами, wiki-ссылками, открытыми задачами и страницей битых ссылок.
+
+Текущая версия: **v0.1.1** (см. git tag; в UI — `git describe` на странице профиля).
 
 ## Стек
 
@@ -11,6 +13,7 @@ Markdown с превью, деревом документов, графом св
 - Vite 8 (dev + build)
 - Pinia 3 (auth, folders, theme, dialog, tags)
 - Vue Router 5
+- vue-i18n 11 (EN/RU, словари в `src/i18n/`)
 - Axios (с перехватом 401 и единым слоем ошибок)
 - markdown-it (+ анкора, tasklists, sub/sup, mark, wiki-плагин, mermaid)
 - D3.js для графа связей
@@ -34,8 +37,13 @@ npm run test       # Vitest (unit + компонентные)
 | `/search` | Семантический поиск (RAG) |
 | `/graph` | Граф всех страниц и связей |
 | `/broken-links` | Битые `[[wikilink]]` и `/page/…` ссылки |
+| `/tasks` | Открытые Markdown-задачи (`- [ ]`) |
 | `/attachments` | Вложения |
+| `/profile` | Профиль, смена пароля, API-ключи, **версии** frontend/backend |
 | `/admin/users`, `/admin/embedding` | Админ-панель |
+
+Язык интерфейса переключается кнопкой **EN/RU** в хедере (сохраняется в
+`localPreferences['locale']`).
 
 ## Редактор (`MarkdownEditor`)
 
@@ -62,11 +70,11 @@ npm run test       # Vitest (unit + компонентные)
 
 - **⌘F / Ctrl+F** или кнопка 🔍 на панели инструментов
 - **Enter** / **Shift+Enter** — следующее / предыдущее совпадение
-- **Esc** — закрыть
+- **Esc** — закрыть (фокус возвращается в редактор)
 
-Поиск без учёта регистра; совпадения подсвечиваются выделением в
-textarea. Панель поиска не перехватывает ввод в редакторе — запрос
-меняется только в поле поиска.
+Поиск без учёта регистра. Фокус остаётся в поле поиска при вводе;
+совпадения подсвечиваются зеркальным слоем под textarea (не через
+нативный selection — он не виден без фокуса).
 
 ### Превью
 
@@ -75,12 +83,25 @@ textarea. Панель поиска не перехватывает ввод в 
 - Внутренние markdown-ссылки `/page/…` — `mdlink-internal-missing`
 - Экспорт текущей страницы в PDF (кнопка в Reading-режиме)
 
+## Версии в UI
+
+На `/profile` показываются:
+
+- **Frontend** — `__APP_VERSION_TAG__` (из `git describe --tags --always`
+  на этапе Vite-сборки)
+- **Backend** — `GET /api/version` → поле `versionTag`
+
+В Docker `.git` не копируется (`.dockerignore`), поэтому SHA и version tag
+передаются build-arg'ами `APP_GIT_SHA` / `APP_VERSION_TAG` из
+`scripts/deploy-k8s-with-build.sh`.
+
 ## Структура проекта
 
 ```
 src/
 ├─ api/             HTTP-клиенты (axios) по доменам: auth, pages, folders,
-│                   tags, users, attachments, sync, graph, search, events (SSE)
+│                   tags, users, attachments, sync, graph, search, events (SSE),
+│                   tasks, version
 ├─ assets/
 │  ├─ main.css      index-файл, импортирующий стилевые модули
 │  └─ styles/       tokens, base, forms, components, wiki, markdown,
@@ -88,7 +109,7 @@ src/
 ├─ components/
 │  ├─ admin/        AdminUsersPage, AdminEmbeddingSettingsPage
 │  ├─ attachments/  AttachmentsPage + формы загрузки
-│  ├─ auth/         LoginPage, RegisterPage, ProfilePage
+│  ├─ auth/         LoginPage, RegisterPage
 │  ├─ editor/       MarkdownEditor, EditorInputPane, EditorPreviewPane,
 │  │                EditorToolbar, EditorFindBar, ReadingToolbar,
 │  │                markdown.ts (конфиг markdown-it), editorPreferences.ts,
@@ -96,20 +117,23 @@ src/
 │  ├─ graph/        WikiGraphPage, GraphPanel, graphRenderer.ts (D3)
 │  ├─ layout/       AppLayout, AppHeader, AppSidebar
 │  ├─ links/        BrokenLinksPage
-│  ├─ pages/        WorkspacePage, SearchPage
+│  ├─ pages/        WorkspacePage, NotFoundPage
+│  ├─ profile/      ProfilePage
 │  ├─ search/       SearchPage (RAG)
+│  ├─ tasks/        OpenTasksPage
 │  ├─ tree/         DocumentTree, TreeFolder, TreePage
 │  └─ ui/           AppDialogHost, SkeletonPage, VerticalPaneResizer
 ├─ composables/     useEditorHistory, useEditorFind, useWikilinkAutocomplete,
 │                   useTreeSse, usePageTags, useTreeActions, useMovePage,
 │                   usePageAutosave, usePageLoader, useWorkspacePage,
 │                   useBreakpoint, useHorizontalDragResize
+├─ i18n/            vue-i18n: en.ts, ru.ts, index.ts (locale persist)
 ├─ router/          vue-router + guards аутентификации
 ├─ services/        pageIndex — единый кэш списка страниц, резолвер
 │                   wiki-ссылок, pageMatchesWikilinkQuery
-├─ stores/          Pinia: auth, folders, tags, theme, dialog
+├─ stores/          Pinia: auth, folders, tags, theme, dialog, editorUi
 ├─ types/           Общие типы приложения и .d.ts для сторонних плагинов
-└─ utils/           apiError, editorFind, frontmatter, i18n, localPreferences,
+└─ utils/           apiError, editorFind, frontmatter, localPreferences,
                     folderId, pageSlug, formatMarkdownTable, tablePipeCells,
                     previewLinks, exportPagePdf и др.
 ```
@@ -122,6 +146,8 @@ src/
 - **`localStorage` только через `utils/localPreferences.ts`.** Прямой
   `window.localStorage` запрещён: это защищает от Safari private mode и
   исключений квоты и даёт типобезопасное чтение JSON.
+- **Локализация через `src/i18n/`.** Старый `utils/i18n.ts` удалён; в
+  компонентах — `useI18n()` / `t('key')`.
 - **Один кэш страниц.** `services/pageIndex.ts` — единственный источник
   списка страниц для wiki-автокомплита, превью и резолвера. Мутации в
   `api/pages.ts`, `api/sync.ts` и `api/links.ts` вызывают
@@ -143,7 +169,7 @@ src/
 - `composables/` — `useWikilinkAutocomplete`.
 - `stores/` — `auth`, `folders`, `dialog` с моками axios-клиентов.
 - `components/` — `markdown`, `structurizr`, `graphRenderer`,
-  `AppDialogHost`, `AdminEmbeddingSettingsPage`.
+  `AppDialogHost`, `AdminEmbeddingSettingsPage`, `OpenTasksPage`.
 
 ```sh
 npm run test
@@ -164,15 +190,15 @@ npm run test
 ### Типичный деплой
 
 ```sh
-# Локальный образ mdwiki-frontend:<timestamp>-<sha> в namespace mdwiki
-./scripts/deploy-k8s-with-build.sh
+# Локальный OrbStack / k8s: values-local.yaml в корне репозитория
+VALUES_FILE=./values-local.yaml ./scripts/deploy-k8s-with-build.sh
 
-# С values (ingress, upstream API и т.д.)
+# С prod values (ingress, upstream API и т.д.)
 VALUES_FILE=deploy/helm/mdwiki-frontend/values-prod.yaml ./scripts/deploy-k8s-with-build.sh
 
 # Только helm, образ уже в registry
 IMAGE_REPOSITORY=ghcr.io/your-org/mdwiki-frontend \
-IMAGE_TAG=20260617-abc1234 \
+IMAGE_TAG=v0.1.0 \
 ./scripts/deploy-k8s.sh
 ```
 
@@ -180,6 +206,11 @@ IMAGE_TAG=20260617-abc1234 \
 [mdwiki-api/scripts/deploy-k8s-with-build.sh](../mdwiki-api/scripts/deploy-k8s-with-build.sh)).
 По умолчанию nginx проксирует на `http://mdwiki-api-mdwiki-api:8080`
 (`api.upstream` в values).
+
+Образ тегируется одним тегом — **`git describe --tags --always`**
+(например `mdwiki-frontend:v0.1.0` или `mdwiki-frontend:v0.1.0-3-g7dc9ede`).
+В сборку передаются `APP_GIT_SHA` и `APP_VERSION_TAG` (для UI, не как
+второй docker-тег).
 
 ### Полезные переменные окружения
 
@@ -189,7 +220,7 @@ IMAGE_TAG=20260617-abc1234 \
 | `NAMESPACE` | `mdwiki` | Namespace (тот же, что у API) |
 | `VALUES_FILE` | — | Дополнительный values-файл |
 | `IMAGE_REPOSITORY` | `mdwiki-frontend` | Репозиторий образа |
-| `IMAGE_TAG` | `<UTC-timestamp>-<git-sha>[-dirty]` | Тег образа |
+| `IMAGE_TAG` | `git describe --tags --always` (+ `-dirty`) | Тег образа |
 | `PUSH_IMAGE` | `true` для remote registry, иначе `false` | Пушить образ после сборки |
 | `IMAGE_PULL_POLICY` | `Always` / `IfNotPresent` | Политика pull в кластере |
 | `TIMEOUT` | `5m` | Таймаут деплоя |
