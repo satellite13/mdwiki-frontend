@@ -4,9 +4,10 @@ import { useFolderStore } from '@/stores/folders'
 import { useAuthStore } from '@/stores/auth'
 import { useTreeDragSource, useTreeDropTarget } from '@/composables/useTreeDnd'
 import type { FolderTreeNode } from '@/types'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import TreePage from './TreePage.vue'
 
+const { t } = useI18n()
 const props = defineProps<{
   node: FolderTreeNode
   depth: number
@@ -78,13 +79,13 @@ function onContextMenu(e: MouseEvent) {
       <span class="folder-name">{{ node.name }}</span>
 
       <span v-if="auth.isEditor" class="folder-actions" @click.stop>
-        <button class="node-action" :title="t.tree.addPage" @click="emit('addPage', node.id)">
+        <button class="node-action" :title="t('tree.addPage')" @click="emit('addPage', node.id)">
           <span class="material-symbols-outlined node-action-icon notranslate" translate="no">note_add</span>
         </button>
-        <button class="node-action" :title="t.tree.addSubfolder" @click="emit('addSubfolder', node.id)">
+        <button class="node-action" :title="t('tree.addSubfolder')" @click="emit('addSubfolder', node.id)">
           <span class="material-symbols-outlined node-action-icon notranslate" translate="no">create_new_folder</span>
         </button>
-        <button class="node-action danger" :title="t.tree.deleteFolder" @click="emit('delete', node)">
+        <button class="node-action danger" :title="t('tree.deleteFolder')" @click="emit('delete', node)">
           <span class="material-symbols-outlined node-action-icon notranslate" translate="no">delete</span>
         </button>
       </span>

@@ -6,9 +6,10 @@ import * as attachmentsApi from '@/api/attachments'
 import type { Attachment } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { copyTextToClipboard } from '@/utils/clipboard'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const dialog = useDialogStore()
 const attachments = ref<Attachment[]>([])
@@ -22,7 +23,7 @@ async function fetchAttachments() {
     const { data } = await attachmentsApi.listAttachments()
     attachments.value = data
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.loadAttachmentsFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.loadAttachmentsFailed')))
   } finally {
     loading.value = false
   }
@@ -37,7 +38,7 @@ async function handleFiles(files: FileList | null) {
     }
     await fetchAttachments()
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.uploadFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.uploadFailed')))
   } finally {
     uploading.value = false
   }
@@ -63,16 +64,16 @@ function onDragLeave() {
 }
 
 async function deleteAttachment(att: Attachment) {
-  const ok = await dialog.confirm(t.attachments.confirmDelete(att.originalName), {
+  const ok = await dialog.confirm(t('attachments.confirmDelete', { name: att.originalName }), {
     danger: true,
-    confirmLabel: t.tree.delete
+    confirmLabel: t('tree.delete')
   })
   if (!ok) return
   try {
     await attachmentsApi.deleteAttachment(att.id)
     await fetchAttachments()
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.deleteAttachmentFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.deleteAttachmentFailed')))
   }
 }
 

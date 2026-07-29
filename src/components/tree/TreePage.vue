@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 import type { FolderTreeNode } from '@/types'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import { useTreeDragSource } from '@/composables/useTreeDnd'
 
+const { t } = useI18n()
 const props = defineProps<{
   node: FolderTreeNode
   depth: number
@@ -57,7 +58,7 @@ function onSelect() {
     <span class="page-name">{{ node.name }}</span>
 
     <span v-if="auth.isEditor" class="page-actions" @click.stop>
-      <button class="node-action danger" :title="t.tree.deletePage" @click="emit('delete', node)">
+      <button class="node-action danger" :title="t('tree.deletePage')" @click="emit('delete', node)">
         <span class="material-symbols-outlined node-action-icon notranslate" translate="no">delete</span>
       </button>
     </span>

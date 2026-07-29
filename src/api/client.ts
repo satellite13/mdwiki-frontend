@@ -1,12 +1,20 @@
 import axios from 'axios'
-import router from '@/router'
 import { readString } from '@/utils/localPreferences'
 
 const client = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' }
 })
-let redirectingToLogin = false
+
+let unauthorizedHandler: (() => void | Promise<void>) | null = null
+
+/**
+ * Регистрирует обработчик 401 (logout + редирект на /login) из composition root.
+ * Через хук, а не напрямую — иначе client → router → stores/auth → api/auth → client (цикл).
+ */
+export function setUnauthorizedHandler(handler: typeof unauthorizedHandler) {
+  unauthorizedHandler = handler
+}
 
 client.interceptors.request.use((config) => {
   const token = readString('token')
@@ -16,26 +24,11 @@ client.interceptors.request.use((config) => {
   return config
 })
 
-async function handleUnauthorized() {
-  const { useAuthStore } = await import('@/stores/auth')
-  useAuthStore().logout()
-
-  const currentPath = router.currentRoute.value.fullPath
-  if (!redirectingToLogin && currentPath !== '/login') {
-    redirectingToLogin = true
-    try {
-      await router.replace({ path: '/login', query: { redirect: currentPath } })
-    } finally {
-      redirectingToLogin = false
-    }
-  }
-}
-
 client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      void handleUnauthorized()
+      void unauthorizedHandler?.()
     }
     return Promise.reject(error)
   }

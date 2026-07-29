@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createMarkdownRenderer } from './markdown'
+import type * as pageIndex from '@/services/pageIndex'
 
 vi.mock('@/services/pageIndex', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/services/pageIndex')>()
+  const actual = await importOriginal<typeof pageIndex>()
   return {
     ...actual,
     isMissingPageReference: vi.fn(() => false)

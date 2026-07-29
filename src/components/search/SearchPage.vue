@@ -4,15 +4,14 @@ import { useRoute } from 'vue-router'
 import * as searchApi from '@/api/search'
 import type { RagSearchResult } from '@/types'
 import { useDialogStore } from '@/stores/dialog'
-import { useTagStore } from '@/stores/tags'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { escapeHtml } from '@/utils/htmlEscape'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const dialog = useDialogStore()
-const tagStore = useTagStore()
 const results = ref<RagSearchResult[]>([])
 const loading = ref(false)
 const query = ref((route.query.q as string) || '')
@@ -73,7 +72,7 @@ async function doSearch() {
     minScore.value = 0
   } catch (e) {
     results.value = []
-    await dialog.alert(getApiErrorMessage(e, t.errors.searchFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.searchFailed')))
   } finally {
     loading.value = false
   }
@@ -81,7 +80,6 @@ async function doSearch() {
 
 onMounted(() => {
   doSearch()
-  tagStore.fetchTags()
 })
 watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch() })
 </script>

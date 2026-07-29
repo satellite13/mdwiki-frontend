@@ -1,10 +1,12 @@
 import MarkdownIt from 'markdown-it'
+import type MarkdownItToken from 'markdown-it/lib/token.mjs'
 import markdownItMark from 'markdown-it-mark'
 import markdownItTaskLists from 'markdown-it-task-lists'
 import markdownItAnchor from 'markdown-it-anchor'
 import markdownItSub from 'markdown-it-sub'
 import markdownItSup from 'markdown-it-sup'
 import hljs from 'highlight.js/lib/core'
+import type { LanguageFn } from 'highlight.js'
 import bash from 'highlight.js/lib/languages/bash'
 import css from 'highlight.js/lib/languages/css'
 import java from 'highlight.js/lib/languages/java'
@@ -20,6 +22,7 @@ import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
 import { stripMarkdownFrontmatter } from '@/utils/frontmatter'
 import { escapeHtml } from '@/utils/htmlEscape'
+import { i18n } from '@/i18n'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { protectWikilinkTablePipesInDocument, WIKILINK_TABLE_PIPE } from '@/utils/tablePipeCells'
 import { isMissingPageReference, wikilinkPreviewHref } from '@/services/pageIndex'
@@ -38,7 +41,7 @@ let highlightLanguagesRegistered = false
 
 function registerHighlightLanguages() {
   if (highlightLanguagesRegistered) return
-  const langEntries: Array<[string, any]> = [
+  const langEntries: Array<[string, LanguageFn]> = [
     ['plaintext', plaintext],
     ['text', plaintext],
     ['bash', bash],
@@ -80,7 +83,7 @@ function protectWikilinkTablePipesPlugin(md: MarkdownIt) {
   })
 }
 
-function renderWikilinkLink(slugRaw: string, labelRaw: string | undefined, Token: typeof import('markdown-it/lib/token.mjs').default, level: number) {
+function renderWikilinkLink(slugRaw: string, labelRaw: string | undefined, Token: typeof MarkdownItToken, level: number) {
   const slug = slugRaw.trim()
   const label = (labelRaw?.trim() || slug).trim()
   const href = wikilinkPreviewHref(slug)
@@ -274,7 +277,7 @@ export function createMarkdownRenderer(): MarkdownIt {
         symbol: '#',
         renderAttrs: () => ({
           class: 'heading-anchor',
-          'aria-label': 'Ссылка на раздел'
+          'aria-label': i18n.global.t('editor.headingAnchorLink')
         })
       })
     })

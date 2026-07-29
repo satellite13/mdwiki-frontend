@@ -3,8 +3,9 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const router = useRouter()
 const username = ref('')
@@ -18,7 +19,7 @@ async function onSubmit() {
     await auth.register(username.value, email.value, password.value)
     router.push({ name: 'workspace' })
   } catch (e: unknown) {
-    error.value = getApiErrorMessage(e, t.errors.registerFailed)
+    error.value = getApiErrorMessage(e, t('errors.registerFailed'))
   }
 }
 </script>

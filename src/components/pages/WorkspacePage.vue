@@ -4,7 +4,7 @@ import { useWorkspacePage } from '@/composables/useWorkspacePage'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useEditorUiStore } from '@/stores/editorUi'
 import type { EditorMode } from '@/components/editor/editorPreferences'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import { setFrontmatterField } from '@/utils/frontmatter'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
@@ -14,6 +14,7 @@ type MarkdownEditorHandle = {
   exportingPdf: boolean
 }
 
+const { t } = useI18n()
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/editor/MarkdownEditor.vue'))
 const GraphPanel = defineAsyncComponent(() => import('@/components/graph/GraphPanel.vue'))
 
@@ -114,8 +115,8 @@ function toggleLock() {
         type="button"
         class="pdf-export-btn"
         :disabled="exportingPdf"
-        :title="t.export.pdfButton"
-        :aria-label="t.export.pdfButton"
+        :title="t('export.pdfButton')"
+        :aria-label="t('export.pdfButton')"
         @click="exportPdf"
       >
         <span class="material-symbols-outlined notranslate" translate="no">picture_as_pdf</span>

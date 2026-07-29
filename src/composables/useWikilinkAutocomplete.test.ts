@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { nextTick, ref } from 'vue'
 import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
 import type { PageListItem } from '@/types'
+import type * as pageIndex from '@/services/pageIndex'
 
 const pages: PageListItem[] = [
   {
@@ -23,7 +24,7 @@ const pages: PageListItem[] = [
 ]
 
 vi.mock('@/services/pageIndex', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/services/pageIndex')>()
+  const actual = await importOriginal<typeof pageIndex>()
   return {
     ...actual,
     getPages: vi.fn(async () => pages),

@@ -3,8 +3,9 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
@@ -22,7 +23,7 @@ async function onSubmit() {
         : '/'
     router.push(redirect)
   } catch (e: unknown) {
-    error.value = getApiErrorMessage(e, t.errors.loginFailed)
+    error.value = getApiErrorMessage(e, t('errors.loginFailed'))
   }
 }
 </script>

@@ -9,9 +9,11 @@ import { useDialogStore } from '@/stores/dialog'
 import { useEditorUiStore } from '@/stores/editorUi'
 import { postWikiFullSync } from '@/api/sync'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
+import { getLocale, toggleLocale } from '@/i18n'
 import ThemeModeIcon from './ThemeModeIcon.vue'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const folderStore = useFolderStore()
 const dialog = useDialogStore()
@@ -24,18 +26,18 @@ const searchQuery = ref('')
 const syncWikiLoading = ref(false)
 
 async function onSyncWikiFromDisk() {
-  const ok = await dialog.confirm(t.admin.syncWikiConfirm, {
-    title: t.admin.syncWikiTitle,
-    confirmLabel: t.admin.syncWikiButton
+  const ok = await dialog.confirm(t('admin.syncWikiConfirm'), {
+    title: t('admin.syncWikiTitle'),
+    confirmLabel: t('admin.syncWikiButton')
   })
   if (!ok) return
   syncWikiLoading.value = true
   try {
     const { data } = await postWikiFullSync()
     await folderStore.fetchTree(true)
-    await dialog.alert(t.admin.syncWikiDone(data.added, data.updated, data.removed))
+    await dialog.alert(t('admin.syncWikiDone', { added: data.added, updated: data.updated, removed: data.removed }))
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.admin.syncWikiFailed))
+    await dialog.alert(getApiErrorMessage(e, t('admin.syncWikiFailed')))
   } finally {
     syncWikiLoading.value = false
   }
@@ -50,17 +52,19 @@ const graphLinkTo = computed(() => {
 
 // Общие ссылки desktop- и mobile-навигации (Admin/sync/logout добавляются отдельно).
 const navLinks = computed<{ to: RouteLocationRaw; label: string; title?: string }[]>(() => [
-  { to: graphLinkTo.value, label: 'Graph', title: 'All pages and links in the wiki' },
-  { to: '/broken-links', label: 'Broken links' },
-  { to: '/tasks', label: 'Tasks' },
-  { to: '/attachments', label: 'Attachments' },
+  { to: graphLinkTo.value, label: t('header.graph'), title: t('header.graphTitle') },
+  { to: '/broken-links', label: t('header.brokenLinks') },
+  { to: '/tasks', label: t('header.tasks') },
+  { to: '/attachments', label: t('header.attachments') },
   { to: '/profile', label: auth.username ?? '' }
 ])
 
 const themeTitle = computed(() => {
   const m = themeStore.mode
-  return m === 'light' ? 'Theme: Light' : m === 'dark' ? 'Theme: Dark' : 'Theme: System'
+  return m === 'light' ? t('header.themeLight') : m === 'dark' ? t('header.themeDark') : t('header.themeSystem')
 })
+
+const localeLabel = computed(() => (getLocale() === 'ru' ? 'RU' : 'EN'))
 
 function toggleTheme() {
   themeStore.toggle()
@@ -98,7 +102,7 @@ function onNavClick() {
     <router-link to="/" class="logo" @click="onNavClick">MDWiki</router-link>
 
     <form class="search-form" @submit.prevent="onSearch">
-      <input v-model="searchQuery" placeholder="Search pages...   ⌘K" type="search" />
+      <input v-model="searchQuery" :placeholder="t('header.searchPlaceholder')" type="search" />
     </form>
 
     <nav class="header-nav hide-mobile" aria-label="Main navigation">
@@ -126,18 +130,24 @@ function onNavClick() {
         type="button"
         class="sync-disk-btn hide-narrow"
         :disabled="syncWikiLoading"
-        :title="t.admin.syncWikiTitle"
+        :title="t('admin.syncWikiTitle')"
         @click="onSyncWikiFromDisk"
       >
-        {{ syncWikiLoading ? '…' : t.admin.syncWikiButton }}
+        {{ syncWikiLoading ? '…' : t('admin.syncWikiButton') }}
+      </button>
+      <button class="theme-toggle locale-toggle" @click="toggleLocale()" :title="t('header.language')">
+        <span class="locale-label">{{ localeLabel }}</span>
       </button>
       <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
         <ThemeModeIcon :mode="themeStore.mode" />
       </button>
-      <button class="btn-secondary logout-btn hide-narrow" @click="logout">Logout</button>
+      <button class="btn-secondary logout-btn hide-narrow" @click="logout">{{ t('header.logout') }}</button>
     </nav>
 
     <div class="header-actions-mobile show-mobile-only">
+      <button class="theme-toggle locale-toggle" @click="toggleLocale()" :title="t('header.language')">
+        <span class="locale-label">{{ localeLabel }}</span>
+      </button>
       <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
         <ThemeModeIcon :mode="themeStore.mode" />
       </button>
@@ -183,10 +193,10 @@ function onNavClick() {
           :disabled="syncWikiLoading"
           @click="onSyncWikiFromDisk(); onNavClick()"
         >
-          {{ syncWikiLoading ? '…' : t.admin.syncWikiButton }}
+          {{ syncWikiLoading ? '…' : t('admin.syncWikiButton') }}
         </button>
         <button type="button" class="mobile-nav-link mobile-nav-btn mobile-nav-logout" @click="logout">
-          Logout
+          {{ t('header.logout') }}
         </button>
       </nav>
     </Transition>
@@ -330,6 +340,12 @@ function onNavClick() {
 .theme-toggle:hover {
   color: var(--color-text);
   background: var(--color-bg-hover);
+}
+
+.locale-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .icon-btn .material-symbols-outlined {

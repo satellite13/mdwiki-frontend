@@ -3,10 +3,11 @@ import { onMounted, ref } from 'vue'
 import { getEmbeddingSettings, updateEmbeddingSettings } from '@/api/embeddingSettings'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import type { EmbeddingSettings, EmbeddingSettingsWarning } from '@/types'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
+const { t } = useI18n()
 const dialog = useDialogStore()
 
 const loading = ref(true)
@@ -35,7 +36,7 @@ async function loadSettings() {
     const { data } = await getEmbeddingSettings()
     applySettings(data)
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.loadEmbeddingSettingsFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.loadEmbeddingSettingsFailed')))
   } finally {
     loading.value = false
   }
@@ -57,11 +58,11 @@ async function saveSettings() {
     )
     applySettings(data)
     const mismatchMessage = data.warning
-      ? `${t.admin.embeddingMismatchDetails(data.warning.actualDimension, data.warning.expectedDimension)}\n${t.admin.embeddingReindexHint}`
-      : t.admin.embeddingReindexHint
-    await dialog.alert(`${t.admin.embeddingSaveSuccess}\n${mismatchMessage}`)
+      ? `${t('admin.embeddingMismatchDetails', { actual: data.warning.actualDimension, expected: data.warning.expectedDimension })}\n${t('admin.embeddingReindexHint')}`
+      : t('admin.embeddingReindexHint')
+    await dialog.alert(`${t('admin.embeddingSaveSuccess')}\n${mismatchMessage}`)
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.updateEmbeddingSettingsFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.updateEmbeddingSettingsFailed')))
   } finally {
     saving.value = false
   }
@@ -73,15 +74,15 @@ onMounted(loadSettings)
 <template>
   <div class="admin-embedding">
     <div class="admin-nav" aria-label="Admin sections">
-      <router-link to="/admin/users" class="admin-nav-link">{{ t.admin.openUsersSettings }}</router-link>
-      <router-link to="/admin/embedding" class="admin-nav-link">{{ t.admin.openEmbeddingSettings }}</router-link>
+      <router-link to="/admin/users" class="admin-nav-link">{{ t('admin.openUsersSettings') }}</router-link>
+      <router-link to="/admin/embedding" class="admin-nav-link">{{ t('admin.openEmbeddingSettings') }}</router-link>
     </div>
-    <h1>{{ t.admin.embeddingTitle }}</h1>
+    <h1>{{ t('admin.embeddingTitle') }}</h1>
 
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="form" /></div>
     <form v-else class="settings-form" @submit.prevent="saveSettings">
       <label class="field">
-        <span>{{ t.admin.embeddingProviderLabel }}</span>
+        <span>{{ t('admin.embeddingProviderLabel') }}</span>
         <select v-model="provider">
           <option value="openai">openai</option>
           <option value="ollama">ollama</option>
@@ -90,37 +91,37 @@ onMounted(loadSettings)
       </label>
 
       <label class="field">
-        <span>{{ t.admin.embeddingModelLabel }}</span>
+        <span>{{ t('admin.embeddingModelLabel') }}</span>
         <input v-model="model" required />
       </label>
 
       <label class="field">
-        <span>{{ t.admin.embeddingBaseUrlLabel }}</span>
+        <span>{{ t('admin.embeddingBaseUrlLabel') }}</span>
         <input v-model="baseUrl" type="url" placeholder="https://..." />
       </label>
 
       <label class="field">
-        <span>{{ t.admin.embeddingApiKeyLabel }}</span>
+        <span>{{ t('admin.embeddingApiKeyLabel') }}</span>
         <input v-model="apiKey" type="password" autocomplete="new-password" />
       </label>
       <p class="hint">
-        {{ t.admin.embeddingApiKeyHint }}
-        {{ apiKeyConfigured ? t.admin.embeddingApiKeyConfigured : t.admin.embeddingApiKeyMissing }}
+        {{ t('admin.embeddingApiKeyHint') }}
+        {{ apiKeyConfigured ? t('admin.embeddingApiKeyConfigured') : t('admin.embeddingApiKeyMissing') }}
       </p>
 
       <label class="field">
-        <span>{{ t.admin.embeddingExpectedDimensionLabel }}</span>
+        <span>{{ t('admin.embeddingExpectedDimensionLabel') }}</span>
         <input :value="expectedDimension ?? '—'" readonly />
       </label>
 
-      <p class="hint">{{ t.admin.embeddingReindexHint }}</p>
+      <p class="hint">{{ t('admin.embeddingReindexHint') }}</p>
       <p v-if="warning" class="warning">
-        <strong>{{ t.admin.embeddingMismatchTitle }}:</strong>
-        {{ t.admin.embeddingMismatchDetails(warning.actualDimension, warning.expectedDimension) }}
+        <strong>{{ t('admin.embeddingMismatchTitle') }}:</strong>
+        {{ t('admin.embeddingMismatchDetails', { actual: warning.actualDimension, expected: warning.expectedDimension }) }}
       </p>
 
       <button class="btn-primary" type="submit" :disabled="saving">
-        {{ saving ? 'Saving…' : t.common.save }}
+        {{ saving ? 'Saving…' : t('common.save') }}
       </button>
     </form>
   </div>

@@ -7,9 +7,10 @@ import { changePassword } from '@/api/auth'
 import type { ApiKey } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { copyTextToClipboard } from '@/utils/clipboard'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const dialog = useDialogStore()
 const PASSWORD_MIN_LENGTH = 8
@@ -33,7 +34,7 @@ async function fetchKeys() {
     const { data } = await apiKeysApi.listApiKeys()
     keys.value = data
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.loadApiKeysFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.loadApiKeysFailed')))
   } finally {
     loading.value = false
   }
@@ -47,31 +48,31 @@ async function createKey() {
     newKeyName.value = ''
     await fetchKeys()
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.createApiKeyFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.createApiKeyFailed')))
   }
 }
 
 async function deleteKey(id: string) {
-  const ok = await dialog.confirm(t.profile.confirmDeleteApiKey, {
+  const ok = await dialog.confirm(t('profile.confirmDeleteApiKey'), {
     danger: true,
-    confirmLabel: t.tree.delete
+    confirmLabel: t('tree.delete')
   })
   if (!ok) return
   try {
     await apiKeysApi.deleteApiKey(id)
     await fetchKeys()
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.deleteApiKeyFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.deleteApiKeyFailed')))
   }
 }
 
 async function changePasswordAction() {
   if (newPassword.value.length < PASSWORD_MIN_LENGTH) {
-    await dialog.alert(t.profile.passwordMinLength)
+    await dialog.alert(t('profile.passwordMinLength'))
     return
   }
   if (newPassword.value !== confirmPassword.value) {
-    await dialog.alert(t.profile.passwordsDoNotMatch)
+    await dialog.alert(t('profile.passwordsDoNotMatch'))
     return
   }
   if (!currentPassword.value) {
@@ -84,12 +85,12 @@ async function changePasswordAction() {
       currentPassword: currentPassword.value,
       newPassword: newPassword.value
     })
-    await dialog.alert(t.profile.passwordChanged)
+    await dialog.alert(t('profile.passwordChanged'))
     currentPassword.value = ''
     newPassword.value = ''
     confirmPassword.value = ''
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.changePasswordFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.changePasswordFailed')))
   } finally {
     passwordLoading.value = false
   }
@@ -127,16 +128,16 @@ onBeforeUnmount(() => {
       <p><strong>Role:</strong> <span class="role-badge">{{ auth.role }}</span></p>
     </div>
 
-    <h2>{{ t.profile.changePasswordTitle }}</h2>
+    <h2>{{ t('profile.changePasswordTitle') }}</h2>
     <p class="hint">Update your account password. You will need your current password to make changes.</p>
 
     <form class="password-form" @submit.prevent="changePasswordAction">
       <div class="form-field">
-        <label>{{ t.profile.currentPassword }}</label>
+        <label>{{ t('profile.currentPassword') }}</label>
         <input v-model="currentPassword" type="password" autocomplete="current-password" />
       </div>
       <div class="form-field">
-        <label>{{ t.profile.newPassword }}</label>
+        <label>{{ t('profile.newPassword') }}</label>
         <div class="password-input-row">
           <input
             v-model="newPassword"
@@ -150,11 +151,11 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="form-field">
-        <label>{{ t.profile.confirmPassword }}</label>
+        <label>{{ t('profile.confirmPassword') }}</label>
         <input v-model="confirmPassword" type="password" autocomplete="new-password" />
       </div>
       <button type="submit" class="btn-primary" :disabled="passwordLoading">
-        {{ passwordLoading ? 'Saving...' : t.common.save }}
+        {{ passwordLoading ? 'Saving...' : t('common.save') }}
       </button>
     </form>
 

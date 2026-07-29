@@ -1,8 +1,10 @@
 import { copyTextToClipboard } from '@/utils/clipboard'
+import { useI18n } from 'vue-i18n'
 
 type RootGetter = () => HTMLElement | null
 
 export function usePreviewCopyDecorations(getRoot: RootGetter) {
+  const { t } = useI18n()
   const copyFeedbackTimers = new WeakMap<HTMLButtonElement, number>()
 
   function decorateHeadingAnchors() {
@@ -15,8 +17,8 @@ export function usePreviewCopyDecorations(getRoot: RootGetter) {
       button.type = 'button'
       button.className = 'heading-copy-btn'
       button.dataset.anchor = heading.id
-      button.title = 'Скопировать якорь раздела'
-      button.setAttribute('aria-label', 'Скопировать якорь раздела')
+      button.title = t('editor.copyAnchor')
+      button.setAttribute('aria-label', t('editor.copyAnchor'))
       button.innerHTML = '<span class="material-symbols-outlined notranslate" translate="no">content_copy</span>'
       heading.appendChild(button)
     })
@@ -33,8 +35,8 @@ export function usePreviewCopyDecorations(getRoot: RootGetter) {
       const button = document.createElement('button')
       button.type = 'button'
       button.className = 'code-copy-btn'
-      button.title = 'Скопировать код'
-      button.setAttribute('aria-label', 'Скопировать код')
+      button.title = t('editor.copyCode')
+      button.setAttribute('aria-label', t('editor.copyCode'))
       button.innerHTML = '<span class="material-symbols-outlined notranslate" translate="no">content_copy</span>'
       block.appendChild(button)
     })
@@ -73,9 +75,9 @@ export function usePreviewCopyDecorations(getRoot: RootGetter) {
       applyCopyFeedback(
         headingButton,
         copied,
-        'Якорь скопирован',
-        'Не удалось скопировать',
-        'Скопировать якорь раздела'
+        t('editor.anchorCopied'),
+        t('editor.copyFailed'),
+        t('editor.copyAnchor')
       )
       return
     }
@@ -92,7 +94,7 @@ export function usePreviewCopyDecorations(getRoot: RootGetter) {
     if (!codeText.trim()) return
 
     const copied = await copyTextToClipboard(codeText)
-    applyCopyFeedback(codeButton, copied, 'Код скопирован', 'Не удалось скопировать', 'Скопировать код')
+    applyCopyFeedback(codeButton, copied, t('editor.codeCopied'), t('editor.copyFailed'), t('editor.copyCode'))
   }
 
   return {

@@ -6,7 +6,7 @@ import type { OpenTask } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import AppModal from '@/components/ui/AppModal.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import { invalidatePageIndex } from '@/services/pageIndex'
@@ -18,6 +18,7 @@ interface TaskGroup {
   items: OpenTask[]
 }
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const dialog = useDialogStore()
 const router = useRouter()
@@ -50,7 +51,7 @@ async function fetchOpenTasks() {
     tasks.value = data
   } catch (error) {
     tasks.value = []
-    await dialog.alert(getApiErrorMessage(error, t.tasks.loadFailed))
+    await dialog.alert(getApiErrorMessage(error, t('tasks.loadFailed')))
   } finally {
     loading.value = false
   }
@@ -96,10 +97,10 @@ async function completeTask() {
   } catch (error) {
     if (isApiErrorWithStatus(error, 409)) {
       resetCompleteDialog()
-      const reload = await dialog.confirm(t.tasks.conflict, { confirmLabel: t.tasks.reload })
+      const reload = await dialog.confirm(t('tasks.conflict'), { confirmLabel: t('tasks.reload') })
       if (reload) await fetchOpenTasks()
     } else {
-      await dialog.alert(getApiErrorMessage(error, t.tasks.completeFailed))
+      await dialog.alert(getApiErrorMessage(error, t('tasks.completeFailed')))
     }
   } finally {
     completing.value = false
@@ -113,18 +114,18 @@ onMounted(fetchOpenTasks)
   <div class="grouped-page">
     <div class="page-header">
       <div>
-        <h1>{{ t.tasks.title }}</h1>
-        <p class="page-subtitle">{{ t.tasks.subtitle }}</p>
+        <h1>{{ t('tasks.title') }}</h1>
+        <p class="page-subtitle">{{ t('tasks.subtitle') }}</p>
       </div>
       <button type="button" class="btn-secondary" :disabled="loading" @click="fetchOpenTasks">
-        {{ t.tasks.refresh }}
+        {{ t('tasks.refresh') }}
       </button>
     </div>
 
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
 
     <div v-else-if="tasks.length === 0" class="empty-state">
-      {{ t.tasks.empty }}
+      {{ t('tasks.empty') }}
     </div>
 
     <div v-else class="groups">
@@ -139,7 +140,7 @@ onMounted(fetchOpenTasks)
             >
               {{ group.documentTitle }}
             </button>
-            <p class="group-meta">{{ t.tasks.count(group.items.length) }}</p>
+            <p class="group-meta">{{ t('tasks.count', { count: group.items.length }, group.items.length) }}</p>
           </div>
         </div>
 
@@ -148,7 +149,7 @@ onMounted(fetchOpenTasks)
             <input
               :data-testid="`complete-${task.sourceOffset}`"
               type="checkbox"
-              :aria-label="t.tasks.complete"
+              :aria-label="t('tasks.complete')"
               :disabled="task.locked || !auth.isEditor || completing"
               @change="openCompleteDialog(task)"
             />
@@ -158,22 +159,22 @@ onMounted(fetchOpenTasks)
       </section>
     </div>
 
-    <AppModal v-if="completingTask" :label="t.tasks.completeDialogTitle" @close="closeCompleteDialog">
-      <h2>{{ t.tasks.completeDialogTitle }}</h2>
+    <AppModal v-if="completingTask" :label="t('tasks.completeDialogTitle')" @close="closeCompleteDialog">
+      <h2>{{ t('tasks.completeDialogTitle') }}</h2>
       <p class="complete-task-text">{{ completingTask.text }}</p>
 
-      <label class="field-label" for="task-summary">{{ t.tasks.summaryLabel }}</label>
+      <label class="field-label" for="task-summary">{{ t('tasks.summaryLabel') }}</label>
       <textarea
         id="task-summary"
         v-model="summary"
         class="field-input"
         rows="4"
-        :placeholder="t.tasks.summaryPlaceholder"
+        :placeholder="t('tasks.summaryPlaceholder')"
       />
 
       <div class="modal-actions">
         <button type="button" class="btn-secondary" :disabled="completing" @click="closeCompleteDialog">
-          {{ t.common.cancel }}
+          {{ t('common.cancel') }}
         </button>
         <button
           type="button"
@@ -182,7 +183,7 @@ onMounted(fetchOpenTasks)
           :disabled="completing"
           @click="completeTask"
         >
-          {{ completing ? '…' : t.tasks.complete }}
+          {{ completing ? '…' : t('tasks.complete') }}
         </button>
       </div>
     </AppModal>

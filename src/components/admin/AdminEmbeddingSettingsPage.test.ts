@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import AdminEmbeddingSettingsPage from './AdminEmbeddingSettingsPage.vue'
+import { i18n } from '@/i18n'
 
 const mockGetEmbeddingSettings = vi.fn()
 const mockUpdateEmbeddingSettings = vi.fn()
@@ -49,6 +50,7 @@ describe('AdminEmbeddingSettingsPage', () => {
   it('loads settings and saves with mismatch warning', async () => {
     const wrapper = mount(AdminEmbeddingSettingsPage, {
       global: {
+      plugins: [i18n],
         stubs: {
           RouterLink: {
             template: '<a><slot /></a>'

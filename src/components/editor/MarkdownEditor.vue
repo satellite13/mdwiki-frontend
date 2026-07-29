@@ -5,7 +5,7 @@ import { useThemeStore } from '@/stores/theme'
 import { uploadAttachment } from '@/api/attachments'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { downloadPagePdf } from '@/utils/exportPagePdf'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import { readString, writeString } from '@/utils/localPreferences'
 import { useEditorHistory } from '@/composables/useEditorHistory'
 import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
@@ -60,6 +60,7 @@ async function getMarkdownRenderer(): Promise<MarkdownIt> {
   return markdownRendererPromise
 }
 
+const { t } = useI18n()
 const props = defineProps<{
   modelValue: string
   readingTitle?: string
@@ -391,7 +392,7 @@ async function onUploadFiles(files: FileList | null) {
     const text = urls.map((url) => `![image](${url})`).join('\n')
     insertText(text)
   } catch (error) {
-    uploadError.value = getApiErrorMessage(error, t.errors.imageUploadFailed)
+    uploadError.value = getApiErrorMessage(error, t('errors.imageUploadFailed'))
   } finally {
     if (uploadInput.value) uploadInput.value.value = ''
   }
@@ -437,7 +438,7 @@ async function exportToPdf() {
 
     const content = getPreviewContentElement()
     if (!content) {
-      await dialog.alert(t.export.pdfNoPreview)
+      await dialog.alert(t('export.pdfNoPreview'))
       return
     }
 
@@ -446,7 +447,7 @@ async function exportToPdf() {
       contentElement: content
     })
   } catch (error) {
-    await dialog.alert(getApiErrorMessage(error, t.export.pdfFailed))
+    await dialog.alert(getApiErrorMessage(error, t('export.pdfFailed')))
   } finally {
     if (previousMode === 'editor') {
       setMode(previousMode)

@@ -6,7 +6,7 @@ import * as pagesApi from '@/api/pages'
 import { normalizePageSlug } from '@/utils/pageSlug'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { countPagesInFolder, folderContainsPageSlug } from '@/utils/folderTree'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import type { FolderTreeNode } from '@/types'
 import type { FolderDeletePageAction } from '@/api/folders'
 
@@ -19,13 +19,14 @@ export interface UseTreeActionsOptions {
  * Использует dialog store для UI-взаимодействия и folder store для API.
  */
 export function useTreeActions(options: UseTreeActionsOptions) {
+  const { t } = useI18n()
   const router = useRouter()
   const folderStore = useFolderStore()
   const dialog = useDialogStore()
   const editorUi = useEditorUiStore()
 
   async function createNewPage(folderId?: string) {
-    const titleRaw = await dialog.prompt(t.tree.pageNamePrompt)
+    const titleRaw = await dialog.prompt(t('tree.pageNamePrompt'))
     if (titleRaw === null || !titleRaw.trim()) return
     const title = titleRaw.trim()
     const slug = normalizePageSlug(title)
@@ -36,24 +37,24 @@ export function useTreeActions(options: UseTreeActionsOptions) {
   }
 
   async function createNewFolder(parentId?: string) {
-    const nameRaw = await dialog.prompt(t.tree.folderNamePrompt)
+    const nameRaw = await dialog.prompt(t('tree.folderNamePrompt'))
     if (nameRaw === null || !nameRaw.trim()) return
     try {
       await folderStore.createFolder(nameRaw.trim(), parentId || undefined)
     } catch (error) {
-      await dialog.alert(getApiErrorMessage(error, t.errors.createFolderFailed))
+      await dialog.alert(getApiErrorMessage(error, t('errors.createFolderFailed')))
     }
   }
 
   async function renameFolderNode(node: FolderTreeNode) {
-    const newNameRaw = await dialog.prompt(t.tree.newNamePrompt, node.name)
+    const newNameRaw = await dialog.prompt(t('tree.newNamePrompt'), node.name)
     if (newNameRaw === null) return
     const newName = newNameRaw.trim()
     if (!newName || newName === node.name) return
     try {
       await folderStore.renameFolder(node.id, newName)
     } catch {
-      await dialog.alert(t.errors.renameFolderFailed)
+      await dialog.alert(t('errors.renameFolderFailed'))
     }
   }
 
@@ -65,28 +66,28 @@ export function useTreeActions(options: UseTreeActionsOptions) {
 
         if (pageCount > 0) {
           const choice = await dialog.choice(
-            t.tree.chooseFolderDeleteMode(node.name, pageCount),
+            t('tree.chooseFolderDeleteMode', { name: node.name, pageCount }),
             [
               {
                 value: 'delete',
-                label: t.tree.deletePagesWithFolderLabel,
-                description: t.tree.deletePagesWithFolderHint,
+                label: t('tree.deletePagesWithFolderLabel'),
+                description: t('tree.deletePagesWithFolderHint'),
                 danger: true
               },
               {
                 value: 'move_to_root',
-                label: t.tree.movePagesToRootLabel,
-                description: t.tree.movePagesToRootHint
+                label: t('tree.movePagesToRootLabel'),
+                description: t('tree.movePagesToRootHint')
               }
             ],
-            { title: t.tree.deleteFolder }
+            { title: t('tree.deleteFolder') }
           )
           if (!choice) return
           pageAction = choice === 'move_to_root' ? 'move_to_root' : 'delete'
         } else {
-          const ok = await dialog.confirm(t.tree.confirmDelete(node.name), {
+          const ok = await dialog.confirm(t('tree.confirmDelete', { name: node.name }), {
             danger: true,
-            confirmLabel: t.tree.delete
+            confirmLabel: t('tree.delete')
           })
           if (!ok) return
         }
@@ -98,21 +99,21 @@ export function useTreeActions(options: UseTreeActionsOptions) {
         }
       } else if (node.slug) {
         const mode = await dialog.choice(
-          t.tree.chooseDeleteMode(node.name),
+          t('tree.chooseDeleteMode', { name: node.name }),
           [
             {
               value: 'soft',
-              label: t.tree.softDeleteLabel,
-              description: t.tree.softDeleteHint
+              label: t('tree.softDeleteLabel'),
+              description: t('tree.softDeleteHint')
             },
             {
               value: 'hard',
-              label: t.tree.hardDeleteLabel,
-              description: t.tree.hardDeleteHint,
+              label: t('tree.hardDeleteLabel'),
+              description: t('tree.hardDeleteHint'),
               danger: true
             }
           ],
-          { title: t.tree.deletePage }
+          { title: t('tree.deletePage') }
         )
         if (!mode) return
         await pagesApi.deletePage(node.slug, mode === 'hard' ? 'hard' : 'soft')
@@ -123,8 +124,8 @@ export function useTreeActions(options: UseTreeActionsOptions) {
       console.error('Delete node failed:', e)
       await dialog.alert(
         node.type === 'folder'
-          ? getApiErrorMessage(e, t.errors.deleteFolderFailed)
-          : getApiErrorMessage(e, t.errors.deletePageFailed)
+          ? getApiErrorMessage(e, t('errors.deleteFolderFailed'))
+          : getApiErrorMessage(e, t('errors.deletePageFailed'))
       )
     }
   }

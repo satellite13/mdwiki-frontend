@@ -1,9 +1,9 @@
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import type { Ref } from 'vue'
 import type { Router } from 'vue-router'
 import * as pagesApi from '@/api/pages'
 import type { Page } from '@/types'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 type SaveStatus = 'idle' | 'saving' | 'saved'
@@ -25,10 +25,12 @@ export function usePageAutosave(
   state: AutosaveState,
   deps: AutosaveDependencies
 ) {
+  const { t } = useI18n()
   const saveStatus = ref<SaveStatus>('idle')
   const saveError = ref<string | null>(null)
   const isSaving = ref(false)
   let saveTimer: ReturnType<typeof setTimeout> | null = null
+  let statusResetTimer: ReturnType<typeof setTimeout> | null = null
 
   function isDirty() {
     return state.title.value !== state.lastSavedTitle.value || state.content.value !== state.lastSavedContentMd.value
@@ -41,8 +43,16 @@ export function usePageAutosave(
     }
   }
 
+  function clearStatusResetTimer() {
+    if (statusResetTimer) {
+      clearTimeout(statusResetTimer)
+      statusResetTimer = null
+    }
+  }
+
   function resetSaveState() {
     clearSaveTimer()
+    clearStatusResetTimer()
     saveStatus.value = 'idle'
     saveError.value = null
   }
@@ -84,12 +94,14 @@ export function usePageAutosave(
         await deps.fetchTree()
       }
       saveStatus.value = 'saved'
-      setTimeout(() => {
+      clearStatusResetTimer()
+      statusResetTimer = setTimeout(() => {
         if (saveStatus.value === 'saved') saveStatus.value = 'idle'
+        statusResetTimer = null
       }, 2000)
     } catch (e) {
       saveStatus.value = 'idle'
-      saveError.value = getApiErrorMessage(e, t.errors.savePageFailed)
+      saveError.value = getApiErrorMessage(e, t('errors.savePageFailed'))
       console.error('Failed to save page:', e)
     } finally {
       isSaving.value = false
@@ -120,6 +132,11 @@ export function usePageAutosave(
   function clearSaveError() {
     saveError.value = null
   }
+
+  onBeforeUnmount(() => {
+    clearSaveTimer()
+    clearStatusResetTimer()
+  })
 
   return {
     saveStatus,

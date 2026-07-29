@@ -1,5 +1,5 @@
 import { computed, nextTick, type Ref } from 'vue'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import { formatPipeTableAtCursor } from '@/utils/formatMarkdownTable'
 import type { ToolbarAction } from './toolbarTypes'
 import type { EditorMode } from './editorPreferences'
@@ -32,6 +32,7 @@ export interface ToolbarActionsOptions {
 
 /** Текстовые преобразования в textarea и наборы экшенов для EditorToolbar. */
 export function useToolbarActions(options: ToolbarActionsOptions) {
+  const { t } = useI18n()
   function applySelection(transform: (selected: string) => { text: string; cursorOffset?: number }) {
     const el = options.getEditor()
     if (!el) return
@@ -218,8 +219,8 @@ export function useToolbarActions(options: ToolbarActionsOptions) {
     { key: 'upload-image', title: 'Insert image', ariaLabel: 'Insert image', icon: 'image', onClick: options.triggerUpload },
     {
       key: 'format-table',
-      title: 'Выровнять markdown-таблицу под курсором',
-      ariaLabel: 'Выровнять markdown-таблицу под курсором',
+      title: t('editor.formatTable'),
+      ariaLabel: t('editor.formatTable'),
       icon: 'format_align_justify',
       onClick: formatMarkdownTableAtCursor
     },
@@ -229,7 +230,7 @@ export function useToolbarActions(options: ToolbarActionsOptions) {
   ]
 
   const historyActions = computed<ToolbarAction[]>(() => [
-    { key: 'find', title: t.editor.findTitle, ariaLabel: t.editor.findTitle, icon: 'search', onClick: () => options.openEditorFind() },
+    { key: 'find', title: t('editor.findTitle'), ariaLabel: t('editor.findTitle'), icon: 'search', onClick: () => options.openEditorFind() },
     { key: 'undo', title: 'Undo', ariaLabel: 'Undo', icon: 'undo', onClick: options.undo, disabled: !options.canUndo.value },
     { key: 'redo', title: 'Redo', ariaLabel: 'Redo', icon: 'redo', onClick: options.redo, disabled: !options.canRedo.value },
     { key: 'save', title: 'Save', ariaLabel: 'Save', icon: 'save', onClick: options.onSave }

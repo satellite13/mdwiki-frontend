@@ -9,13 +9,14 @@ import { useTreeSse } from '@/composables/useTreeSse'
 import { useTreeActions } from '@/composables/useTreeActions'
 import { useTreeDropTarget } from '@/composables/useTreeDnd'
 import { invalidatePageIndex } from '@/services/pageIndex'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import type { FolderTreeNode } from '@/types'
 import TreeFolder from './TreeFolder.vue'
 import TreePage from './TreePage.vue'
 import TreeContextMenu from './TreeContextMenu.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const folderStore = useFolderStore()
@@ -48,14 +49,14 @@ const contextMenuItems = computed(() => {
   const items: { label: string; action: string; danger?: boolean }[] = []
 
   if (!contextMenu.value?.node || contextMenu.value.node.type === 'folder') {
-    items.push({ label: t.tree.newPage, action: 'new-page' })
-    items.push({ label: t.tree.newFolder, action: 'new-folder' })
+    items.push({ label: t('tree.newPage'), action: 'new-page' })
+    items.push({ label: t('tree.newFolder'), action: 'new-folder' })
   }
   if (contextMenu.value?.node) {
     if (contextMenu.value.node.type === 'folder') {
-      items.push({ label: t.tree.rename, action: 'rename' })
+      items.push({ label: t('tree.rename'), action: 'rename' })
     }
-    items.push({ label: t.tree.delete, action: 'delete', danger: true })
+    items.push({ label: t('tree.delete'), action: 'delete', danger: true })
   }
   return items
 })
@@ -100,7 +101,7 @@ async function onContextAction(action: string) {
     }
   } catch (e) {
     console.error('Context action failed:', e)
-    await dialog.alert(t.errors.operationFailed)
+    await dialog.alert(t('errors.operationFailed'))
   }
 
   contextMenu.value = null
@@ -161,12 +162,12 @@ onMounted(async () => {
     @drop="onRootDrop"
   >
     <div class="tree-header">
-      <span class="tree-title">{{ t.tree.documents }}</span>
+      <span class="tree-title">{{ t('tree.documents') }}</span>
       <div v-if="auth.isEditor" class="tree-actions">
-        <button class="tree-action-btn" :title="t.tree.newPage" @click.stop="treeActions.createNewPage()">
+        <button class="tree-action-btn" :title="t('tree.newPage')" @click.stop="treeActions.createNewPage()">
           <span class="material-symbols-outlined tree-action-icon notranslate" translate="no">note_add</span>
         </button>
-        <button class="tree-action-btn" :title="t.tree.newFolder" @click.stop="treeActions.createNewFolder()">
+        <button class="tree-action-btn" :title="t('tree.newFolder')" @click.stop="treeActions.createNewFolder()">
           <span class="material-symbols-outlined tree-action-icon notranslate" translate="no">create_new_folder</span>
         </button>
       </div>
@@ -175,7 +176,7 @@ onMounted(async () => {
     <div class="tags-panel">
       <div class="tags-panel-header">
         <button class="tags-toggle-btn" type="button" @click="toggleTagsPanel">
-          <span class="tree-title">{{ t.tree.tags }}</span>
+          <span class="tree-title">{{ t('tree.tags') }}</span>
           <span :class="['tags-chevron', { collapsed: tagsCollapsed }]">▾</span>
         </button>
         <button
@@ -184,7 +185,7 @@ onMounted(async () => {
           type="button"
           @click="clearTagFilter"
         >
-          {{ t.tree.clearFilter }}
+          {{ t('tree.clearFilter') }}
         </button>
       </div>
       <div v-if="!tagsCollapsed" class="tags-panel-body">
@@ -192,15 +193,15 @@ onMounted(async () => {
           v-model="tagQuery"
           class="tags-search-input"
           type="search"
-          :placeholder="t.tree.searchTag"
+          :placeholder="t('tree.searchTag')"
         />
         <div v-if="tagsLoading" class="tags-loading">
           <SkeletonLoader width="70%" height="12px" />
           <SkeletonLoader width="45%" height="12px" />
           <SkeletonLoader width="60%" height="12px" />
         </div>
-        <div v-else-if="tagStore.tags.length === 0" class="tags-empty">{{ t.tree.noTags }}</div>
-        <div v-else-if="filteredTags.length === 0" class="tags-empty">{{ t.tree.tagsNotFound }}</div>
+        <div v-else-if="tagStore.tags.length === 0" class="tags-empty">{{ t('tree.noTags') }}</div>
+        <div v-else-if="filteredTags.length === 0" class="tags-empty">{{ t('tree.tagsNotFound') }}</div>
         <div v-else class="tags-list">
           <button
             v-for="tag in filteredTags"
@@ -252,8 +253,8 @@ onMounted(async () => {
       />
 
       <div v-if="!folderStore.loading && visibleTree.length === 0" class="tree-empty">
-        <template v-if="selectedTags.length > 0">{{ t.tree.noDocumentsWithTag(selectedTags) }}</template>
-        <template v-else>{{ t.tree.noDocuments }}</template>
+        <template v-if="selectedTags.length > 0">{{ t('tree.noDocumentsWithTag', { tags: selectedTags.map((tag) => `#${tag}`).join(', ') }) }}</template>
+        <template v-else>{{ t('tree.noDocuments') }}</template>
       </div>
     </div>
 

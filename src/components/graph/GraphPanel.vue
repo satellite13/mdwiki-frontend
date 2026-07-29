@@ -5,10 +5,11 @@ import { getPageGraph, getWikiGraph } from '@/api/graph'
 import type { GraphNode, GraphEdge } from '@/api/graph'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import { renderGraph, type GraphRenderHandle } from './graphRenderer'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
+const { t } = useI18n()
 const props = withDefaults(
   defineProps<{
     variant?: 'page' | 'wiki'
@@ -71,7 +72,7 @@ async function loadGraph() {
     lastNodes = []
     lastEdges = []
     loading.value = false
-    await dialog.alert(getApiErrorMessage(e, t.errors.loadGraphFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.loadGraphFailed')))
   }
 }
 

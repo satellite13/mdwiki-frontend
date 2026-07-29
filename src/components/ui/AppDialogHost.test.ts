@@ -3,6 +3,7 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import AppDialogHost from './AppDialogHost.vue'
 import { useDialogStore } from '@/stores/dialog'
+import { i18n } from '@/i18n'
 
 let wrapper: VueWrapper | null = null
 
@@ -22,7 +23,7 @@ function clickByText(label: string) {
 
 beforeEach(() => {
   setActivePinia(createPinia())
-  wrapper = mount(AppDialogHost, { attachTo: document.body })
+  wrapper = mount(AppDialogHost, { attachTo: document.body, global: { plugins: [i18n] } })
 })
 
 afterEach(() => {

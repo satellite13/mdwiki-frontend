@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import OpenTasksPage from './OpenTasksPage.vue'
+import { i18n } from '@/i18n'
 
 const mockListOpenTasks = vi.fn()
 const mockCompleteTask = vi.fn()
@@ -70,6 +71,7 @@ const tasks = [
 function mountPage() {
   return mount(OpenTasksPage, {
     global: {
+      plugins: [i18n],
       stubs: {
         SkeletonPage: true
       }

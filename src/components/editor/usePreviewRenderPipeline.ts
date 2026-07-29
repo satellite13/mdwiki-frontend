@@ -1,3 +1,5 @@
+import type * as mermaid from 'mermaid'
+
 type PreviewRootGetter = () => HTMLElement | null
 
 type PreviewRenderPipelineOptions = {
@@ -8,7 +10,7 @@ type PreviewRenderPipelineOptions = {
 }
 
 export function usePreviewRenderPipeline(options: PreviewRenderPipelineOptions) {
-  let mermaidLoader: Promise<typeof import('mermaid')> | null = null
+  let mermaidLoader: Promise<typeof mermaid> | null = null
 
   async function loadMermaid() {
     if (!mermaidLoader) {

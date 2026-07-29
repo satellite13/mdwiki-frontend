@@ -2,8 +2,9 @@
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useDialogStore } from '@/stores/dialog'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const store = useDialogStore()
 const { active } = storeToRefs(store)
 
@@ -85,32 +86,32 @@ function onOverlayMouseDown(e: MouseEvent) {
           <div class="dialog-actions">
             <template v-if="active.kind === 'alert'">
               <button type="button" class="btn-primary" @click="store.submitAlert()">
-                {{ t.dialog.ok }}
+                {{ t('dialog.ok') }}
               </button>
             </template>
             <template v-else-if="active.kind === 'confirm'">
               <button type="button" class="btn-secondary" @click="store.submitConfirm(false)">
-                {{ t.common.cancel }}
+                {{ t('common.cancel') }}
               </button>
               <button
                 type="button"
                 :class="active.danger ? 'btn-danger-solid' : 'btn-primary'"
                 @click="store.submitConfirm(true)"
               >
-                {{ active.confirmLabel ?? t.common.confirm }}
+                {{ active.confirmLabel ?? t('common.confirm') }}
               </button>
             </template>
             <template v-else-if="active.kind === 'prompt'">
               <button type="button" class="btn-secondary" @click="store.submitPrompt(null)">
-                {{ t.common.cancel }}
+                {{ t('common.cancel') }}
               </button>
               <button type="button" class="btn-primary" @click="onPromptSubmit">
-                {{ t.dialog.ok }}
+                {{ t('dialog.ok') }}
               </button>
             </template>
             <template v-else>
               <button type="button" class="btn-secondary" @click="store.submitChoice(null)">
-                {{ active.cancelLabel ?? t.common.cancel }}
+                {{ active.cancelLabel ?? t('common.cancel') }}
               </button>
               <button
                 v-for="option in active.options"

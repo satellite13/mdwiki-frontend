@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const props = defineProps<{
   open: boolean
   query: string
@@ -46,29 +47,29 @@ function onKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div v-if="open" class="editor-find-bar" role="search" :aria-label="t.editor.findTitle">
+  <div v-if="open" class="editor-find-bar" role="search" :aria-label="t('editor.findTitle')">
     <span class="material-symbols-outlined notranslate find-icon" translate="no">search</span>
     <input
       ref="inputRef"
       class="find-input"
       type="search"
       :value="query"
-      :placeholder="t.editor.findPlaceholder"
+      :placeholder="t('editor.findPlaceholder')"
       autocomplete="off"
       spellcheck="false"
       @input="onInput"
       @keydown="onKeydown"
     />
     <span class="find-status" :class="{ empty: statusLabel === 'no-results' }">
-      {{ statusLabel === 'no-results' ? t.editor.findNoResults : statusLabel }}
+      {{ statusLabel === 'no-results' ? t('editor.findNoResults') : statusLabel }}
     </span>
-    <button type="button" class="find-btn" :title="t.editor.findPrev" :aria-label="t.editor.findPrev" @click="emit('prev')">
+    <button type="button" class="find-btn" :title="t('editor.findPrev')" :aria-label="t('editor.findPrev')" @click="emit('prev')">
       <span class="material-symbols-outlined notranslate" translate="no">keyboard_arrow_up</span>
     </button>
-    <button type="button" class="find-btn" :title="t.editor.findNext" :aria-label="t.editor.findNext" @click="emit('next')">
+    <button type="button" class="find-btn" :title="t('editor.findNext')" :aria-label="t('editor.findNext')" @click="emit('next')">
       <span class="material-symbols-outlined notranslate" translate="no">keyboard_arrow_down</span>
     </button>
-    <button type="button" class="find-btn" :title="t.editor.findClose" :aria-label="t.editor.findClose" @click="emit('close')">
+    <button type="button" class="find-btn" :title="t('editor.findClose')" :aria-label="t('editor.findClose')" @click="emit('close')">
       <span class="material-symbols-outlined notranslate" translate="no">close</span>
     </button>
   </div>

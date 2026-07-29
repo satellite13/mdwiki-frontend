@@ -4,7 +4,7 @@ import * as pagesApi from '@/api/pages'
 import { getPages, slugCandidatesForNavigation } from '@/services/pageIndex'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
 import type { Backlink, Page } from '@/types'
 
@@ -31,6 +31,7 @@ export function usePageLoader(
   state: LoaderState,
   deps: LoaderDependencies
 ) {
+  const { t } = useI18n()
   const dialog = useDialogStore()
 
   function decodeRouteSlug(slugParam: string): string {
@@ -43,7 +44,7 @@ export function usePageLoader(
 
   async function failWithMessage(e: unknown) {
     state.loading.value = false
-    await dialog.alert(getApiErrorMessage(e, t.errors.loadPageFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.loadPageFailed')))
   }
 
   async function loadPage(slugParam: string) {

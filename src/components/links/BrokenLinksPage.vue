@@ -7,7 +7,7 @@ import type { BrokenLink, PageListItem } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import AppModal from '@/components/ui/AppModal.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
@@ -16,6 +16,7 @@ interface BrokenLinkGroup {
   items: BrokenLink[]
 }
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const dialog = useDialogStore()
 const router = useRouter()
@@ -51,14 +52,14 @@ async function fetchBrokenLinks() {
     links.value = data
   } catch (e) {
     links.value = []
-    await dialog.alert(getApiErrorMessage(e, t.brokenLinks.loadFailed))
+    await dialog.alert(getApiErrorMessage(e, t('brokenLinks.loadFailed')))
   } finally {
     loading.value = false
   }
 }
 
 function kindLabel(kind: BrokenLink['kind']): string {
-  return kind === 'WIKILINK' ? t.brokenLinks.kindWikilink : t.brokenLinks.kindMarkdown
+  return kind === 'WIKILINK' ? t('brokenLinks.kindWikilink') : t('brokenLinks.kindMarkdown')
 }
 
 function openSource(slug: string) {
@@ -104,9 +105,9 @@ function choosePage(page: PageListItem) {
 async function applyFix() {
   if (!selectedPage.value || fixing.value) return
   const title = fixBulk.value
-    ? t.brokenLinks.fixAllConfirm(fixFromTarget.value, selectedPage.value.title)
-    : t.brokenLinks.fixOneConfirm(fixFromTarget.value, selectedPage.value.title)
-  const ok = await dialog.confirm(title, { confirmLabel: t.brokenLinks.fixButton })
+    ? t('brokenLinks.fixAllConfirm', { from: fixFromTarget.value, to: selectedPage.value.title })
+    : t('brokenLinks.fixOneConfirm', { from: fixFromTarget.value, to: selectedPage.value.title })
+  const ok = await dialog.confirm(title, { confirmLabel: t('brokenLinks.fixButton') })
   if (!ok) return
 
   fixing.value = true
@@ -119,12 +120,12 @@ async function applyFix() {
     closeFixDialog()
     await fetchBrokenLinks()
     if (data.skippedLocked.length > 0) {
-      await dialog.alert(t.brokenLinks.fixDoneWithSkipped(data.pagesUpdated, data.skippedLocked.join(', ')))
+      await dialog.alert(t('brokenLinks.fixDoneWithSkipped', { count: data.pagesUpdated, skipped: data.skippedLocked.join(', ') }, data.pagesUpdated))
     } else {
-      await dialog.alert(t.brokenLinks.fixDone(data.pagesUpdated))
+      await dialog.alert(t('brokenLinks.fixDone', { count: data.pagesUpdated }, data.pagesUpdated))
     }
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.brokenLinks.fixFailed))
+    await dialog.alert(getApiErrorMessage(e, t('brokenLinks.fixFailed')))
   } finally {
     fixing.value = false
   }
@@ -137,18 +138,18 @@ onMounted(fetchBrokenLinks)
   <div class="grouped-page">
     <div class="page-header">
       <div>
-        <h1>{{ t.brokenLinks.title }}</h1>
-        <p class="page-subtitle">{{ t.brokenLinks.subtitle }}</p>
+        <h1>{{ t('brokenLinks.title') }}</h1>
+        <p class="page-subtitle">{{ t('brokenLinks.subtitle') }}</p>
       </div>
       <button type="button" class="btn-secondary" :disabled="loading" @click="fetchBrokenLinks">
-        {{ t.brokenLinks.refresh }}
+        {{ t('brokenLinks.refresh') }}
       </button>
     </div>
 
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
 
     <div v-else-if="links.length === 0" class="empty-state">
-      {{ t.brokenLinks.empty }}
+      {{ t('brokenLinks.empty') }}
     </div>
 
     <div v-else class="groups">
@@ -156,7 +157,7 @@ onMounted(fetchBrokenLinks)
         <div class="group-header">
           <div>
             <h2 class="group-title">{{ group.brokenTarget }}</h2>
-            <p class="group-meta">{{ t.brokenLinks.occurrences(group.items.length) }}</p>
+            <p class="group-meta">{{ t('brokenLinks.occurrences', { count: group.items.length }, group.items.length) }}</p>
           </div>
           <button
             v-if="auth.isEditor"
@@ -164,7 +165,7 @@ onMounted(fetchBrokenLinks)
             class="btn-primary btn-sm"
             @click="openFixDialog(group.brokenTarget, { bulk: true })"
           >
-            {{ t.brokenLinks.fixAll }}
+            {{ t('brokenLinks.fixAll') }}
           </button>
         </div>
 
@@ -172,10 +173,10 @@ onMounted(fetchBrokenLinks)
           <table class="data-table">
             <thead>
               <tr>
-                <th>{{ t.brokenLinks.colSource }}</th>
-                <th>{{ t.brokenLinks.colType }}</th>
-                <th>{{ t.brokenLinks.colLabel }}</th>
-                <th v-if="auth.isEditor">{{ t.brokenLinks.colActions }}</th>
+                <th>{{ t('brokenLinks.colSource') }}</th>
+                <th>{{ t('brokenLinks.colType') }}</th>
+                <th>{{ t('brokenLinks.colLabel') }}</th>
+                <th v-if="auth.isEditor">{{ t('brokenLinks.colActions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -190,14 +191,14 @@ onMounted(fetchBrokenLinks)
                 <td data-label="Label">{{ item.displayText || '—' }}</td>
                 <td v-if="auth.isEditor" class="actions-cell" data-label="Actions">
                   <button type="button" class="btn-secondary btn-sm" @click="openSource(item.sourceSlug)">
-                    {{ t.brokenLinks.open }}
+                    {{ t('brokenLinks.open') }}
                   </button>
                   <button
                     type="button"
                     class="btn-primary btn-sm"
                     @click="openFixDialog(item.brokenTarget, { sourceSlug: item.sourceSlug })"
                   >
-                    {{ t.brokenLinks.fixHere }}
+                    {{ t('brokenLinks.fixHere') }}
                   </button>
                 </td>
               </tr>
@@ -207,22 +208,22 @@ onMounted(fetchBrokenLinks)
       </section>
     </div>
 
-    <AppModal v-if="fixOpen" :label="t.brokenLinks.fixDialogTitle" @close="closeFixDialog">
-      <h2>{{ t.brokenLinks.fixDialogTitle }}</h2>
+    <AppModal v-if="fixOpen" :label="t('brokenLinks.fixDialogTitle')" @close="closeFixDialog">
+      <h2>{{ t('brokenLinks.fixDialogTitle') }}</h2>
       <p class="fix-from">
-        {{ t.brokenLinks.fixFrom }} <code>{{ fixFromTarget }}</code>
-        <span v-if="!fixBulk && fixSourceSlug"> · {{ t.brokenLinks.fixOnPage }} <code>{{ fixSourceSlug }}</code></span>
-        <span v-else-if="fixBulk"> · {{ t.brokenLinks.fixAllPages }}</span>
+        {{ t('brokenLinks.fixFrom') }} <code>{{ fixFromTarget }}</code>
+        <span v-if="!fixBulk && fixSourceSlug"> · {{ t('brokenLinks.fixOnPage') }} <code>{{ fixSourceSlug }}</code></span>
+        <span v-else-if="fixBulk"> · {{ t('brokenLinks.fixAllPages') }}</span>
       </p>
 
-      <label class="field-label" for="fix-page-query">{{ t.brokenLinks.pickTarget }}</label>
+      <label class="field-label" for="fix-page-query">{{ t('brokenLinks.pickTarget') }}</label>
       <input
         id="fix-page-query"
         v-model="pageQuery"
         type="text"
         class="field-input"
         autocomplete="off"
-        :placeholder="t.brokenLinks.pickTargetPlaceholder"
+        :placeholder="t('brokenLinks.pickTargetPlaceholder')"
         @input="refreshPageSuggestions"
       />
 
@@ -242,10 +243,10 @@ onMounted(fetchBrokenLinks)
 
       <div class="modal-actions">
         <button type="button" class="btn-secondary" :disabled="fixing" @click="closeFixDialog">
-          {{ t.common.cancel }}
+          {{ t('common.cancel') }}
         </button>
         <button type="button" class="btn-primary" :disabled="!selectedPage || fixing" @click="applyFix">
-          {{ fixing ? '…' : t.brokenLinks.fixButton }}
+          {{ fixing ? '…' : t('brokenLinks.fixButton') }}
         </button>
       </div>
     </AppModal>

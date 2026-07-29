@@ -1,4 +1,4 @@
-export const t = {
+export const en = {
   tree: {
     newPage: 'New page',
     newFolder: 'New folder',
@@ -12,19 +12,14 @@ export const t = {
     loadingTags: 'Loading tags...',
     noTags: 'No tags',
     tagsNotFound: 'No tags found',
-    noDocumentsWithTag: (tags: string | string[]) => {
-      if (Array.isArray(tags)) {
-        return `No documents with tags ${tags.map((tag) => `#${tag}`).join(', ')}`
-      }
-      return `No documents with tag #${tags}`
-    },
+    noDocumentsWithTag: 'No documents with tags {tags}',
     noDocuments: 'No documents',
     addPage: 'Add page',
     addSubfolder: 'Add subfolder',
     deleteFolder: 'Delete folder',
     deletePage: 'Delete page',
-    chooseDeleteMode: (name: string) =>
-      `How to delete "${name}"?\nSoft delete keeps the file and allows restore. Hard delete removes page and markdown file permanently.`,
+    chooseDeleteMode:
+      'How to delete "{name}"?\nSoft delete moves the file to trash and allows restore. Hard delete removes page and markdown file permanently.',
     softDeleteLabel: 'Soft delete',
     softDeleteHint: 'Can be restored later',
     hardDeleteLabel: 'Hard delete',
@@ -32,16 +27,15 @@ export const t = {
     pageNamePrompt: 'Page name:',
     folderNamePrompt: 'Folder name:',
     newNamePrompt: 'New name:',
-    confirmDelete: (name: string) => `Delete "${name}"?`,
-    chooseFolderDeleteMode: (name: string, pageCount: number) =>
-      `Folder "${name}" contains ${pageCount} document${pageCount === 1 ? '' : 's'}. What should happen to them?`,
+    confirmDelete: 'Delete "{name}"?',
+    chooseFolderDeleteMode: 'Folder "{name}" contains {pageCount} documents. What should happen to them?',
     deletePagesWithFolderLabel: 'Delete documents',
     deletePagesWithFolderHint: 'Permanently remove all documents in this folder',
     movePagesToRootLabel: 'Move to root',
     movePagesToRootHint: 'Keep documents and move them to the wiki root',
   },
   admin: {
-    confirmDeleteUser: (username: string) => `Delete user "${username}"?`,
+    confirmDeleteUser: 'Delete user "{username}"?',
     delete: 'Delete',
     usersTitle: 'User Management',
     embeddingTitle: 'Embedding settings',
@@ -56,16 +50,15 @@ export const t = {
     embeddingSaveSuccess: 'Embedding settings saved and applied.',
     embeddingReindexHint: 'Search index is not reindexed automatically. Run reindex manually if needed.',
     embeddingMismatchTitle: 'Embedding dimension mismatch',
-    embeddingMismatchDetails: (actual: number, expected: number) =>
-      `Provider returned ${actual} dimensions, but this instance expects ${expected}. Settings were applied, but you should run reindex.`,
+    embeddingMismatchDetails:
+      'Provider returned {actual} dimensions, but this instance expects {expected}. Settings were applied, but you should run reindex.',
     openEmbeddingSettings: 'Embedding',
     openUsersSettings: 'Users',
     syncWikiTitle: 'Sync wiki from disk',
     syncWikiConfirm:
       'Run full sync: import all .md files from wiki-content into the database and remove pages whose files no longer exist on disk?',
     syncWikiButton: 'Sync disk',
-    syncWikiDone: (added: number, updated: number, removed: number) =>
-      `Sync finished: ${added} added, ${updated} updated, ${removed} removed.`,
+    syncWikiDone: 'Sync finished: {added} added, {updated} updated, {removed} removed.',
     syncWikiFailed: 'Sync failed. Check that you are logged in as admin.',
   },
   common: {
@@ -121,7 +114,7 @@ export const t = {
     passwordChanged: 'Password changed successfully.',
   },
   attachments: {
-    confirmDelete: (name: string) => `Delete "${name}"?`,
+    confirmDelete: 'Delete "{name}"?',
   },
   editor: {
     findTitle: 'Find in document',
@@ -130,13 +123,20 @@ export const t = {
     findNext: 'Next match',
     findPrev: 'Previous match',
     findClose: 'Close search',
+    formatTable: 'Format markdown table at cursor',
+    headingAnchorLink: 'Link to section',
+    copyAnchor: 'Copy section anchor',
+    copyCode: 'Copy code',
+    anchorCopied: 'Anchor copied',
+    codeCopied: 'Code copied',
+    copyFailed: 'Copy failed',
   },
   brokenLinks: {
     title: 'Broken links',
     subtitle: 'Wikilinks and /page/ references that do not resolve to an existing document.',
     refresh: 'Refresh',
     empty: 'No broken links found.',
-    occurrences: (count: number) => `${count} occurrence${count === 1 ? '' : 's'}`,
+    occurrences: '{count} occurrence | {count} occurrences',
     fixAll: 'Fix all',
     fixHere: 'Fix here',
     open: 'Open',
@@ -153,14 +153,10 @@ export const t = {
     pickTarget: 'Target page',
     pickTargetPlaceholder: 'Search by title or slug…',
     fixButton: 'Replace links',
-    fixAllConfirm: (from: string, to: string) =>
-      `Replace all references to "${from}" with "${to}" across the wiki?`,
-    fixOneConfirm: (from: string, to: string) =>
-      `Replace references to "${from}" with "${to}" on this page?`,
-    fixDone: (count: number) =>
-      `Updated ${count} page${count === 1 ? '' : 's'}.`,
-    fixDoneWithSkipped: (count: number, skipped: string) =>
-      `Updated ${count} page${count === 1 ? '' : 's'}. Skipped locked: ${skipped}.`,
+    fixAllConfirm: 'Replace all references to "{from}" with "{to}" across the wiki?',
+    fixOneConfirm: 'Replace references to "{from}" with "{to}" on this page?',
+    fixDone: 'Updated {count} page. | Updated {count} pages.',
+    fixDoneWithSkipped: 'Updated {count} page. Skipped locked: {skipped}. | Updated {count} pages. Skipped locked: {skipped}.',
     fixFailed: 'Failed to replace links',
     loadFailed: 'Failed to load broken links',
   },
@@ -169,7 +165,7 @@ export const t = {
     subtitle: 'Unfinished Markdown tasks across your wiki.',
     refresh: 'Refresh',
     empty: 'No open tasks found.',
-    count: (count: number) => `${count} task${count === 1 ? '' : 's'}`,
+    count: '{count} task | {count} tasks',
     completeDialogTitle: 'Complete task',
     completePrompt: 'Add an optional completion summary.',
     summaryLabel: 'Summary',
@@ -180,4 +176,18 @@ export const t = {
     conflict: 'This document changed. Reload the task list before trying again?',
     reload: 'Reload',
   },
-} as const
+  header: {
+    graph: 'Graph',
+    graphTitle: 'All pages and links in the wiki',
+    brokenLinks: 'Broken links',
+    tasks: 'Tasks',
+    attachments: 'Attachments',
+    admin: 'Admin',
+    logout: 'Logout',
+    searchPlaceholder: 'Search pages...   ⌘K',
+    themeLight: 'Theme: Light',
+    themeDark: 'Theme: Dark',
+    themeSystem: 'Theme: System',
+    language: 'Language',
+  },
+}

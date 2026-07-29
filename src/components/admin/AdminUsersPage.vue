@@ -5,9 +5,10 @@ import type { User, UserRole } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { t } from '@/utils/i18n'
+import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const dialog = useDialogStore()
 const users = ref<User[]>([])
@@ -25,7 +26,7 @@ async function fetchUsers() {
     const { data } = await usersApi.listUsers()
     users.value = data
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.loadUsersFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.loadUsersFailed')))
   } finally {
     loading.value = false
   }
@@ -38,22 +39,22 @@ async function changeRole(user: User, newRole: string) {
     await usersApi.updateUserRole(user.id, role)
     await fetchUsers()
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.updateRoleFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.updateRoleFailed')))
   }
 }
 
 async function removeUser(user: User) {
   if (user.username === auth.username) return
-  const ok = await dialog.confirm(t.admin.confirmDeleteUser(user.username), {
+  const ok = await dialog.confirm(t('admin.confirmDeleteUser', { username: user.username }), {
     danger: true,
-    confirmLabel: t.admin.delete
+    confirmLabel: t('admin.delete')
   })
   if (!ok) return
   try {
     await usersApi.deleteUser(user.id)
     await fetchUsers()
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t.errors.deleteUserFailed))
+    await dialog.alert(getApiErrorMessage(e, t('errors.deleteUserFailed')))
   }
 }
 
@@ -63,10 +64,10 @@ onMounted(fetchUsers)
 <template>
   <div class="admin-users">
     <div class="admin-nav" aria-label="Admin sections">
-      <router-link to="/admin/users" class="admin-nav-link">{{ t.admin.openUsersSettings }}</router-link>
-      <router-link to="/admin/embedding" class="admin-nav-link">{{ t.admin.openEmbeddingSettings }}</router-link>
+      <router-link to="/admin/users" class="admin-nav-link">{{ t('admin.openUsersSettings') }}</router-link>
+      <router-link to="/admin/embedding" class="admin-nav-link">{{ t('admin.openEmbeddingSettings') }}</router-link>
     </div>
-    <h1>{{ t.admin.usersTitle }}</h1>
+    <h1>{{ t('admin.usersTitle') }}</h1>
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
     <div v-else class="table-scroll">
     <table class="data-table users-table">
@@ -88,7 +89,7 @@ onMounted(fetchUsers)
               class="btn-delete-user"
               @click="removeUser(user)"
             >
-              {{ t.admin.delete }}
+              {{ t('admin.delete') }}
             </button>
           </td>
         </tr>
