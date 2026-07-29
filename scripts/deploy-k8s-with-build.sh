@@ -13,12 +13,12 @@ IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-mdwiki-frontend}"
 DEFAULT_SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD)"
 VERSION_TAG="$(git -C "${ROOT_DIR}" describe --tags --always)"
 EXACT_VERSION_TAG="$(git -C "${ROOT_DIR}" describe --tags --exact-match HEAD 2>/dev/null || true)"
-DEFAULT_TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
 DEFAULT_DIRTY_SUFFIX=""
 if [[ -n "$(git -C "${ROOT_DIR}" status --porcelain)" ]]; then
   DEFAULT_DIRTY_SUFFIX="-dirty"
 fi
-DEFAULT_IMAGE_TAG="${DEFAULT_TIMESTAMP}-${DEFAULT_SHA}${DEFAULT_DIRTY_SUFFIX}"
+# Image tag is the git version tag (e.g. v0.1.0 or v0.1.0-2-g9d37397).
+DEFAULT_IMAGE_TAG="${VERSION_TAG}${DEFAULT_DIRTY_SUFFIX}"
 IMAGE_TAG="${IMAGE_TAG:-${DEFAULT_IMAGE_TAG}}"
 
 is_remote_repository() {
@@ -53,22 +53,28 @@ if [[ ! -d "${CHART_DIR}" ]]; then
   exit 1
 fi
 
-echo "Building image ${IMAGE_REPOSITORY}:${IMAGE_TAG} (version tag ${VERSION_TAG})"
+echo "Building image ${IMAGE_REPOSITORY}:${IMAGE_TAG}"
 docker build \
   --build-arg "APP_GIT_SHA=${DEFAULT_SHA}" \
   --build-arg "APP_VERSION_TAG=${VERSION_TAG}" \
   -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" \
   "${ROOT_DIR}"
 
-if [[ -n "${EXACT_VERSION_TAG}" ]]; then
-  echo "Also tagging image as ${IMAGE_REPOSITORY}:${EXACT_VERSION_TAG}"
+# Keep sha tag as an alias for convenience.
+if [[ "${IMAGE_TAG}" != "${DEFAULT_SHA}" ]]; then
+  docker tag "${IMAGE_REPOSITORY}:${IMAGE_TAG}" "${IMAGE_REPOSITORY}:${DEFAULT_SHA}"
+fi
+if [[ -n "${EXACT_VERSION_TAG}" && "${IMAGE_TAG}" != "${EXACT_VERSION_TAG}" ]]; then
   docker tag "${IMAGE_REPOSITORY}:${IMAGE_TAG}" "${IMAGE_REPOSITORY}:${EXACT_VERSION_TAG}"
 fi
 
 if [[ "${PUSH_IMAGE}" == "true" ]]; then
   echo "Pushing image ${IMAGE_REPOSITORY}:${IMAGE_TAG}"
   docker push "${IMAGE_REPOSITORY}:${IMAGE_TAG}"
-  if [[ -n "${EXACT_VERSION_TAG}" ]]; then
+  if [[ "${IMAGE_TAG}" != "${DEFAULT_SHA}" ]]; then
+    docker push "${IMAGE_REPOSITORY}:${DEFAULT_SHA}"
+  fi
+  if [[ -n "${EXACT_VERSION_TAG}" && "${IMAGE_TAG}" != "${EXACT_VERSION_TAG}" ]]; then
     docker push "${IMAGE_REPOSITORY}:${EXACT_VERSION_TAG}"
   fi
 else
