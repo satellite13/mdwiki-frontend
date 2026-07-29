@@ -132,13 +132,13 @@ onMounted(fetchAttachments)
             <img v-if="isImage(att.contentType)" :src="att.url" class="thumb" :alt="att.originalName" />
             <span v-else class="file-icon">📎</span>
           </td>
-          <td class="name-cell" data-label="Name">
+          <td class="name-cell" :data-label="t('attachments.colName')">
             <a :href="att.url" target="_blank">{{ att.originalName }}</a>
           </td>
-          <td class="type-cell" data-label="Type">{{ att.contentType }}</td>
-          <td class="size-cell" data-label="Size">{{ formatSize(att.sizeBytes) }}</td>
-          <td class="user-cell" data-label="Uploaded by">{{ att.uploadedBy || '—' }}</td>
-          <td class="date-cell" data-label="Date">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
+          <td class="type-cell" :data-label="t('attachments.colType')">{{ att.contentType }}</td>
+          <td class="size-cell" :data-label="t('attachments.colSize')">{{ formatSize(att.sizeBytes) }}</td>
+          <td class="user-cell" :data-label="t('attachments.colUploadedBy')">{{ att.uploadedBy || '—' }}</td>
+          <td class="date-cell" :data-label="t('attachments.colDate')">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
           <td class="actions-cell">
             <div class="actions-inner">
               <button class="btn-secondary btn-sm" type="button" @click="copyLink(att)" :title="t('attachments.copyMarkdownLink')">{{ t('attachments.copyLink') }}</button>

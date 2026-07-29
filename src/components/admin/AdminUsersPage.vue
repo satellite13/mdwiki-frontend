@@ -74,9 +74,9 @@ onMounted(fetchUsers)
       <thead><tr><th>{{ t('admin.colUsername') }}</th><th>{{ t('admin.colEmail') }}</th><th>{{ t('admin.colRole') }}</th><th>{{ t('admin.colActions') }}</th></tr></thead>
       <tbody>
         <tr v-for="user in users" :key="user.id">
-          <td class="user-name" data-label="Username">{{ user.username }}</td>
-          <td class="user-email" data-label="Email">{{ user.email }}</td>
-          <td class="role-cell" data-label="Role"><span class="role-badge">{{ user.role }}</span></td>
+          <td class="user-name" :data-label="t('admin.colUsername')">{{ user.username }}</td>
+          <td class="user-email" :data-label="t('admin.colEmail')">{{ user.email }}</td>
+          <td class="role-cell" :data-label="t('admin.colRole')"><span class="role-badge">{{ user.role }}</span></td>
           <td class="actions-cell">
             <select :value="user.role" @change="changeRole(user, ($event.target as HTMLSelectElement).value)">
               <option value="READER">READER</option>

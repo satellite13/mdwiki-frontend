@@ -121,7 +121,7 @@ onMounted(loadSettings)
       </p>
 
       <button class="btn-primary" type="submit" :disabled="saving">
-        {{ saving ? 'Saving…' : t('common.save') }}
+        {{ saving ? t('common.saving') : t('common.save') }}
       </button>
     </form>
   </div>

@@ -46,7 +46,7 @@ function toggleToc() {
 
 <template>
   <router-link to="/" class="reading-logo">MDWiki</router-link>
-  <div class="reading-title" :title="props.title || ''">{{ props.title || 'Untitled' }}</div>
+  <div class="reading-title" :title="props.title || ''">{{ props.title || t('common.untitled') }}</div>
   <div class="reading-controls" :class="{ 'theme-dark': props.theme === 'dark' }">
     <input
       class="reading-font-slider"
@@ -55,12 +55,12 @@ function toggleToc() {
       :min="props.fontMin"
       :max="props.fontMax"
       step="1"
-      aria-label="Reading font size"
-      title="Reading font size"
+      :aria-label="t('reading.fontSize')"
+      :title="t('reading.fontSize')"
       @input="onFontInput"
     />
     <span class="reading-font-size">{{ props.fontSize }}px</span>
-    <div class="reading-theme-swatches" role="radiogroup" aria-label="Reading background style">
+    <div class="reading-theme-swatches" role="radiogroup" :aria-label="t('reading.bgStyle')">
       <button
         v-for="option in themeOptions"
         :key="option.id"
@@ -76,8 +76,8 @@ function toggleToc() {
       type="button"
       class="reading-toc-toggle"
       :class="{ active: props.tocVisible }"
-      title="Оглавление"
-      aria-label="Оглавление"
+      :title="t('reading.toc')"
+      :aria-label="t('reading.toc')"
       @click="toggleToc"
     >
       <span class="material-symbols-outlined notranslate" translate="no">toc</span>
@@ -86,8 +86,8 @@ function toggleToc() {
       type="button"
       class="reading-annotations-toggle"
       :class="{ active: props.annotationsVisible }"
-      title="Annotations"
-      aria-label="Annotations"
+      :title="t('reading.annotations')"
+      :aria-label="t('reading.annotations')"
       @click="emit('update:annotationsVisible', !(props.annotationsVisible ?? false))"
     >
       <span class="material-symbols-outlined notranslate" translate="no">chat_bubble</span>
@@ -95,8 +95,8 @@ function toggleToc() {
     <button
       type="button"
       class="reading-export-btn"
-      title="Export PDF"
-      aria-label="Export PDF"
+      :title="t('export.pdfButton')"
+      :aria-label="t('export.pdfButton')"
       @click="emit('exportPdf')"
     >
       <span class="material-symbols-outlined notranslate" translate="no">picture_as_pdf</span>
@@ -105,8 +105,8 @@ function toggleToc() {
   <button
     type="button"
     class="reading-exit-btn"
-    title="Exit reading mode"
-    aria-label="Exit reading mode"
+    :title="t('reading.exit')"
+    :aria-label="t('reading.exit')"
     @click="emit('exit')"
   >
     <span class="material-symbols-outlined notranslate" translate="no">close_fullscreen</span>

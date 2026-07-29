@@ -1,5 +1,6 @@
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
+import { i18n } from '@/i18n'
 
 const PDF_PAGE_WIDTH_PX = 794
 const PDF_MARGIN_MM = 10
@@ -30,7 +31,7 @@ export function createPdfExportHost(title: string, contentElement: HTMLElement):
 
   const titleEl = document.createElement('h1')
   titleEl.className = 'pdf-export-title'
-  titleEl.textContent = title.trim() || 'Untitled'
+  titleEl.textContent = title.trim() || i18n.global.t('common.untitled')
 
   const body = contentElement.cloneNode(true) as HTMLElement
   body.querySelectorAll('.heading-copy-btn, .code-copy-btn').forEach((el) => el.remove())

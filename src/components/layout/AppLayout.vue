@@ -116,7 +116,7 @@ onBeforeUnmount(() => {
       <VerticalPaneResizer
         v-if="showSidebarResizer"
         :dragging="sidebarDragging"
-        ariaLabel="Resize documents sidebar"
+        :ariaLabel="t('layout.resizeSidebar')"
         @mousedown="startSidebarResize"
         @dblclick="resetSidebarWidth"
       />

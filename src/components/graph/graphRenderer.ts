@@ -1,5 +1,6 @@
 import * as d3 from 'd3'
 import type { GraphNode, GraphEdge } from '@/api/graph'
+import { i18n } from '@/i18n'
 
 export interface SimNode extends d3.SimulationNodeDatum {
   slug: string
@@ -488,7 +489,10 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
     .attr('stroke-width', 2.5)
     .attr('stroke-linejoin', 'round')
 
-  node.append('title').text((d) => `${d.title}${d.tags.length ? '\nTags: ' + d.tags.map((tag) => '#' + tag).join(', ') : ''}`)
+  node.append('title').text((d) => {
+    if (!d.tags.length) return d.title
+    return `${d.title}\n${i18n.global.t('search.tagsLabel')} ${d.tags.map((tag) => '#' + tag).join(', ')}`
+  })
 
   simulation.on('tick', () => {
     link.attr('d', (d) => {

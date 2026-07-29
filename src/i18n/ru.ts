@@ -261,6 +261,8 @@ export const ru = {
     language: 'Язык',
     openDocuments: 'Открыть документы',
     navMenu: 'Меню навигации',
+    mainNav: 'Основная навигация',
+    mobileNav: 'Мобильная навигация',
   },
   auth: {
     login: 'Войти',
@@ -348,5 +350,6 @@ export const ru = {
   },
   layout: {
     closeSidebar: 'Закрыть боковую панель',
+    resizeSidebar: 'Изменить ширину панели документов',
   },
 }

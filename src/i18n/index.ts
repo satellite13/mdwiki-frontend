@@ -23,10 +23,19 @@ export function getLocale(): AppLocale {
   return i18n.global.locale.value as AppLocale
 }
 
+function applyDocumentLang(locale: AppLocale) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = locale
+  }
+}
+
 export function setLocale(locale: AppLocale) {
   i18n.global.locale.value = locale
   writeString(LOCALE_KEY, locale)
+  applyDocumentLang(locale)
 }
+
+applyDocumentLang(readInitialLocale())
 
 export function toggleLocale() {
   setLocale(getLocale() === 'ru' ? 'en' : 'ru')

@@ -261,6 +261,8 @@ export const en = {
     language: 'Language',
     openDocuments: 'Open documents',
     navMenu: 'Navigation menu',
+    mainNav: 'Main navigation',
+    mobileNav: 'Mobile navigation',
   },
   auth: {
     login: 'Login',
@@ -348,5 +350,6 @@ export const en = {
   },
   layout: {
     closeSidebar: 'Close sidebar',
+    resizeSidebar: 'Resize documents sidebar',
   },
 }

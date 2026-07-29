@@ -105,7 +105,7 @@ function onNavClick() {
       <input v-model="searchQuery" :placeholder="t('header.searchPlaceholder')" type="search" />
     </form>
 
-    <nav class="header-nav hide-mobile" aria-label="Main navigation">
+    <nav class="header-nav hide-mobile" :aria-label="t('header.mainNav')">
       <router-link
         v-for="link in navLinks"
         :key="link.label"
@@ -123,7 +123,7 @@ function onNavClick() {
         :class="{ 'is-active': route.path.startsWith('/admin') }"
         @click="onNavClick"
       >
-        Admin
+        {{ t('header.admin') }}
       </router-link>
       <button
         v-if="auth.isAdmin"
@@ -166,7 +166,7 @@ function onNavClick() {
       <nav
         v-if="mobileNavOpen"
         class="mobile-nav-menu show-mobile-only"
-        aria-label="Mobile navigation"
+        :aria-label="t('header.mobileNav')"
       >
         <div class="mobile-nav-title">MDWiki</div>
         <router-link
@@ -184,7 +184,7 @@ function onNavClick() {
           class="mobile-nav-link"
           @click="onNavClick"
         >
-          Admin
+          {{ t('header.admin') }}
         </router-link>
         <button
           v-if="auth.isAdmin"

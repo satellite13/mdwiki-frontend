@@ -181,15 +181,15 @@ onMounted(fetchBrokenLinks)
             </thead>
             <tbody>
               <tr v-for="(item, index) in group.items" :key="`${item.sourceSlug}-${item.kind}-${index}`">
-                <td data-label="Source">
+                <td :data-label="t('brokenLinks.colSource')">
                   <button type="button" class="link-btn" @click="openSource(item.sourceSlug)">
                     {{ item.sourceTitle }}
                   </button>
                   <small class="slug-hint">{{ item.sourceSlug }}</small>
                 </td>
-                <td data-label="Type">{{ kindLabel(item.kind) }}</td>
-                <td data-label="Label">{{ item.displayText || '—' }}</td>
-                <td v-if="auth.isEditor" class="actions-cell" data-label="Actions">
+                <td :data-label="t('brokenLinks.colType')">{{ kindLabel(item.kind) }}</td>
+                <td :data-label="t('brokenLinks.colLabel')">{{ item.displayText || '—' }}</td>
+                <td v-if="auth.isEditor" class="actions-cell" :data-label="t('brokenLinks.colActions')">
                   <button type="button" class="btn-secondary btn-sm" @click="openSource(item.sourceSlug)">
                     {{ t('brokenLinks.open') }}
                   </button>

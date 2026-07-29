@@ -443,7 +443,7 @@ async function exportToPdf() {
     }
 
     await downloadPagePdf({
-      title: props.readingTitle || 'Untitled',
+      title: props.readingTitle || t('common.untitled'),
       contentElement: content
     })
   } catch (error) {

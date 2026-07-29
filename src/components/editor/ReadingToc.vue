@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { TocItem } from './tocTypes'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   items: TocItem[]
@@ -17,7 +20,7 @@ function onSelect(id: string) {
 
 <template>
   <aside class="reading-toc" :class="`reading-toc--${props.theme}`">
-    <div class="reading-toc-title">Оглавление</div>
+    <div class="reading-toc-title">{{ t('reading.toc') }}</div>
     <button
       v-for="item in props.items"
       :key="item.id"
