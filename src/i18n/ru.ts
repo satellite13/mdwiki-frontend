@@ -144,6 +144,10 @@ export const ru = {
     copied: 'Скопировано',
     copyStateFailed: 'Ошибка',
     copyManual: 'Не удалось скопировать ключ автоматически. Скопируйте его вручную.',
+    versionsTitle: 'Версии',
+    frontendVersion: 'Фронтенд',
+    backendVersion: 'Бэкенд',
+    backendVersionUnavailable: 'недоступно',
   },
   attachments: {
     confirmDelete: 'Удалить "{name}"?',

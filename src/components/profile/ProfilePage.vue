@@ -4,11 +4,14 @@ import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import * as apiKeysApi from '@/api/apiKeys'
 import { changePassword } from '@/api/auth'
+import { getBackendVersion, type BackendVersion } from '@/api/version'
 import type { ApiKey } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { copyTextToClipboard } from '@/utils/clipboard'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+
+const frontendVersionLabel = `${__APP_VERSION__} (${__APP_GIT_SHA__})`
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -27,6 +30,8 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordLoading = ref(false)
 const showPassword = ref(false)
+const backendVersion = ref<BackendVersion | null>(null)
+const backendVersionError = ref(false)
 
 async function fetchKeys() {
   loading.value = true
@@ -37,6 +42,17 @@ async function fetchKeys() {
     await dialog.alert(getApiErrorMessage(e, t('errors.loadApiKeysFailed')))
   } finally {
     loading.value = false
+  }
+}
+
+async function fetchBackendVersion() {
+  try {
+    const { data } = await getBackendVersion()
+    backendVersion.value = data
+    backendVersionError.value = false
+  } catch {
+    backendVersion.value = null
+    backendVersionError.value = true
   }
 }
 
@@ -113,7 +129,10 @@ async function copyKey() {
   }
 }
 
-onMounted(fetchKeys)
+onMounted(() => {
+  void fetchKeys()
+  void fetchBackendVersion()
+})
 
 onBeforeUnmount(() => {
   if (copyFeedbackTimer) window.clearTimeout(copyFeedbackTimer)
@@ -191,6 +210,22 @@ onBeforeUnmount(() => {
       </tbody>
     </table>
     <p v-else class="state-placeholder">{{ t('profile.noApiKeys') }}</p>
+
+    <h2>{{ t('profile.versionsTitle') }}</h2>
+    <div class="versions-card">
+      <p>
+        <strong>{{ t('profile.frontendVersion') }}:</strong>
+        <span class="version-value">{{ frontendVersionLabel }}</span>
+      </p>
+      <p>
+        <strong>{{ t('profile.backendVersion') }}:</strong>
+        <span class="version-value">
+          <template v-if="backendVersion">{{ backendVersion.version }} ({{ backendVersion.gitSha }})</template>
+          <template v-else-if="backendVersionError">{{ t('profile.backendVersionUnavailable') }}</template>
+          <template v-else>…</template>
+        </span>
+      </p>
+    </div>
   </div>
 </template>
 
@@ -207,12 +242,24 @@ onBeforeUnmount(() => {
   font-size: 1.3rem;
 }
 
-.profile-card {
+.profile-card,
+.versions-card {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 20px 24px;
   margin-bottom: 8px;
+}
+
+.versions-card {
+  margin-top: 8px;
+}
+
+.version-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin-left: 6px;
+  color: var(--color-text-muted);
 }
 
 .profile-card p {

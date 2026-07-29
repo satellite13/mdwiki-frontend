@@ -144,6 +144,10 @@ export const en = {
     copied: 'Copied',
     copyStateFailed: 'Failed',
     copyManual: 'Unable to copy key automatically. Please copy it manually.',
+    versionsTitle: 'Versions',
+    frontendVersion: 'Frontend',
+    backendVersion: 'Backend',
+    backendVersionUnavailable: 'unavailable',
   },
   attachments: {
     confirmDelete: 'Delete "{name}"?',
