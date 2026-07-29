@@ -19,11 +19,26 @@ function gitShortSha(): string {
   }
 }
 
+/** Release tag from git (e.g. v0.1.0 or v0.1.0-1-g5f79f6b). */
+function versionTag(): string {
+  const fromEnv = process.env.APP_VERSION_TAG?.trim()
+  if (fromEnv) return fromEnv
+  try {
+    return (
+      execSync('git describe --tags --always', { encoding: 'utf8' }).trim() ||
+      `v${pkg.version}`
+    )
+  } catch {
+    return `v${pkg.version}`
+  }
+}
+
 export default defineConfig({
   plugins: [vue()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
-    __APP_GIT_SHA__: JSON.stringify(gitShortSha())
+    __APP_GIT_SHA__: JSON.stringify(gitShortSha()),
+    __APP_VERSION_TAG__: JSON.stringify(versionTag())
   },
   resolve: {
     alias: {

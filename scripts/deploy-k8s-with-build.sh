@@ -11,6 +11,8 @@ TIMEOUT="${TIMEOUT:-5m}"
 
 IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-mdwiki-frontend}"
 DEFAULT_SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD)"
+VERSION_TAG="$(git -C "${ROOT_DIR}" describe --tags --always)"
+EXACT_VERSION_TAG="$(git -C "${ROOT_DIR}" describe --tags --exact-match HEAD 2>/dev/null || true)"
 DEFAULT_TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
 DEFAULT_DIRTY_SUFFIX=""
 if [[ -n "$(git -C "${ROOT_DIR}" status --porcelain)" ]]; then
@@ -51,15 +53,24 @@ if [[ ! -d "${CHART_DIR}" ]]; then
   exit 1
 fi
 
-echo "Building image ${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+echo "Building image ${IMAGE_REPOSITORY}:${IMAGE_TAG} (version tag ${VERSION_TAG})"
 docker build \
   --build-arg "APP_GIT_SHA=${DEFAULT_SHA}" \
+  --build-arg "APP_VERSION_TAG=${VERSION_TAG}" \
   -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" \
   "${ROOT_DIR}"
+
+if [[ -n "${EXACT_VERSION_TAG}" ]]; then
+  echo "Also tagging image as ${IMAGE_REPOSITORY}:${EXACT_VERSION_TAG}"
+  docker tag "${IMAGE_REPOSITORY}:${IMAGE_TAG}" "${IMAGE_REPOSITORY}:${EXACT_VERSION_TAG}"
+fi
 
 if [[ "${PUSH_IMAGE}" == "true" ]]; then
   echo "Pushing image ${IMAGE_REPOSITORY}:${IMAGE_TAG}"
   docker push "${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+  if [[ -n "${EXACT_VERSION_TAG}" ]]; then
+    docker push "${IMAGE_REPOSITORY}:${EXACT_VERSION_TAG}"
+  fi
 else
   echo "Skipping push (PUSH_IMAGE=${PUSH_IMAGE})"
 fi

@@ -11,7 +11,7 @@ import { copyTextToClipboard } from '@/utils/clipboard'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
-const frontendVersionLabel = `${__APP_VERSION__} (${__APP_GIT_SHA__})`
+const frontendVersionLabel = __APP_VERSION_TAG__
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -220,7 +220,7 @@ onBeforeUnmount(() => {
       <p>
         <strong>{{ t('profile.backendVersion') }}:</strong>
         <span class="version-value">
-          <template v-if="backendVersion">{{ backendVersion.version }} ({{ backendVersion.gitSha }})</template>
+          <template v-if="backendVersion">{{ backendVersion.versionTag || `${backendVersion.version} (${backendVersion.gitSha})` }}</template>
           <template v-else-if="backendVersionError">{{ t('profile.backendVersionUnavailable') }}</template>
           <template v-else>…</template>
         </span>

@@ -6,9 +6,11 @@ RUN npm ci
 
 COPY . .
 
-# .git is dockerignored — pass sha from host at build time.
+# .git is dockerignored — pass version metadata from host at build time.
 ARG APP_GIT_SHA=unknown
-ENV APP_GIT_SHA=$APP_GIT_SHA
+ARG APP_VERSION_TAG=v0.0.0
+ENV APP_GIT_SHA=$APP_GIT_SHA \
+    APP_VERSION_TAG=$APP_VERSION_TAG
 
 RUN npm run build
 
