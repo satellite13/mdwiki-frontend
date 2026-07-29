@@ -111,6 +111,8 @@ const wikilinkMenuStyle = wikilink.menuStyle
 const findBarOpen = computed(() => editorFind.open.value)
 const findBarQuery = computed(() => editorFind.query.value)
 const findBarStatusLabel = computed(() => editorFind.statusLabel.value)
+const findBarMatchIndices = computed(() => editorFind.matchIndices.value)
+const findBarActiveIndex = computed(() => editorFind.activeIndex.value)
 let wikilinkBlurTimer: ReturnType<typeof setTimeout> | undefined
 
 const { startResizeDrag, clearDragListeners } = useHorizontalDragResize()
@@ -328,6 +330,7 @@ function onEditorInput(event: Event) {
   const target = event.target as HTMLTextAreaElement
   applyValue(target.value)
   refreshWikilinkSuggestions()
+  if (editorFind.open.value) editorFind.refreshMatches()
 }
 
 function onEditorKeydown(event: KeyboardEvent) {
@@ -593,6 +596,8 @@ defineExpose({
         :find-open="findBarOpen"
         :find-query="findBarQuery"
         :find-status-label="findBarStatusLabel"
+        :find-match-indices="findBarMatchIndices"
+        :find-active-index="findBarActiveIndex"
         @input="onEditorInput"
         @keydown="onEditorKeydown"
         @click="refreshWikilinkSuggestions"

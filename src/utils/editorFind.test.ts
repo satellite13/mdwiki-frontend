@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findMatchIndices, nextMatchIndex, prevMatchIndex } from './editorFind'
+import { buildFindHighlightHtml, findMatchIndices, nextMatchIndex, prevMatchIndex } from './editorFind'
 
 describe('findMatchIndices', () => {
   it('finds all case-insensitive occurrences', () => {
@@ -28,5 +28,23 @@ describe('prevMatchIndex', () => {
 
   it('wraps to last match before the first', () => {
     expect(prevMatchIndex(matches, 0, 0)).toBe(2)
+  })
+})
+
+describe('buildFindHighlightHtml', () => {
+  it('wraps matches and marks the active one', () => {
+    const html = buildFindHighlightHtml('Foo bar foo', [0, 8], 3, 1)
+    expect(html).toBe(
+      '<mark class="find-match">Foo</mark> bar <mark class="find-match find-match-active">foo</mark>'
+    )
+  })
+
+  it('escapes HTML outside and inside matches', () => {
+    const html = buildFindHighlightHtml('<tag>', [1], 3, 0)
+    expect(html).toBe('&lt;<mark class="find-match find-match-active">tag</mark>&gt;')
+  })
+
+  it('returns escaped text when there are no matches', () => {
+    expect(buildFindHighlightHtml('a < b', [], 1, -1)).toBe('a &lt; b')
   })
 })

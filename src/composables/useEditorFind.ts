@@ -14,6 +14,8 @@ export interface EditorFindOptions {
 export interface EditorFindApi {
   open: Ref<boolean>
   query: Ref<string>
+  matchIndices: Ref<number[]>
+  activeIndex: Ref<number>
   matchCount: Ref<number>
   currentMatch: Ref<number>
   statusLabel: Ref<string>
@@ -47,7 +49,7 @@ export function useEditorFind(options: EditorFindOptions): EditorFindApi {
     const start = matchIndices.value[index]
     const end = start + needle.length
     activeIndex.value = index
-    el.focus()
+    // Do not el.focus() — that steals the caret from the find input on every keystroke.
     el.setSelectionRange(start, end)
     scrollTextareaSelectionIntoView(el)
   }
@@ -105,6 +107,7 @@ export function useEditorFind(options: EditorFindOptions): EditorFindApi {
     query.value = ''
     matchIndices.value = []
     activeIndex.value = -1
+    options.getEditor()?.focus()
   }
 
   function handleKeydown(event: KeyboardEvent): boolean {
@@ -126,6 +129,8 @@ export function useEditorFind(options: EditorFindOptions): EditorFindApi {
   return {
     open,
     query,
+    matchIndices,
+    activeIndex,
     matchCount,
     currentMatch,
     statusLabel,

@@ -1,3 +1,5 @@
+import { escapeHtml } from '@/utils/htmlEscape'
+
 /** Индексы начала всех вхождений [query] в [text] (без учёта регистра). */
 export function findMatchIndices(text: string, query: string): number[] {
   const needle = query.trim()
@@ -55,4 +57,35 @@ export function scrollTextareaSelectionIntoView(el: HTMLTextAreaElement): void {
   const linesBefore = el.value.slice(0, selectionStart).split('\n').length
   const target = Math.max(0, (linesBefore - 4) * lineHeight + paddingTop)
   el.scrollTop = target
+}
+
+/**
+ * HTML для зеркального слоя подсветки поиска в textarea.
+ * Совпадения оборачиваются в <mark>; activeIndex получает класс find-match-active.
+ */
+export function buildFindHighlightHtml(
+  text: string,
+  matches: number[],
+  needleLength: number,
+  activeIndex: number
+): string {
+  if (!needleLength || matches.length === 0) {
+    return escapeHtml(text) + (text.endsWith('\n') ? '\n' : '')
+  }
+
+  let html = ''
+  let cursor = 0
+  for (let i = 0; i < matches.length; i++) {
+    const start = matches[i]
+    if (start < cursor) continue
+    const end = start + needleLength
+    html += escapeHtml(text.slice(cursor, start))
+    const cls = i === activeIndex ? 'find-match find-match-active' : 'find-match'
+    html += `<mark class="${cls}">${escapeHtml(text.slice(start, end))}</mark>`
+    cursor = end
+  }
+  html += escapeHtml(text.slice(cursor))
+  // Trailing newline keeps scrollHeight parity with textarea.
+  if (text.endsWith('\n')) html += '\n'
+  return html
 }

@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import EditorFindBar from '@/components/editor/EditorFindBar.vue'
+import { buildFindHighlightHtml } from '@/utils/editorFind'
 
 type WikilinkItem = {
   title: string
   slug: string
 }
 
-defineProps<{
+const props = defineProps<{
   modelValue: string
   wikilinkOpen: boolean
   wikilinkItems: WikilinkItem[]
@@ -16,6 +17,8 @@ defineProps<{
   findOpen: boolean
   findQuery: string
   findStatusLabel: string
+  findMatchIndices: number[]
+  findActiveIndex: number
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +36,43 @@ const emit = defineEmits<{
 }>()
 
 const textareaEl = ref<HTMLTextAreaElement | null>(null)
+const highlightEl = ref<HTMLElement | null>(null)
+
+const findNeedle = computed(() => props.findQuery.trim())
+const showFindHighlight = computed(
+  () => props.findOpen && findNeedle.value.length > 0 && props.findMatchIndices.length > 0
+)
+
+const findHighlightHtml = computed(() => {
+  if (!showFindHighlight.value) return ''
+  return buildFindHighlightHtml(
+    props.modelValue,
+    props.findMatchIndices,
+    findNeedle.value.length,
+    props.findActiveIndex
+  )
+})
+
+function syncHighlightScroll() {
+  const source = textareaEl.value
+  const target = highlightEl.value
+  if (!source || !target) return
+  target.scrollTop = source.scrollTop
+  target.scrollLeft = source.scrollLeft
+}
+
+function onScroll(event: Event) {
+  syncHighlightScroll()
+  emit('scroll', event)
+}
+
+watch(
+  [showFindHighlight, findHighlightHtml, () => props.findActiveIndex],
+  async () => {
+    await nextTick()
+    syncHighlightScroll()
+  }
+)
 
 defineExpose({
   textareaEl
@@ -50,18 +90,28 @@ defineExpose({
       @prev="emit('findPrev')"
       @close="emit('findClose')"
     />
-    <textarea
-      ref="textareaEl"
-      class="markdown-input"
-      :value="modelValue"
-      spellcheck="false"
-      @input="emit('input', $event)"
-      @keydown="emit('keydown', $event)"
-      @click="emit('click', $event)"
-      @keyup="emit('keyup', $event)"
-      @scroll="emit('scroll', $event)"
-      @blur="emit('blur', $event)"
-    />
+    <div class="editor-input-stack">
+      <pre
+        v-if="showFindHighlight"
+        ref="highlightEl"
+        class="find-highlight-layer"
+        aria-hidden="true"
+        v-html="findHighlightHtml"
+      />
+      <textarea
+        ref="textareaEl"
+        class="markdown-input"
+        :class="{ 'has-find-highlight': showFindHighlight }"
+        :value="modelValue"
+        spellcheck="false"
+        @input="emit('input', $event)"
+        @keydown="emit('keydown', $event)"
+        @click="emit('click', $event)"
+        @keyup="emit('keyup', $event)"
+        @scroll="onScroll"
+        @blur="emit('blur', $event)"
+      />
+    </div>
     <Teleport to="body">
       <div v-if="wikilinkOpen" class="wikilink-suggestions" :style="wikilinkMenuStyle">
         <button
@@ -91,20 +141,66 @@ defineExpose({
   position: relative;
 }
 
+.editor-input-stack {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+}
+
+.find-highlight-layer,
 .markdown-input {
   width: 100%;
   height: 100%;
+  margin: 0;
   border: none;
   border-radius: 0;
   outline: none;
-  resize: none;
-  background: transparent;
-  color: var(--color-text);
   font-size: 14px;
   line-height: 1.6;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   padding: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  tab-size: 4;
+  box-sizing: border-box;
+}
+
+.find-highlight-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   overflow: auto;
+  pointer-events: none;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.markdown-input {
+  position: relative;
+  z-index: 1;
+  resize: none;
+  background: transparent;
+  color: var(--color-text);
+  overflow: auto;
+}
+
+.markdown-input.has-find-highlight {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--color-text);
+  background: transparent;
+}
+
+.find-highlight-layer :deep(.find-match) {
+  color: inherit;
+  background: color-mix(in srgb, var(--color-primary, #0969da) 22%, transparent);
+  border-radius: 2px;
+}
+
+.find-highlight-layer :deep(.find-match-active) {
+  background: color-mix(in srgb, var(--color-warning, #d97706) 55%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 80%, transparent);
 }
 
 .wikilink-suggestions {
