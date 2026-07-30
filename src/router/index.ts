@@ -21,6 +21,7 @@ const router = createRouter({
         { path: 'profile', name: 'profile', component: () => import('@/components/profile/ProfilePage.vue') },
         { path: 'admin/users', name: 'admin-users', component: () => import('@/components/admin/AdminUsersPage.vue'), meta: { requiresAdmin: true } },
         { path: 'admin/embedding', name: 'admin-embedding', component: () => import('@/components/admin/AdminEmbeddingSettingsPage.vue'), meta: { requiresAdmin: true } },
+        { path: 'admin/trash', name: 'admin-trash', component: () => import('@/components/admin/AdminTrashPage.vue'), meta: { requiresAdmin: true } },
         { path: ':pathMatch(.*)*', name: 'not-found', component: () => import('@/components/pages/NotFoundPage.vue') }
       ]
     }

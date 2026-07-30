@@ -1,101 +1,97 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import * as usersApi from '@/api/users'
-import type { User, UserRole } from '@/types'
-import { useAuthStore } from '@/stores/auth'
+import * as pagesApi from '@/api/pages'
+import type { PageListItem } from '@/types'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
 const { t } = useI18n()
-const auth = useAuthStore()
 const dialog = useDialogStore()
-const users = ref<User[]>([])
+const pages = ref<PageListItem[]>([])
 const loading = ref(true)
 
-const VALID_ROLES: readonly UserRole[] = ['READER', 'EDITOR', 'ADMIN']
-
-function toUserRole(value: string): UserRole | null {
-  return (VALID_ROLES as readonly string[]).includes(value) ? (value as UserRole) : null
+function formatDeletedAt(value: string | null | undefined) {
+  if (!value) return '—'
+  return new Date(value).toLocaleString()
 }
 
-async function fetchUsers() {
+async function fetchDeleted() {
   loading.value = true
   try {
-    const { data } = await usersApi.listUsers()
-    users.value = data
+    const { data } = await pagesApi.listDeletedPages()
+    pages.value = data
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t('errors.loadUsersFailed')))
+    await dialog.alert(getApiErrorMessage(e, t('errors.loadTrashFailed')))
   } finally {
     loading.value = false
   }
 }
 
-async function changeRole(user: User, newRole: string) {
-  const role = toUserRole(newRole)
-  if (!role) return
+async function restore(page: PageListItem) {
   try {
-    await usersApi.updateUserRole(user.id, role)
-    await fetchUsers()
+    await pagesApi.restorePage(page.slug)
+    await fetchDeleted()
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t('errors.updateRoleFailed')))
+    await dialog.alert(getApiErrorMessage(e, t('errors.restorePageFailed')))
   }
 }
 
-async function removeUser(user: User) {
-  if (user.username === auth.username) return
-  const ok = await dialog.confirm(t('admin.confirmDeleteUser', { username: user.username }), {
+async function hardDelete(page: PageListItem) {
+  const ok = await dialog.confirm(t('admin.confirmHardDelete', { title: page.title }), {
     danger: true,
-    confirmLabel: t('admin.delete')
+    confirmLabel: t('admin.hardDelete')
   })
   if (!ok) return
   try {
-    await usersApi.deleteUser(user.id)
-    await fetchUsers()
+    await pagesApi.deletePage(page.slug, 'hard')
+    await fetchDeleted()
   } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t('errors.deleteUserFailed')))
+    await dialog.alert(getApiErrorMessage(e, t('errors.hardDeletePageFailed')))
   }
 }
 
-onMounted(fetchUsers)
+onMounted(fetchDeleted)
 </script>
 
 <template>
-  <div class="admin-users">
+  <div class="admin-trash">
     <div class="admin-nav" :aria-label="t('admin.sections')">
       <router-link to="/admin/users" class="admin-nav-link">{{ t('admin.openUsersSettings') }}</router-link>
       <router-link to="/admin/embedding" class="admin-nav-link">{{ t('admin.openEmbeddingSettings') }}</router-link>
       <router-link to="/admin/trash" class="admin-nav-link">{{ t('admin.openTrash') }}</router-link>
     </div>
-    <h1>{{ t('admin.usersTitle') }}</h1>
+    <h1>{{ t('admin.trashTitle') }}</h1>
+    <p class="trash-subtitle">{{ t('admin.trashSubtitle') }}</p>
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
+    <p v-else-if="pages.length === 0" class="trash-empty">{{ t('admin.trashEmpty') }}</p>
     <div v-else class="table-scroll">
-    <table class="data-table users-table">
-      <thead><tr><th>{{ t('admin.colUsername') }}</th><th>{{ t('admin.colEmail') }}</th><th>{{ t('admin.colRole') }}</th><th>{{ t('admin.colActions') }}</th></tr></thead>
-      <tbody>
-        <tr v-for="user in users" :key="user.id">
-          <td class="user-name" :data-label="t('admin.colUsername')">{{ user.username }}</td>
-          <td class="user-email" :data-label="t('admin.colEmail')">{{ user.email }}</td>
-          <td class="role-cell" :data-label="t('admin.colRole')"><span class="role-badge">{{ user.role }}</span></td>
-          <td class="actions-cell">
-            <select :value="user.role" @change="changeRole(user, ($event.target as HTMLSelectElement).value)">
-              <option value="READER">READER</option>
-              <option value="EDITOR">EDITOR</option>
-              <option value="ADMIN">ADMIN</option>
-            </select>
-            <button
-              v-if="user.username !== auth.username"
-              type="button"
-              class="btn-delete-user"
-              @click="removeUser(user)"
-            >
-              {{ t('admin.delete') }}
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <table class="data-table trash-table">
+        <thead>
+          <tr>
+            <th>{{ t('admin.colTitle') }}</th>
+            <th>{{ t('admin.colSlug') }}</th>
+            <th>{{ t('admin.colDeletedAt') }}</th>
+            <th>{{ t('admin.colActions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="page in pages" :key="page.id">
+            <td class="page-title" :data-label="t('admin.colTitle')">{{ page.title }}</td>
+            <td class="page-slug" :data-label="t('admin.colSlug')">{{ page.slug }}</td>
+            <td class="page-deleted-at" :data-label="t('admin.colDeletedAt')">{{ formatDeletedAt(page.deletedAt) }}</td>
+            <td class="actions-cell">
+              <button type="button" class="btn-restore" @click="restore(page)">
+                {{ t('admin.restore') }}
+              </button>
+              <button type="button" class="btn-hard-delete" @click="hardDelete(page)">
+                {{ t('admin.hardDelete') }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
@@ -139,50 +135,40 @@ onMounted(fetchUsers)
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
-.admin-users h1 {
+.admin-trash h1 {
   font-family: var(--font-body);
-  margin-bottom: 28px;
+  margin-bottom: 8px;
 }
 
-.users-table tbody tr:hover {
-  background: var(--color-bg-hover);
-}
-
-.user-name {
-  font-weight: 500;
-}
-
-.user-email {
+.trash-subtitle {
+  margin: 0 0 28px;
   color: var(--color-text-muted);
   font-size: 14px;
 }
 
-.role-badge {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  background: var(--color-primary-light);
-  padding: 3px 8px;
-  border-radius: 4px;
-  color: var(--color-primary);
+.trash-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.trash-table tbody tr:hover {
+  background: var(--color-bg-hover);
+}
+
+.page-title {
   font-weight: 500;
 }
 
-.users-table select {
-  padding: 6px 10px;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  font-family: var(--font-body);
+.page-slug {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
   font-size: 13px;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  width: auto;
 }
 
-.users-table select:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.12);
+.page-deleted-at {
+  color: var(--color-text-muted);
+  font-size: 14px;
 }
 
 .actions-cell {
@@ -192,7 +178,8 @@ onMounted(fetchUsers)
   gap: 10px;
 }
 
-.btn-delete-user {
+.btn-restore,
+.btn-hard-delete {
   padding: 6px 12px;
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
@@ -204,7 +191,13 @@ onMounted(fetchUsers)
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.btn-delete-user:hover {
+.btn-restore:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.btn-hard-delete:hover {
   color: var(--color-danger);
   border-color: var(--color-danger);
   background: rgba(207, 34, 46, 0.06);
@@ -223,23 +216,27 @@ onMounted(fetchUsers)
     padding: 0 8px;
   }
 
-  .admin-users h1 {
+  .admin-trash h1 {
     font-size: 1.35rem;
+    margin-bottom: 6px;
+  }
+
+  .trash-subtitle {
     margin-bottom: 20px;
   }
 
-  .users-table thead {
+  .trash-table thead {
     display: none;
   }
 
-  .users-table,
-  .users-table tbody,
-  .users-table tr,
-  .users-table td {
+  .trash-table,
+  .trash-table tbody,
+  .trash-table tr,
+  .trash-table td {
     display: block;
   }
 
-  .users-table tr {
+  .trash-table tr {
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     padding: 14px;
@@ -248,13 +245,13 @@ onMounted(fetchUsers)
     box-shadow: var(--shadow);
   }
 
-  .users-table td {
+  .trash-table td {
     padding: 3px 0;
     border-bottom: none;
     text-align: left;
   }
 
-  .users-table td::before {
+  .trash-table td::before {
     content: attr(data-label);
     display: inline-block;
     font-size: 11px;
@@ -266,24 +263,13 @@ onMounted(fetchUsers)
     flex-shrink: 0;
   }
 
-  .user-name {
+  .page-title {
     font-size: 15px;
     margin-bottom: 4px;
   }
 
-  .user-name::before {
+  .page-title::before {
     display: none !important;
-  }
-
-  .role-cell {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .role-cell .role-badge {
-    font-size: 12px;
-    padding: 4px 10px;
   }
 
   .actions-cell {
@@ -300,19 +286,12 @@ onMounted(fetchUsers)
     display: none !important;
   }
 
-  .users-table select {
-    min-height: 36px;
-    min-width: 44px;
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-
-  .btn-delete-user {
+  .btn-restore,
+  .btn-hard-delete {
     min-height: 36px;
     min-width: 44px;
     padding: 6px 14px;
     font-size: 13px;
   }
 }
-
 </style>

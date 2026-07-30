@@ -76,6 +76,7 @@ onMounted(loadSettings)
     <div class="admin-nav" :aria-label="t('admin.sections')">
       <router-link to="/admin/users" class="admin-nav-link">{{ t('admin.openUsersSettings') }}</router-link>
       <router-link to="/admin/embedding" class="admin-nav-link">{{ t('admin.openEmbeddingSettings') }}</router-link>
+      <router-link to="/admin/trash" class="admin-nav-link">{{ t('admin.openTrash') }}</router-link>
     </div>
     <h1>{{ t('admin.embeddingTitle') }}</h1>
 
