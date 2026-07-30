@@ -36,6 +36,8 @@ export const WIKI_REGEX = new RegExp(
   'g'
 )
 export const TAG_REGEX = /(?:^|\s)#([\w\u0400-\u04FF-]+)/g
+/** Shorthand `![https://...]` / `![http://...]` without a separate (url) destination. */
+export const IMAGE_URL_SHORTHAND_REGEX = /^!\[(https?:\/\/[^\]]+)\](?!\()/
 
 let highlightLanguagesRegistered = false
 
@@ -109,6 +111,34 @@ function renderWikilinkLink(slugRaw: string, labelRaw: string | undefined, Token
   close.markup = 'wikilink'
 
   return [open, text, close]
+}
+
+/**
+ * Treat `![https://...]` / `![http://...]` as an image when there is no `(url)`.
+ * Registered before the inline `text` rule so linkify does not split the URL first.
+ */
+function imageUrlShorthandPlugin(md: MarkdownIt) {
+  md.inline.ruler.before('text', 'mdwiki_image_url_shorthand', (state, silent) => {
+    const pos = state.pos
+    if (state.src.charCodeAt(pos) !== 0x21 /* ! */) return false
+    if (state.src.charCodeAt(pos + 1) !== 0x5b /* [ */) return false
+
+    const match = IMAGE_URL_SHORTHAND_REGEX.exec(state.src.slice(pos))
+    if (!match) return false
+
+    if (!silent) {
+      const token = state.push('image', 'img', 0)
+      token.attrs = [
+        ['src', match[1]],
+        ['alt', '']
+      ]
+      token.content = ''
+      token.children = []
+    }
+
+    state.pos += match[0].length
+    return true
+  })
 }
 
 function wikilinkTokenizePlugin(md: MarkdownIt) {
@@ -283,6 +313,7 @@ export function createMarkdownRenderer(): MarkdownIt {
     })
     .use(frontmatterStripPlugin)
     .use(protectWikilinkTablePipesPlugin)
+    .use(imageUrlShorthandPlugin)
     .use(wikilinkTokenizePlugin)
     .use(tagPlugin)
     .use(linkClassifyPlugin)

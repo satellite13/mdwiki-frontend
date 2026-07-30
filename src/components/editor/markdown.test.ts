@@ -157,3 +157,38 @@ describe('createMarkdownRenderer link classification', () => {
     expect(html).not.toContain('class="wikilink"')
   })
 })
+
+describe('createMarkdownRenderer image url shorthand', () => {
+  it('renders ![https://...] as an external image', () => {
+    const md = createMarkdownRenderer()
+    const url =
+      'https://app.warchi.ru/api/v1/diagrams/svg/public/b85d7dbe-6493-4e53-b0af-43693abf8197'
+    const html = md.render(`![${url}]`)
+
+    expect(html).toContain(`<img src="${url}" alt="">`)
+    expect(html).not.toContain('![')
+  })
+
+  it('keeps standard ![alt](url) images working', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('![diagram](https://example.com/a.png)')
+
+    expect(html).toContain('<img src="https://example.com/a.png" alt="diagram">')
+  })
+
+  it('does not treat ![plain text] as an image', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('![просто текст]')
+
+    expect(html).toContain('![просто текст]')
+    expect(html).not.toContain('<img')
+  })
+
+  it('keeps ![https://alt](https://src) as a standard image', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('![https://example.com/a.png](https://example.com/b.png)')
+
+    expect(html).toContain('<img src="https://example.com/b.png" alt="https://example.com/a.png">')
+    expect(html).not.toContain('src="https://example.com/a.png"')
+  })
+})
