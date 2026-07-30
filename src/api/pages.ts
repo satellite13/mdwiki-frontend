@@ -34,6 +34,16 @@ export async function updatePage(
   return res
 }
 
+export function listDeletedPages() {
+  return client.get<PageListItem[]>('/pages/deleted')
+}
+
+export async function restorePage(slug: string) {
+  const res = await client.post<Page>(`/pages/${slug}/restore`)
+  invalidatePageIndex()
+  return res
+}
+
 /** Idempotent delete: 404 is treated as success — the page is already gone. */
 export async function deletePage(slug: string, mode: 'soft' | 'hard' = 'soft'): Promise<void> {
   try {

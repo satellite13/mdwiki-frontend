@@ -34,6 +34,7 @@ export interface PageListItem {
   tags: string[]
   folderId: string | null
   updatedAt: string
+  deletedAt?: string | null
 }
 
 export interface FolderPathItem {
