@@ -185,3 +185,21 @@ export interface EmbeddingSettings {
 }
 
 export type ReadingTheme = 'white' | 'paper' | 'dark'
+
+export type ImportMdItemStatus = 'created' | 'updated' | 'skipped' | 'error'
+
+export interface ImportMdItemResult {
+  filename: string
+  slug?: string | null
+  title?: string | null
+  status: ImportMdItemStatus
+  message?: string | null
+}
+
+export interface ImportMdPagesResponse {
+  results: ImportMdItemResult[]
+  created: number
+  updated: number
+  skipped: number
+  errors: number
+}

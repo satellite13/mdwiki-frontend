@@ -51,6 +51,7 @@ const contextMenuItems = computed(() => {
   if (!contextMenu.value?.node || contextMenu.value.node.type === 'folder') {
     items.push({ label: t('tree.newPage'), action: 'new-page' })
     items.push({ label: t('tree.newFolder'), action: 'new-folder' })
+    items.push({ label: t('tree.importMd'), action: 'import-md' })
   }
   if (contextMenu.value?.node) {
     if (contextMenu.value.node.type === 'folder') {
@@ -93,6 +94,9 @@ async function onContextAction(action: string) {
     } else if (action === 'new-folder') {
       const parentId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
       await treeActions.createNewFolder(parentId || undefined)
+    } else if (action === 'import-md') {
+      const folderId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
+      await treeActions.importMdPages(folderId || undefined)
     } else if (action === 'rename' && ctx.node?.type === 'folder') {
       await treeActions.renameFolderNode(ctx.node)
     } else if (action === 'delete' && ctx.node) {
@@ -169,6 +173,9 @@ onMounted(async () => {
         </button>
         <button class="tree-action-btn" :title="t('tree.newFolder')" @click.stop="treeActions.createNewFolder()">
           <span class="material-symbols-outlined tree-action-icon notranslate" translate="no">create_new_folder</span>
+        </button>
+        <button class="tree-action-btn" :title="t('tree.importMd')" @click.stop="treeActions.importMdPages()">
+          <span class="material-symbols-outlined tree-action-icon notranslate" translate="no">upload_file</span>
         </button>
       </div>
     </div>

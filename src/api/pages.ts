@@ -1,5 +1,5 @@
 import client from './client'
-import type { Page, PageListItem, Backlink } from '@/types'
+import type { Page, PageListItem, Backlink, ImportMdPagesResponse } from '@/types'
 import { stripFolderPrefix } from '@/utils/folderId'
 import { isApiErrorWithStatus } from '@/utils/apiError'
 import { invalidatePageIndex } from '@/services/pageIndex'
@@ -19,6 +19,34 @@ export function getBacklinks(slug: string) {
 export async function createPage(slug: string, title: string, contentMd: string, folderId?: string) {
   const cleanFolderId = folderId ? stripFolderPrefix(folderId) : undefined
   const res = await client.post<Page>('/pages', { slug, title, contentMd, folderId: cleanFolderId })
+  invalidatePageIndex()
+  return res
+}
+
+export async function importPages(
+  files: File[],
+  options?: { folderId?: string; overwrite?: boolean }
+) {
+  const formData = new FormData()
+  for (const file of files) {
+    formData.append('files', file)
+  }
+  if (options?.folderId) {
+    formData.append('folderId', stripFolderPrefix(options.folderId))
+  }
+  if (options?.overwrite) {
+    formData.append('overwrite', 'true')
+  }
+  const res = await client.post<ImportMdPagesResponse>('/pages/import', formData, {
+    transformRequest: [
+      (data, headers) => {
+        if (data instanceof FormData) {
+          delete (headers as Record<string, unknown>)['Content-Type']
+        }
+        return data
+      }
+    ]
+  })
   invalidatePageIndex()
   return res
 }

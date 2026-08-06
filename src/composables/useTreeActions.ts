@@ -7,8 +7,52 @@ import { normalizePageSlug } from '@/utils/pageSlug'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { countPagesInFolder, folderContainsPageSlug } from '@/utils/folderTree'
 import { useI18n } from 'vue-i18n'
-import type { FolderTreeNode } from '@/types'
+import type { FolderTreeNode, ImportMdPagesResponse } from '@/types'
 import type { FolderDeletePageAction } from '@/api/folders'
+
+function pickMarkdownFiles(): Promise<File[] | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.md,.markdown,text/markdown'
+    input.multiple = true
+    let settled = false
+    const finish = (files: File[] | null) => {
+      if (settled) return
+      settled = true
+      resolve(files)
+    }
+    input.addEventListener('change', () => {
+      const list = input.files ? Array.from(input.files) : []
+      finish(list.length > 0 ? list : null)
+    })
+    input.addEventListener('cancel', () => finish(null))
+    input.click()
+  })
+}
+
+function formatImportSummary(
+  result: ImportMdPagesResponse,
+  translate: (key: string, values?: Record<string, unknown>) => string
+): string {
+  const lines = [
+    translate('tree.importSummary', {
+      created: result.created,
+      updated: result.updated,
+      skipped: result.skipped,
+      errors: result.errors
+    })
+  ]
+  const problems = result.results.filter((item) => item.status === 'skipped' || item.status === 'error')
+  for (const item of problems.slice(0, 8)) {
+    const detail = item.message ? `: ${item.message}` : ''
+    lines.push(`• ${item.filename} (${item.status})${detail}`)
+  }
+  if (problems.length > 8) {
+    lines.push(translate('tree.importSummaryMore', { count: problems.length - 8 }))
+  }
+  return lines.join('\n')
+}
 
 export interface UseTreeActionsOptions {
   getActiveSlug: () => string | null
@@ -43,6 +87,46 @@ export function useTreeActions(options: UseTreeActionsOptions) {
       await folderStore.createFolder(nameRaw.trim(), parentId || undefined)
     } catch (error) {
       await dialog.alert(getApiErrorMessage(error, t('errors.createFolderFailed')))
+    }
+  }
+
+  async function importMdPages(folderId?: string) {
+    const files = await pickMarkdownFiles()
+    if (!files?.length) return
+
+    const mode = await dialog.choice(
+      t('tree.importOverwritePrompt', { count: files.length }),
+      [
+        {
+          value: 'skip',
+          label: t('tree.importSkipExistingLabel'),
+          description: t('tree.importSkipExistingHint')
+        },
+        {
+          value: 'overwrite',
+          label: t('tree.importOverwriteLabel'),
+          description: t('tree.importOverwriteHint'),
+          danger: true
+        }
+      ],
+      { title: t('tree.importMd') }
+    )
+    if (!mode) return
+
+    try {
+      const { data } = await pagesApi.importPages(files, {
+        folderId: folderId || undefined,
+        overwrite: mode === 'overwrite'
+      })
+      await folderStore.fetchTree(true)
+      await dialog.alert(formatImportSummary(data, t))
+      const createdOnly = data.results.filter((item) => item.status === 'created' && item.slug)
+      if (createdOnly.length === 1 && createdOnly[0].slug) {
+        editorUi.setReadingMode(false)
+        router.push(`/page/${createdOnly[0].slug}`)
+      }
+    } catch (error) {
+      await dialog.alert(getApiErrorMessage(error, t('errors.importMdFailed')))
     }
   }
 
@@ -133,6 +217,7 @@ export function useTreeActions(options: UseTreeActionsOptions) {
   return {
     createNewPage,
     createNewFolder,
+    importMdPages,
     renameFolderNode,
     deleteNode
   }
