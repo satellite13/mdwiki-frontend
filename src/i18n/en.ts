@@ -316,6 +316,7 @@ export const en = {
     wikiGraph: 'Wiki graph',
     pageGraph: 'Page graph',
     nodes: '{count} nodes',
+    incoming: 'Incoming links: {count}',
   },
   workspace: {
     pageTitle: 'Page title',

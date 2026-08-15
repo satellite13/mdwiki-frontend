@@ -9,6 +9,7 @@ export interface SimNode extends d3.SimulationNodeDatum {
   isCurrent: boolean
   exists: boolean
   clusterId: number
+  inDegree: number
 }
 
 export interface SimLink extends d3.SimulationLinkDatum<SimNode> {
@@ -48,8 +49,23 @@ const CLUSTER_PALETTE = [
   '#db2777'
 ]
 
+export function inboundDegrees(edges: GraphEdge[]): Map<string, number> {
+  const degrees = new Map<string, number>()
+  for (const edge of edges) {
+    degrees.set(edge.target, (degrees.get(edge.target) ?? 0) + 1)
+  }
+  return degrees
+}
+
+/** Радиус кружка: sqrt от входящих ссылок, чтобы хабы росли, но не раздувались. */
+export function nodeVisualRadius(inDegree: number, isCurrent: boolean): number {
+  const scaled = 5.2 + Math.sqrt(Math.max(0, inDegree)) * 3.4
+  const capped = Math.min(22, scaled)
+  return isCurrent ? Math.max(capped, 10) : capped
+}
+
 function nodeRadius(d: SimNode): number {
-  return d.isCurrent ? 10 : 5.5
+  return nodeVisualRadius(d.inDegree, d.isCurrent)
 }
 
 function clusterTint(clusterId: number): string {
@@ -143,55 +159,71 @@ function alignEdgesToNodes(nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[] 
     .filter((e) => exact.has(e.source) && exact.has(e.target))
 }
 
-class UnionFind {
-  private parent = new Map<string, string>()
-
-  constructor(items: string[]) {
-    for (const item of items) this.parent.set(item, item)
+function undirectedAdj(slugs: string[], edges: GraphEdge[]): Map<string, Set<string>> {
+  const adj = new Map<string, Set<string>>()
+  for (const slug of slugs) adj.set(slug, new Set())
+  for (const edge of edges) {
+    if (!adj.has(edge.source) || !adj.has(edge.target)) continue
+    if (edge.source === edge.target) continue
+    adj.get(edge.source)!.add(edge.target)
+    adj.get(edge.target)!.add(edge.source)
   }
-
-  find(x: string): string {
-    let root = this.parent.get(x)!
-    while (root !== this.parent.get(root)) {
-      root = this.parent.get(root)!
-    }
-    let cursor = x
-    while (cursor !== root) {
-      const next = this.parent.get(cursor)!
-      this.parent.set(cursor, root)
-      cursor = next
-    }
-    return root
-  }
-
-  union(a: string, b: string) {
-    const ra = this.find(a)
-    const rb = this.find(b)
-    if (ra !== rb) this.parent.set(ra, rb)
-  }
-
-  groups(): Map<string, Set<string>> {
-    const groups = new Map<string, Set<string>>()
-    for (const item of this.parent.keys()) {
-      const root = this.find(item)
-      if (!groups.has(root)) groups.set(root, new Set())
-      groups.get(root)!.add(item)
-    }
-    return groups
-  }
+  return adj
 }
 
-/** Связные компоненты → облака; одиночные узлы собираются в одно «островное» облако. */
+/**
+ * Сообщества через label propagation с голосом 1/√degree —
+ * хабы не склеивают всю вики в одно облако.
+ * Одиночные узлы собираются в одно «островное» облако.
+ */
 export function assignClusters(slugs: string[], edges: GraphEdge[]): Map<string, number> {
-  const uf = new UnionFind(slugs)
-  for (const edge of edges) uf.union(edge.source, edge.target)
+  const adj = undirectedAdj(slugs, edges)
+  const degree = (slug: string) => adj.get(slug)?.size ?? 0
+  const labels = new Map<string, string>()
+  for (const slug of slugs) labels.set(slug, slug)
 
-  const multi: Set<string>[] = []
-  const singles: string[] = []
-  for (const members of uf.groups().values()) {
-    if (members.size >= 2) multi.push(members)
-    else singles.push([...members][0]!)
+  const order = [...slugs].sort()
+  for (let iter = 0; iter < 24; iter++) {
+    let changed = false
+    for (const slug of order) {
+      const neighbors = adj.get(slug)
+      if (!neighbors || neighbors.size === 0) continue
+      const votes = new Map<string, number>()
+      for (const neighbor of neighbors) {
+        const weight = 1 / Math.sqrt(Math.max(degree(neighbor), 1))
+        const label = labels.get(neighbor)!
+        votes.set(label, (votes.get(label) ?? 0) + weight)
+      }
+      let best = labels.get(slug)!
+      let bestVote = -1
+      for (const [label, vote] of votes) {
+        if (vote > bestVote + 1e-9 || (Math.abs(vote - bestVote) <= 1e-9 && label < best)) {
+          best = label
+          bestVote = vote
+        }
+      }
+      if (best !== labels.get(slug)) {
+        labels.set(slug, best)
+        changed = true
+      }
+    }
+    if (!changed) break
   }
+
+  const groups = new Map<string, string[]>()
+  for (const slug of slugs) {
+    const label = labels.get(slug)!
+    if (!groups.has(label)) groups.set(label, [])
+    groups.get(label)!.push(slug)
+  }
+
+  const multi: string[][] = []
+  const singles: string[] = []
+  for (const members of groups.values()) {
+    if (members.length >= 2) multi.push(members)
+    else singles.push(members[0]!)
+  }
+  multi.sort((a, b) => b.length - a.length || a[0]!.localeCompare(b[0]!))
 
   const result = new Map<string, number>()
   let clusterId = 0
@@ -210,7 +242,7 @@ function layoutClusterCenters(count: number, width: number, height: number): { x
   const cx = width / 2
   const cy = height / 2
   if (count === 1) return [{ x: cx, y: cy }]
-  const radius = Math.min(width, height) * (count > 6 ? 0.36 : 0.3)
+  const radius = Math.min(width, height) * (count > 6 ? 0.48 : 0.42)
   return Array.from({ length: count }, (_, i) => {
     const angle = (2 * Math.PI * i) / count - Math.PI / 2
     return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius }
@@ -253,8 +285,8 @@ function computeClusterHalos(nodes: SimNode[]): ClusterHalo[] {
     const cy = d3.mean(ys) ?? 0
     const spreadX = d3.max(xs.map((x) => Math.abs(x - cx))) ?? 0
     const spreadY = d3.max(ys.map((y) => Math.abs(y - cy))) ?? 0
-    const rx = Math.max(36, spreadX + 34)
-    const ry = Math.max(30, spreadY + 28)
+    const rx = Math.max(42, spreadX + 40)
+    const ry = Math.max(36, spreadY + 34)
     halos.push({ clusterId, cx, cy, rx, ry })
   }
   return halos
@@ -263,6 +295,7 @@ function computeClusterHalos(nodes: SimNode[]): ClusterHalo[] {
 function buildSimNodes(
   nodes: GraphNode[],
   clusterBySlug: Map<string, number>,
+  inDegreeBySlug: Map<string, number>,
   centers: { x: number; y: number }[],
   width: number,
   height: number,
@@ -275,18 +308,20 @@ function buildSimNodes(
 
   return nodes.map((n, idx) => {
     const clusterId = clusterBySlug.get(n.slug) ?? 0
+    const inDegree = inDegreeBySlug.get(n.slug) ?? 0
     const center = centers[clusterId] ?? { x: cx, y: cy }
 
     if (n.isCurrent) {
-      return { ...n, clusterId, x: cx, y: cy, fx: cx, fy: cy }
+      return { ...n, clusterId, inDegree, x: cx, y: cy, fx: cx, fy: cy }
     }
 
-    if (variant === 'wiki' && centers.length > 1) {
+    if (centers.length > 1) {
       const angle = (idx * 2.399963) % (2 * Math.PI)
-      const spread = 18 + (idx % 7) * 6
+      const spread = 28 + (idx % 7) * 10
       return {
         ...n,
         clusterId,
+        inDegree,
         x: center.x + Math.cos(angle) * spread,
         y: center.y + Math.sin(angle) * spread
       }
@@ -299,6 +334,7 @@ function buildSimNodes(
     return {
       ...n,
       clusterId,
+      inDegree,
       x: cx + Math.cos(angle) * ring * jitter,
       y: cy + Math.sin(angle) * ring * jitter
     }
@@ -324,15 +360,16 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
   }))
 
   const slugs = nodes.map((n) => n.slug)
+  const inDegreeBySlug = inboundDegrees(alignedEdges)
   const clusterBySlug = assignClusters(slugs, alignedEdges)
   const clusterCount = clusterBySlug.size ? Math.max(...clusterBySlug.values()) + 1 : 1
-  const clusterCenters = layoutClusterCenters(wiki ? clusterCount : 1, width, height)
-  const simNodes = buildSimNodes(nodes, clusterBySlug, clusterCenters, width, height, variant)
+  const clusterCenters = layoutClusterCenters(clusterCount, width, height)
+  const simNodes = buildSimNodes(nodes, clusterBySlug, inDegreeBySlug, clusterCenters, width, height, variant)
+  const showClusters = clusterCount > 1
 
-  const linkDist = wiki ? 42 + Math.min(width, height) * 0.035 : 78 + Math.min(width, height) * 0.07
-  const charge = wiki ? -Math.min(900, 140 + nodes.length * 5) : -420
-  const collideR = wiki ? Math.max(12, Math.min(24, 280 / Math.sqrt(Math.max(nodes.length, 1)))) : 26
-  const clusterForce = forceCluster(clusterCenters).strength(wiki && clusterCount > 1 ? 0.14 : 0.05)
+  const intraDist = wiki ? 56 + Math.min(width, height) * 0.04 : 72 + Math.min(width, height) * 0.06
+  const interDist = 130 + Math.min(width, height) * (wiki ? 0.12 : 0.1)
+  const clusterForce = forceCluster(clusterCenters).strength(showClusters ? (wiki ? 0.22 : 0.18) : 0.05)
 
   const simulation = d3
     .forceSimulation<SimNode>(simNodes)
@@ -341,14 +378,35 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
       d3
         .forceLink<SimNode, SimLink>(simLinks)
         .id((d) => d.slug)
-        .distance(linkDist)
-        .strength(wiki ? 0.28 : 0.5)
+        .distance((d) => {
+          const s = d.source as SimNode
+          const t = d.target as SimNode
+          if (typeof s === 'string' || typeof t === 'string') return intraDist
+          return s.clusterId === t.clusterId ? intraDist : interDist
+        })
+        .strength((d) => {
+          const s = d.source as SimNode
+          const t = d.target as SimNode
+          if (typeof s === 'string' || typeof t === 'string') return wiki ? 0.22 : 0.45
+          return s.clusterId === t.clusterId ? (wiki ? 0.42 : 0.48) : 0.07
+        })
     )
-    .force('charge', d3.forceManyBody().strength(charge).distanceMax(wiki ? 280 : 420))
-    .force('center', d3.forceCenter(width / 2, height / 2).strength(wiki ? 0.03 : 0.1))
-    .force('collision', d3.forceCollide<SimNode>().radius((d) => (d.isCurrent ? 30 : collideR)))
+    .force(
+      'charge',
+      d3
+        .forceManyBody<SimNode>()
+        .strength((d) =>
+          wiki ? -(90 + d.inDegree * 16 + Math.min(nodes.length, 90) * 2.2) : -420
+        )
+        .distanceMax(wiki ? 520 : 420)
+    )
+    .force('center', d3.forceCenter(width / 2, height / 2).strength(wiki ? 0.012 : 0.04))
+    .force(
+      'collision',
+      d3.forceCollide<SimNode>().radius((d) => nodeRadius(d) + (wiki ? 14 : 18)).iterations(2)
+    )
     .force('cluster', clusterForce)
-    .velocityDecay(wiki ? 0.64 : 0.56)
+    .velocityDecay(wiki ? 0.58 : 0.56)
 
   const rootG = svg.append('g')
 
@@ -395,10 +453,10 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
     .attr('cx', (d) => d.cx)
     .attr('cy', (d) => d.cy)
     .attr('fill', (d) => clusterTint(d.clusterId))
-    .attr('fill-opacity', wiki && clusterCount > 1 ? 0.05 : 0)
+    .attr('fill-opacity', showClusters ? 0.1 : 0)
     .attr('stroke', (d) => clusterTint(d.clusterId))
-    .attr('stroke-opacity', wiki && clusterCount > 1 ? 0.1 : 0)
-    .attr('stroke-width', 0.75)
+    .attr('stroke-opacity', showClusters ? 0.28 : 0)
+    .attr('stroke-width', 1.15)
     .style('pointer-events', 'none')
 
   const link = linkRoot
@@ -407,8 +465,18 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
     .join('path')
     .attr('fill', 'none')
     .style('stroke', 'var(--color-text-faint, #8b949e)')
-    .attr('stroke-width', 0.75)
-    .attr('stroke-opacity', 0.55)
+    .attr('stroke-width', (d) => {
+      const s = d.source as SimNode
+      const t = d.target as SimNode
+      if (typeof s === 'string' || typeof t === 'string') return 0.75
+      return s.clusterId === t.clusterId ? 0.9 : 0.55
+    })
+    .attr('stroke-opacity', (d) => {
+      const s = d.source as SimNode
+      const t = d.target as SimNode
+      if (typeof s === 'string' || typeof t === 'string') return 0.45
+      return s.clusterId === t.clusterId ? 0.55 : 0.22
+    })
     .attr('marker-end', `url(#${markerId})`)
     .style('pointer-events', 'none')
 
@@ -443,7 +511,7 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
   node
     .filter((d) => d.isCurrent)
     .append('circle')
-    .attr('r', 16)
+    .attr('r', (d) => nodeRadius(d) + 6)
     .attr('fill', 'none')
     .attr('stroke', 'var(--color-primary, #0d9488)')
     .attr('stroke-opacity', 0.22)
@@ -456,7 +524,7 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
     .attr('fill', (d) => {
       if (d.isCurrent) return 'var(--color-primary, #0d9488)'
       if (!d.exists) return 'var(--color-warning, #f59e0b)'
-      if (wiki && clusterCount > 1) return clusterTint(d.clusterId)
+      if (showClusters) return clusterTint(d.clusterId)
       return 'var(--color-text-muted, #656d76)'
     })
     .attr('fill-opacity', (d) => (d.isCurrent ? 1 : 0.92))
@@ -490,8 +558,9 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
     .attr('stroke-linejoin', 'round')
 
   node.append('title').text((d) => {
-    if (!d.tags.length) return d.title
-    return `${d.title}\n${i18n.global.t('search.tagsLabel')} ${d.tags.map((tag) => '#' + tag).join(', ')}`
+    const incoming = i18n.global.t('graph.incoming', { count: d.inDegree })
+    if (!d.tags.length) return `${d.title}\n${incoming}`
+    return `${d.title}\n${incoming}\n${i18n.global.t('search.tagsLabel')} ${d.tags.map((tag) => '#' + tag).join(', ')}`
   })
 
   simulation.on('tick', () => {
@@ -501,7 +570,7 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
     })
     node.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`)
 
-    if (wiki && clusterCount > 1) {
+    if (showClusters) {
       const haloData = computeClusterHalos(simNodes)
       halos.data(haloData).attr('cx', (d) => d.cx).attr('cy', (d) => d.cy).attr('rx', (d) => d.rx).attr('ry', (d) => d.ry)
     }

@@ -316,6 +316,7 @@ export const ru = {
     wikiGraph: 'Граф вики',
     pageGraph: 'Граф страницы',
     nodes: 'Узлов: {count}',
+    incoming: 'Входящих ссылок: {count}',
   },
   workspace: {
     pageTitle: 'Заголовок страницы',
