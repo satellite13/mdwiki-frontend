@@ -12,6 +12,7 @@ import { readString, writeString } from '@/utils/localPreferences'
 import { useEditorHistory } from '@/composables/useEditorHistory'
 import { useWikilinkAutocomplete } from '@/composables/useWikilinkAutocomplete'
 import { useEditorFind } from '@/composables/useEditorFind'
+import { usePreviewFind } from '@/composables/usePreviewFind'
 import { getPages } from '@/services/pageIndex'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useHorizontalDragResize } from '@/composables/useHorizontalDragResize'
@@ -107,6 +108,10 @@ const editorFind = useEditorFind({
   getEditor: () => getEditorElement(),
   getSource: () => markdownValue.value
 })
+const previewFind = usePreviewFind({
+  getRoot: () => getPreviewContentElement()
+})
+const isPreviewFindMode = computed(() => editorMode.value === 'preview' || editorMode.value === 'reading')
 const wikilinkOpen = wikilink.open
 const wikilinkItems = wikilink.items
 const wikilinkSelected = wikilink.selected
@@ -116,6 +121,9 @@ const findBarQuery = computed(() => editorFind.query.value)
 const findBarStatusLabel = computed(() => editorFind.statusLabel.value)
 const findBarMatchIndices = computed(() => editorFind.matchIndices.value)
 const findBarActiveIndex = computed(() => editorFind.activeIndex.value)
+const previewFindOpen = computed(() => previewFind.open.value)
+const previewFindQuery = computed(() => previewFind.query.value)
+const previewFindStatusLabel = computed(() => previewFind.statusLabel.value)
 let wikilinkBlurTimer: ReturnType<typeof setTimeout> | undefined
 
 const { startResizeDrag, clearDragListeners } = useHorizontalDragResize()
@@ -234,6 +242,7 @@ watch(editorMode, (value) => {
   emit('mode-change', value)
   wikilink.close()
   editorFind.closeFind()
+  previewFind.closeFind()
   void refreshPreview()
   handleAnnotationModeChange(value)
 })
@@ -305,6 +314,10 @@ function onEditorBlur() {
 function openEditorFind() {
   cancelWikilinkBlur()
   wikilink.close()
+  if (isPreviewFindMode.value) {
+    previewFind.openFind()
+    return
+  }
   editorFind.openFind()
 }
 
@@ -500,6 +513,7 @@ async function renderPreviewDiagrams() {
   if (editorMode.value === 'reading') {
     applyAnnotationHighlights()
   }
+  if (previewFind.open.value) previewFind.refreshMatches()
 }
 
 async function refreshPreview() {
@@ -527,10 +541,26 @@ async function onPreviewClick(event: MouseEvent) {
   await previewCopyDecorations.onPreviewClick(event)
 }
 
+function onGlobalFindKeydown(event: KeyboardEvent) {
+  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'f') return
+  if (!isPreviewFindMode.value) return
+  const target = event.target
+  if (
+    target instanceof HTMLElement &&
+    target.closest('input, textarea') &&
+    !target.closest('.editor-find-bar')
+  ) {
+    return
+  }
+  event.preventDefault()
+  openEditorFind()
+}
+
 onMounted(() => {
   emit('mode-change', editorMode.value)
   void getPages()
   void refreshPreview()
+  window.addEventListener('keydown', onGlobalFindKeydown)
   if (editorMode.value === 'reading') {
     void fetchAnnotations().then(() => {
       void nextTick().then(() => applyAnnotationHighlights())
@@ -539,6 +569,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onGlobalFindKeydown)
   cancelWikilinkBlur()
   clearDragListeners()
   disposeAnnotations()
@@ -575,6 +606,7 @@ defineExpose({
           @update:theme="readingTheme = $event"
           @update:toc-visible="readingTocVisible = $event"
           @update:annotations-visible="annotationsVisible = $event"
+          @find="openEditorFind"
           @exit="exitReadingMode"
           @export-pdf="exportToPdf"
         />
@@ -638,12 +670,19 @@ defineExpose({
           :reading-toc-items="readingTocItems"
           :preview-html="previewHtml"
           :reading-preview-style="readingPreviewStyle"
+          :find-open="previewFindOpen"
+          :find-query="previewFindQuery"
+          :find-status-label="previewFindStatusLabel"
           @click="onPreviewClick"
           @scroll="onPreviewScroll"
           @select-heading="readingToc.scrollToHeading"
           @mouseup="onReadingMouseUp"
           @mousedown="onReadingMouseDown"
           @touchend="onReadingTouchEnd"
+          @update:find-query="previewFind.query.value = $event; previewFind.refreshMatches()"
+          @find-next="previewFind.findNext()"
+          @find-prev="previewFind.findPrev()"
+          @find-close="previewFind.closeFind()"
         />
         <AnnotationPanel
           :annotations="annotations"
@@ -661,12 +700,19 @@ defineExpose({
         :reading-toc-items="readingTocItems"
         :preview-html="previewHtml"
         :reading-preview-style="readingPreviewStyle"
+        :find-open="previewFindOpen"
+        :find-query="previewFindQuery"
+        :find-status-label="previewFindStatusLabel"
         @click="onPreviewClick"
         @scroll="onPreviewScroll"
         @select-heading="readingToc.scrollToHeading"
         @mouseup="onReadingMouseUp"
         @mousedown="onReadingMouseDown"
         @touchend="onReadingTouchEnd"
+        @update:find-query="previewFind.query.value = $event; previewFind.refreshMatches()"
+        @find-next="previewFind.findNext()"
+        @find-prev="previewFind.findPrev()"
+        @find-close="previewFind.closeFind()"
       />
     </div>
     <input
@@ -1062,7 +1108,7 @@ defineExpose({
   overflow: hidden;
 }
 
-.reading-with-annotations :deep(.preview-pane) {
+.reading-with-annotations :deep(.preview-shell) {
   flex: 1;
   min-width: 0;
 }

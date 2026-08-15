@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import EditorFindBar from '@/components/editor/EditorFindBar.vue'
 import ReadingToc from './ReadingToc.vue'
 import type { TocItem } from './tocTypes'
 import type { ReadingTheme } from '@/types'
@@ -11,6 +12,9 @@ const props = defineProps<{
   readingTocItems: TocItem[]
   previewHtml: string
   readingPreviewStyle?: Record<string, string>
+  findOpen?: boolean
+  findQuery?: string
+  findStatusLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +24,10 @@ const emit = defineEmits<{
   mouseup: [event: MouseEvent]
   mousedown: [event: MouseEvent]
   touchend: [event: TouchEvent]
+  'update:findQuery': [value: string]
+  findNext: []
+  findPrev: []
+  findClose: []
 }>()
 
 const rootEl = ref<HTMLElement | null>(null)
@@ -34,34 +42,51 @@ defineExpose({
 </script>
 
 <template>
-  <div
-    ref="rootEl"
-    class="preview-pane"
-    :class="[
-      { 'mode-reading': props.isReading },
-      { 'reading-theme-white': props.isReading && props.readingTheme === 'white' },
-      { 'reading-theme-paper': props.isReading && props.readingTheme === 'paper' },
-      { 'reading-theme-dark': props.isReading && props.readingTheme === 'dark' }
-    ]"
-    @click="emit('click', $event)"
-    @scroll="emit('scroll', $event)"
-    @mouseup="emit('mouseup', $event)"
-    @mousedown="emit('mousedown', $event)"
-    @touchend="emit('touchend', $event)"
-  >
-    <div class="reading-layout" :class="{ 'with-toc': props.showToc }">
-      <div class="preview-content markdown-body" :style="props.readingPreviewStyle" v-html="props.previewHtml" />
-      <ReadingToc
-        v-if="props.showToc"
-        :items="props.readingTocItems"
-        :theme="props.readingTheme"
-        @select="onSelectHeading"
-      />
+  <div class="preview-shell">
+    <EditorFindBar
+      :open="props.findOpen ?? false"
+      :query="props.findQuery ?? ''"
+      :status-label="props.findStatusLabel ?? ''"
+      @update:query="emit('update:findQuery', $event)"
+      @next="emit('findNext')"
+      @prev="emit('findPrev')"
+      @close="emit('findClose')"
+    />
+    <div
+      ref="rootEl"
+      class="preview-pane"
+      :class="[
+        { 'mode-reading': props.isReading },
+        { 'reading-theme-white': props.isReading && props.readingTheme === 'white' },
+        { 'reading-theme-paper': props.isReading && props.readingTheme === 'paper' },
+        { 'reading-theme-dark': props.isReading && props.readingTheme === 'dark' }
+      ]"
+      @click="emit('click', $event)"
+      @scroll="emit('scroll', $event)"
+      @mouseup="emit('mouseup', $event)"
+      @mousedown="emit('mousedown', $event)"
+      @touchend="emit('touchend', $event)"
+    >
+      <div class="reading-layout" :class="{ 'with-toc': props.showToc }">
+        <div class="preview-content markdown-body" :style="props.readingPreviewStyle" v-html="props.previewHtml" />
+        <ReadingToc
+          v-if="props.showToc"
+          :items="props.readingTocItems"
+          :theme="props.readingTheme"
+          @select="onSelectHeading"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.preview-shell {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+}
+
 .preview-pane {
   min-height: 0;
   height: 100%;
@@ -70,6 +95,17 @@ defineExpose({
   background: var(--color-bg);
   overflow: auto;
   padding: 14px;
+}
+
+.preview-pane :deep(mark.find-match) {
+  color: inherit;
+  background: color-mix(in srgb, var(--color-primary, #0969da) 22%, transparent);
+  border-radius: 2px;
+}
+
+.preview-pane :deep(mark.find-match-active) {
+  background: color-mix(in srgb, var(--color-warning, #d97706) 55%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 80%, transparent);
 }
 
 .preview-content {

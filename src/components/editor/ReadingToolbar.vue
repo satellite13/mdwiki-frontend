@@ -20,6 +20,7 @@ const emit = defineEmits<{
   'update:theme': [value: ReadingTheme]
   'update:tocVisible': [value: boolean]
   'update:annotationsVisible': [value: boolean]
+  find: []
   exit: []
   exportPdf: []
 }>()
@@ -91,6 +92,15 @@ function toggleToc() {
       @click="emit('update:annotationsVisible', !(props.annotationsVisible ?? false))"
     >
       <span class="material-symbols-outlined notranslate" translate="no">chat_bubble</span>
+    </button>
+    <button
+      type="button"
+      class="reading-find-btn"
+      :title="t('editor.findTitle')"
+      :aria-label="t('editor.findTitle')"
+      @click="emit('find')"
+    >
+      <span class="material-symbols-outlined notranslate" translate="no">search</span>
     </button>
     <button
       type="button"
@@ -190,6 +200,7 @@ function toggleToc() {
 }
 
 .reading-export-btn,
+.reading-find-btn,
 .reading-toc-toggle,
 .reading-annotations-toggle {
   width: 30px;
@@ -211,6 +222,7 @@ function toggleToc() {
 }
 
 .reading-export-btn .material-symbols-outlined,
+.reading-find-btn .material-symbols-outlined,
 .reading-toc-toggle .material-symbols-outlined,
 .reading-annotations-toggle .material-symbols-outlined {
   font-size: 18px;
