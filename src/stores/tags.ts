@@ -5,6 +5,9 @@ import type { Tag } from '@/types'
 
 export const useTagStore = defineStore('tags', () => {
   const tags = ref<Tag[]>([])
+  const selectedTags = ref<string[]>([])
+  const tagsCollapsed = ref(false)
+
   async function fetchTags(force = false) {
     if (!force && tags.value.length > 0) return
     try {
@@ -15,5 +18,35 @@ export const useTagStore = defineStore('tags', () => {
       throw e
     }
   }
-  return { tags, fetchTags }
+
+  function addTagFilter(tagName: string) {
+    const name = tagName.trim()
+    if (!name) return
+    if (!selectedTags.value.includes(name)) {
+      selectedTags.value = [...selectedTags.value, name]
+    }
+    tagsCollapsed.value = false
+  }
+
+  function toggleTagFilter(tagName: string) {
+    if (selectedTags.value.includes(tagName)) {
+      selectedTags.value = selectedTags.value.filter((tag) => tag !== tagName)
+      return
+    }
+    selectedTags.value = [...selectedTags.value, tagName]
+  }
+
+  function clearTagFilter() {
+    selectedTags.value = []
+  }
+
+  return {
+    tags,
+    selectedTags,
+    tagsCollapsed,
+    fetchTags,
+    addTagFilter,
+    toggleTagFilter,
+    clearTagFilter
+  }
 })

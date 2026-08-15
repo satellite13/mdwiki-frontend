@@ -97,6 +97,15 @@ describe('createMarkdownRenderer link classification', () => {
     expect(html).not.toContain('open_in_new')
   })
 
+  it('renders hashtags with data-tag for preview filter clicks', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('См. #orchestration и #agents')
+
+    expect(html).toContain('class="hashtag"')
+    expect(html).toContain('data-tag="orchestration"')
+    expect(html).toContain('data-tag="agents"')
+  })
+
   it('renders linkify URLs as external links', () => {
     const md = createMarkdownRenderer()
     const html = md.render('См. https://example.com/page')

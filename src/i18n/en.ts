@@ -218,6 +218,7 @@ export const en = {
     insertImage: 'Insert image',
     wikiLink: 'Wiki link',
     tag: 'Tag',
+    filterByTag: 'Filter documents by this tag',
     insertDate: 'Insert current date',
     undo: 'Undo',
     redo: 'Redo',

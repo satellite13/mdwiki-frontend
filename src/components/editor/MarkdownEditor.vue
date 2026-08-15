@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDialogStore } from '@/stores/dialog'
+import { useTagStore } from '@/stores/tags'
 import { useThemeStore } from '@/stores/theme'
+import { previewHashtagName } from '@/utils/previewHashtag'
 import { uploadAttachment } from '@/api/attachments'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { downloadPagePdf } from '@/utils/exportPagePdf'
@@ -73,6 +75,7 @@ const emit = defineEmits<{
 }>()
 
 const themeStore = useThemeStore()
+const tagStore = useTagStore()
 const dialog = useDialogStore()
 const { isMobile } = useBreakpoint()
 
@@ -515,6 +518,12 @@ async function refreshPreview() {
 
 async function onPreviewClick(event: MouseEvent) {
   tooltipAnnotation.value = null
+  const tagName = previewHashtagName(event.target as Element | null)
+  if (tagName) {
+    event.preventDefault()
+    tagStore.addTagFilter(tagName)
+    return
+  }
   await previewCopyDecorations.onPreviewClick(event)
 }
 

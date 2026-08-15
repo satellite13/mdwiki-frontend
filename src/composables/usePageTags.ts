@@ -1,15 +1,15 @@
 import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useTagStore } from '@/stores/tags'
 import { getPages } from '@/services/pageIndex'
 import type { FolderTreeNode } from '@/types'
 
 export function usePageTags() {
   const tagStore = useTagStore()
+  const { selectedTags, tagsCollapsed } = storeToRefs(tagStore)
 
   const tagsLoading = ref(false)
-  const selectedTags = ref<string[]>([])
   const pageTagsBySlug = ref<Record<string, string[]>>({})
-  const tagsCollapsed = ref(false)
   const tagQuery = ref('')
 
   const filteredTags = computed(() => {
@@ -32,15 +32,11 @@ export function usePageTags() {
   }
 
   function toggleTagFilter(tagName: string) {
-    if (selectedTags.value.includes(tagName)) {
-      selectedTags.value = selectedTags.value.filter((tag) => tag !== tagName)
-      return
-    }
-    selectedTags.value = [...selectedTags.value, tagName]
+    tagStore.toggleTagFilter(tagName)
   }
 
   function clearTagFilter() {
-    selectedTags.value = []
+    tagStore.clearTagFilter()
   }
 
   function toggleTagsPanel() {

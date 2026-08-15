@@ -218,6 +218,7 @@ export const ru = {
     insertImage: 'Вставить изображение',
     wikiLink: 'Вики-ссылка',
     tag: 'Тег',
+    filterByTag: 'Фильтровать документы по этому тегу',
     insertDate: 'Вставить текущую дату',
     undo: 'Отменить',
     redo: 'Повторить',

@@ -197,7 +197,7 @@ function tagPlugin(md: MarkdownIt) {
     const source = prev ? prev(tokens, idx, options, env, self) : tokens[idx].content
     return source.replace(TAG_REGEX, (full: string, tag: string) => {
       const prefix = full.startsWith(' ') ? ' ' : ''
-      return `${prefix}<span class="hashtag">#${escapeHtml(tag)}</span>`
+      return `${prefix}<span class="hashtag" data-tag="${escapeHtml(tag)}" title="${escapeHtml(i18n.global.t('editor.filterByTag'))}">#${escapeHtml(tag)}</span>`
     })
   }
 }
