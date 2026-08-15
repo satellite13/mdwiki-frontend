@@ -1,4 +1,6 @@
 import type * as mermaid from 'mermaid'
+import { isMissingPageReference, wikilinkPreviewHref } from '@/services/pageIndex'
+import { bindMermaidWikilinkNodes, rewriteMermaidWikilinks } from '@/utils/mermaidWikilinks'
 
 type PreviewRootGetter = () => HTMLElement | null
 
@@ -58,10 +60,15 @@ export function usePreviewRenderPipeline(options: PreviewRenderPipelineOptions) 
     for (const node of nodes) {
       const source = node.dataset.source || node.textContent || ''
       if (!node.dataset.source) node.dataset.source = source
+      const rewritten = rewriteMermaidWikilinks(source)
       const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`
       try {
-        const { svg } = await mermaid.render(id, source)
+        const { svg } = await mermaid.render(id, rewritten.source)
         node.innerHTML = svg
+        bindMermaidWikilinkNodes(node, rewritten.bindings, {
+          hrefForSlug: wikilinkPreviewHref,
+          isMissing: isMissingPageReference
+        })
       } catch {
         // keep source code when render fails
       }

@@ -1031,6 +1031,10 @@ defineExpose({
   height: auto;
 }
 
+:deep(.markdown-body .mermaid a.wikilink) {
+  cursor: pointer;
+}
+
 :deep(.markdown-body .structurizr) {
   display: flex;
   justify-content: center;
