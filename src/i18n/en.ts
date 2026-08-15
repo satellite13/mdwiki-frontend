@@ -119,6 +119,7 @@ export const en = {
     uploadFailed: 'Upload failed',
     deleteAttachmentFailed: 'Delete failed',
     savePageFailed: 'Failed to save page. Changes may be lost.',
+    pageChangedElsewhere: 'This page was changed elsewhere. Reload before saving, or copy your edits.',
     imageUploadFailed: 'Image upload failed',
     loginFailed: 'Login failed',
     registerFailed: 'Registration failed',

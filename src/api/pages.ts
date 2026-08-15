@@ -53,7 +53,13 @@ export async function importPages(
 
 export async function updatePage(
   slug: string,
-  data: { title?: string; contentMd?: string; folderId?: string | null; clearFolder?: boolean }
+  data: {
+    title?: string
+    contentMd?: string
+    folderId?: string | null
+    clearFolder?: boolean
+    expectedUpdatedAt?: string
+  }
 ) {
   const folderId = data.folderId
   const payload = folderId != null ? { ...data, folderId: stripFolderPrefix(folderId) } : data

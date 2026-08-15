@@ -4,7 +4,7 @@ import type { Router } from 'vue-router'
 import * as pagesApi from '@/api/pages'
 import type { Page } from '@/types'
 import { useI18n } from 'vue-i18n'
-import { getApiErrorMessage } from '@/utils/apiError'
+import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
 
 type SaveStatus = 'idle' | 'saving' | 'saved'
 
@@ -82,7 +82,8 @@ export function usePageAutosave(
       const { data: updatedPage } = await pagesApi.updatePage(state.page.value.slug, {
         title: state.title.value,
         contentMd: state.content.value,
-        clearFolder: false
+        clearFolder: false,
+        expectedUpdatedAt: state.page.value.updatedAt
       })
       state.page.value = updatedPage
       state.lastSavedTitle.value = updatedPage.title
@@ -101,7 +102,9 @@ export function usePageAutosave(
       }, 2000)
     } catch (e) {
       saveStatus.value = 'idle'
-      saveError.value = getApiErrorMessage(e, t('errors.savePageFailed'))
+      saveError.value = isApiErrorWithStatus(e, 409)
+        ? t('errors.pageChangedElsewhere')
+        : getApiErrorMessage(e, t('errors.savePageFailed'))
       console.error('Failed to save page:', e)
     } finally {
       isSaving.value = false
