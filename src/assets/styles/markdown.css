@@ -252,13 +252,6 @@
   text-decoration-color: var(--color-primary);
 }
 
-/* External link indicator */
-.markdown-body a[href^="http"]::after {
-  content: ' ↗';
-  font-size: 0.75em;
-  opacity: 0.55;
-}
-
 /* ---------- Images ---------- */
 
 .markdown-body img {
