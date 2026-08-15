@@ -12,18 +12,22 @@ beforeEach(() => {
 })
 
 describe('useTagStore filter', () => {
-  it('adds a tag to the tree filter once', () => {
+  it('toggles a tag in the tree filter', () => {
     const store = useTagStore()
-    store.addTagFilter('agents')
-    store.addTagFilter('agents')
-    store.addTagFilter('orchestration')
+    store.toggleTagFilter('agents')
+    store.toggleTagFilter('orchestration')
     expect(store.selectedTags).toEqual(['agents', 'orchestration'])
+    store.toggleTagFilter('agents')
+    expect(store.selectedTags).toEqual(['orchestration'])
   })
 
-  it('expands the tags panel when adding a filter from preview', () => {
+  it('expands the tags panel when toggling a filter from preview', () => {
     const store = useTagStore()
     store.tagsCollapsed = true
-    store.addTagFilter('agents')
+    store.toggleTagFilter('agents')
+    expect(store.tagsCollapsed).toBe(false)
+    store.tagsCollapsed = true
+    store.toggleTagFilter('agents')
     expect(store.tagsCollapsed).toBe(false)
   })
 })

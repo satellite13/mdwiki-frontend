@@ -521,7 +521,7 @@ async function onPreviewClick(event: MouseEvent) {
   const tagName = previewHashtagName(event.target as Element | null)
   if (tagName) {
     event.preventDefault()
-    tagStore.addTagFilter(tagName)
+    tagStore.toggleTagFilter(tagName)
     return
   }
   await previewCopyDecorations.onPreviewClick(event)

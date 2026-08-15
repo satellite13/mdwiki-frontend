@@ -19,21 +19,15 @@ export const useTagStore = defineStore('tags', () => {
     }
   }
 
-  function addTagFilter(tagName: string) {
+  function toggleTagFilter(tagName: string) {
     const name = tagName.trim()
     if (!name) return
-    if (!selectedTags.value.includes(name)) {
+    if (selectedTags.value.includes(name)) {
+      selectedTags.value = selectedTags.value.filter((tag) => tag !== name)
+    } else {
       selectedTags.value = [...selectedTags.value, name]
     }
     tagsCollapsed.value = false
-  }
-
-  function toggleTagFilter(tagName: string) {
-    if (selectedTags.value.includes(tagName)) {
-      selectedTags.value = selectedTags.value.filter((tag) => tag !== tagName)
-      return
-    }
-    selectedTags.value = [...selectedTags.value, tagName]
   }
 
   function clearTagFilter() {
@@ -45,7 +39,6 @@ export const useTagStore = defineStore('tags', () => {
     selectedTags,
     tagsCollapsed,
     fetchTags,
-    addTagFilter,
     toggleTagFilter,
     clearTagFilter
   }
