@@ -299,7 +299,7 @@ function buildSimNodes(
   centers: { x: number; y: number }[],
   width: number,
   height: number,
-  variant: 'page' | 'wiki'
+  _variant: 'page' | 'wiki'
 ): SimNode[] {
   const cx = width / 2
   const cy = height / 2
