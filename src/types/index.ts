@@ -107,6 +107,7 @@ export interface RagSearchResult {
   pageSlug: string
   pageTitle: string
   sectionHeading: string | null
+  sectionKey?: string | null
   snippet: string
   score: number
   tags: string[]
