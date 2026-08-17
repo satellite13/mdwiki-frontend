@@ -1,118 +1,119 @@
 # mdwiki-frontend
 
-SPA для [mdwiki-api](../mdwiki-api): Vue 3 + TypeScript + Vite. Редактор
-Markdown с превью, деревом документов, графом связей, вложениями,
-тегами, wiki-ссылками, открытыми задачами и страницей битых ссылок.
+SPA for [mdwiki-api](../mdwiki-api): Vue 3 + TypeScript + Vite. Markdown
+editor with preview, document tree, link graph, attachments, tags,
+wikilinks, open tasks, and a broken-links page.
 
-Текущая версия: **v0.1.5** (см. git tag; в UI — `git describe` на странице профиля).
+Русская версия: `README.ru.md`
 
-## Стек
+Current version: **v0.1.5** (see the git tag; in the UI — `git describe` on the profile page).
+
+## Stack
 
 - Vue 3.5 (`<script setup>`)
 - TypeScript (`strict`, `noImplicitOverride`)
 - Vite 8 (dev + build)
 - Pinia 3 (auth, folders, theme, dialog, tags)
 - Vue Router 5
-- vue-i18n 11 (EN/RU, словари в `src/i18n/`)
-- Axios (с перехватом 401 и единым слоем ошибок)
-- markdown-it (+ анкора, tasklists, sub/sup, mark, wiki-плагин, mermaid)
-- D3.js для графа связей
+- vue-i18n 11 (EN/RU, dictionaries in `src/i18n/`)
+- Axios (401 interceptor and a shared error layer)
+- markdown-it (+ anchors, tasklists, sub/sup, mark, wiki plugin, mermaid)
+- D3.js for the link graph
 - Vitest + @vue/test-utils + jsdom
 
-## Быстрый старт
+## Quick start
 
 ```sh
 npm install
-npm run dev        # http://localhost:5173, /api проксируется на :8080
-npm run build      # сборка в dist/
+npm run dev        # http://localhost:5173, /api is proxied to :8080
+npm run build      # production build in dist/
 npm run lint       # ESLint
-npm run test       # Vitest (unit + компонентные)
+npm run test       # Vitest (unit + component)
 ```
 
-## Страницы приложения
+## App pages
 
-| Маршрут | Назначение |
-|---------|------------|
-| `/page/:slug` | Редактор и просмотр страницы |
-| `/search` | Семантический поиск (RAG) |
-| `/graph` | Граф всех страниц и связей |
-| `/broken-links` | Битые `[[wikilink]]` и `/page/…` ссылки |
-| `/tasks` | Открытые Markdown-задачи (`- [ ]`) |
-| `/attachments` | Вложения |
-| `/profile` | Профиль, смена пароля, API-ключи, **версии** frontend/backend |
-| `/admin/users`, `/admin/embedding` | Админ-панель |
+| Route | Purpose |
+|-------|---------|
+| `/page/:slug` | Page editor and reader |
+| `/search` | Semantic search (RAG) |
+| `/graph` | Graph of all pages and links |
+| `/broken-links` | Broken `[[wikilink]]` and `/page/…` links |
+| `/tasks` | Open Markdown tasks (`- [ ]`) |
+| `/attachments` | Attachments |
+| `/profile` | Profile, password change, API keys, frontend/backend **versions** |
+| `/admin/users`, `/admin/embedding` | Admin panel |
 
-Язык интерфейса переключается кнопкой **EN/RU** в хедере (сохраняется в
+UI language is toggled with the **EN/RU** button in the header (persisted in
 `localPreferences['locale']`).
 
-## Редактор (`MarkdownEditor`)
+## Editor (`MarkdownEditor`)
 
-Режимы: **Editor**, **Split**, **Preview**, **Reading**. Markdown хранится
-как текст в `<textarea>`, превью — через markdown-it.
+Modes: **Editor**, **Split**, **Preview**, **Reading**. Markdown is stored
+as text in a `<textarea>`; preview goes through markdown-it.
 
-### Wiki-ссылки
+### Wikilinks
 
-При вводе `[[` открывается автокомплит по списку страниц (до 8
-подсказок). Список подгружается из `services/pageIndex.ts` с
-постраничной загрузкой `/api/pages` и кэшем на 30 с. Подсказки
-показываются сразу из кэша, если он уже прогрет (загрузка страницы или
-монтирование редактора).
+Typing `[[` opens page autocomplete (up to 8 suggestions). The list comes
+from `services/pageIndex.ts` with paginated `/api/pages` loads and a 30s
+cache. Suggestions appear from cache immediately if it is already warm
+(page load or editor mount).
 
-- **↑ / ↓** — выбор подсказки
-- **Enter** — вставить `[[slug]]` или `[[slug|Title]]`
-- **Esc** — закрыть меню
+- **↑ / ↓** — move selection
+- **Enter** — insert `[[slug]]` or `[[slug|Title]]`
+- **Esc** — close the menu
 
-Сопоставление запроса учитывает подстроки title/slug и нормализованный
-ключ (`normalizeWikilinkKey`) — в т.ч. кириллические заголовки вроде
+Matching uses title/slug substrings and a normalized key
+(`normalizeWikilinkKey`) — including Cyrillic titles such as
 `Глава 17: …`.
 
-### Поиск в документе
+### Find in document
 
-- **⌘F / Ctrl+F** или кнопка 🔍 на панели инструментов
-- **Enter** / **Shift+Enter** — следующее / предыдущее совпадение
-- **Esc** — закрыть (фокус возвращается в редактор)
+- **⌘F / Ctrl+F** or the 🔍 toolbar button
+- **Enter** / **Shift+Enter** — next / previous match
+- **Esc** — close (focus returns to the editor)
 
-Поиск без учёта регистра. Фокус остаётся в поле поиска при вводе;
-совпадения подсвечиваются зеркальным слоем под textarea (не через
-нативный selection — он не виден без фокуса).
+Search is case-insensitive. Focus stays in the find field while typing;
+matches are highlighted with a mirror layer under the textarea (not native
+selection — that is invisible without focus).
 
-### Превью
+### Preview
 
-- Wiki-ссылки на несуществующие страницы помечаются классом
-  `wikilink-missing` (жёлтая подсветка, как «призрачные» узлы в графе)
-- Внутренние markdown-ссылки `/page/…` — `mdlink-internal-missing`
-- Экспорт текущей страницы в PDF (кнопка в Reading-режиме)
+- Wikilinks to missing pages get the `wikilink-missing` class
+  (yellow highlight, same as “ghost” nodes in the graph)
+- Internal markdown links `/page/…` — `mdlink-internal-missing`
+- Export the current page to PDF (button in Reading mode)
 
-## Версии в UI
+## Versions in the UI
 
-На `/profile` показываются:
+`/profile` shows:
 
-- **Frontend** — `__APP_VERSION_TAG__` (из `git describe --tags --always`
-  на этапе Vite-сборки)
-- **Backend** — `GET /api/version` → поле `versionTag`
+- **Frontend** — `__APP_VERSION_TAG__` (from `git describe --tags --always`
+  at Vite build time)
+- **Backend** — `GET /api/version` → `versionTag`
 
-В Docker `.git` не копируется (`.dockerignore`), поэтому SHA и version tag
-передаются build-arg'ами `APP_GIT_SHA` / `APP_VERSION_TAG` из
+Docker does not copy `.git` (`.dockerignore`), so SHA and version tag are
+passed as build-args `APP_GIT_SHA` / `APP_VERSION_TAG` from
 `scripts/deploy-k8s-with-build.sh`.
 
-## Структура проекта
+## Project layout
 
 ```
 src/
-├─ api/             HTTP-клиенты (axios) по доменам: auth, pages, folders,
+├─ api/             Domain HTTP clients (axios): auth, pages, folders,
 │                   tags, users, attachments, sync, graph, search, events (SSE),
 │                   tasks, version
 ├─ assets/
-│  ├─ main.css      index-файл, импортирующий стилевые модули
+│  ├─ main.css      Index file that imports style modules
 │  └─ styles/       tokens, base, forms, components, wiki, markdown,
-│                   highlight — каждая тема в отдельном файле
+│                   highlight — one file per theme
 ├─ components/
 │  ├─ admin/        AdminUsersPage, AdminEmbeddingSettingsPage
-│  ├─ attachments/  AttachmentsPage + формы загрузки
+│  ├─ attachments/  AttachmentsPage + upload forms
 │  ├─ auth/         LoginPage, RegisterPage
 │  ├─ editor/       MarkdownEditor, EditorInputPane, EditorPreviewPane,
 │  │                EditorToolbar, EditorFindBar, ReadingToolbar,
-│  │                markdown.ts (конфиг markdown-it), editorPreferences.ts,
+│  │                markdown.ts (markdown-it config), editorPreferences.ts,
 │  │                textareaCaret.ts, structurizr.ts
 │  ├─ graph/        WikiGraphPage, GraphPanel, graphRenderer.ts (D3)
 │  ├─ layout/       AppLayout, AppHeader, AppSidebar
@@ -128,46 +129,46 @@ src/
 │                   usePageAutosave, usePageLoader, useWorkspacePage,
 │                   useBreakpoint, useHorizontalDragResize
 ├─ i18n/            vue-i18n: en.ts, ru.ts, index.ts (locale persist)
-├─ router/          vue-router + guards аутентификации
-├─ services/        pageIndex — единый кэш списка страниц, резолвер
-│                   wiki-ссылок, pageMatchesWikilinkQuery
+├─ router/          vue-router + auth guards
+├─ services/        pageIndex — shared page-list cache, wikilink
+│                   resolver, pageMatchesWikilinkQuery
 ├─ stores/          Pinia: auth, folders, tags, theme, dialog, editorUi
-├─ types/           Общие типы приложения и .d.ts для сторонних плагинов
+├─ types/           Shared app types and .d.ts for third-party plugins
 └─ utils/           apiError, editorFind, frontmatter, localPreferences,
                     folderId, pageSlug, formatMarkdownTable, tablePipeCells,
-                    previewLinks, exportPagePdf и др.
+                    previewLinks, exportPagePdf, and others
 ```
 
-### Архитектурные принципы
+### Architecture notes
 
-- **Единый слой ошибок.** `utils/apiError.ts` (`getApiErrorMessage`,
-  `isApiErrorWithStatus`) используется вместо `axios.isAxiosError` по коду.
-  Новые места показа ошибок должны идти через него.
-- **`localStorage` только через `utils/localPreferences.ts`.** Прямой
-  `window.localStorage` запрещён: это защищает от Safari private mode и
-  исключений квоты и даёт типобезопасное чтение JSON.
-- **Локализация через `src/i18n/`.** Старый `utils/i18n.ts` удалён; в
-  компонентах — `useI18n()` / `t('key')`.
-- **Один кэш страниц.** `services/pageIndex.ts` — единственный источник
-  списка страниц для wiki-автокомплита, превью и резолвера. Мутации в
-  `api/pages.ts`, `api/sync.ts` и `api/links.ts` вызывают
+- **Single error layer.** Use `utils/apiError.ts` (`getApiErrorMessage`,
+  `isApiErrorWithStatus`) instead of ad-hoc `axios.isAxiosError`. New
+  error UI should go through it.
+- **`localStorage` only via `utils/localPreferences.ts`.** Direct
+  `window.localStorage` is forbidden: it survives Safari private mode and
+  quota errors and gives typed JSON reads.
+- **i18n via `src/i18n/`.** The old `utils/i18n.ts` is gone; components
+  use `useI18n()` / `t('key')`.
+- **One page cache.** `services/pageIndex.ts` is the only page-list source
+  for wiki autocomplete, preview, and the resolver. Mutations in
+  `api/pages.ts`, `api/sync.ts`, and `api/links.ts` call
   `invalidatePageIndex()`.
-- **Композиция поверх наследования.** Большая логика (редактор, дерево,
-  граф) разнесена по composables и чистым модулям. Vue-компоненты
-  остаются тонкой обёрткой над UI/состоянием.
-- **Стили разделены по темам.** Правим конкретный файл в `assets/styles`,
-  а не общий `main.css` — он сейчас только импортирует модули.
+- **Composition over inheritance.** Large logic (editor, tree, graph) lives
+  in composables and plain modules. Vue components stay a thin UI/state
+  wrapper.
+- **Styles split by theme.** Edit a specific file in `assets/styles`, not
+  the shared `main.css` — it only imports modules now.
 
-## Тесты
+## Tests
 
-Все тесты — `src/**/*.test.ts`:
+All tests are `src/**/*.test.ts`:
 
 - `utils/` — `apiError`, `editorFind`, `frontmatter`, `localPreferences`,
   `folderId`, `pageSlug`, `formatMarkdownTable`, `tablePipeCells`,
   `previewLinks`, `exportPagePdf`, `dndPayload`, `folderTree`.
-- `services/` — `pageIndex` (сопоставление wikilink-запросов, пагинация).
+- `services/` — `pageIndex` (wikilink query matching, pagination).
 - `composables/` — `useWikilinkAutocomplete`.
-- `stores/` — `auth`, `folders`, `dialog` с моками axios-клиентов.
+- `stores/` — `auth`, `folders`, `dialog` with mocked axios clients.
 - `components/` — `markdown`, `structurizr`, `graphRenderer`,
   `AppDialogHost`, `AdminEmbeddingSettingsPage`, `OpenTasksPage`.
 
@@ -175,60 +176,60 @@ src/
 npm run test
 ```
 
-## Деплой в Kubernetes
+## Kubernetes deploy
 
-Скрипты в `scripts/` разворачивают Helm chart
-`deploy/helm/mdwiki-frontend` (nginx + статика, прокси `/api/*` на backend).
-Требуются `kubectl`, `helm`, `docker`.
+Scripts in `scripts/` deploy the Helm chart
+`deploy/helm/mdwiki-frontend` (nginx + static files, proxy `/api/*` to the
+backend). You need `kubectl`, `helm`, and `docker`.
 
-| Скрипт | Назначение |
-|--------|------------|
-| `scripts/deploy-k8s.sh` | `helm upgrade --install` без сборки образа |
-| `scripts/deploy-k8s-with-build.sh` | `docker build` (+ push для remote registry) + деплой |
-| `scripts/undeploy-k8s.sh` | `helm uninstall` релиза |
+| Script | Purpose |
+|--------|---------|
+| `scripts/deploy-k8s.sh` | `helm upgrade --install` without building an image |
+| `scripts/deploy-k8s-with-build.sh` | `docker build` (+ push for a remote registry) + deploy |
+| `scripts/undeploy-k8s.sh` | `helm uninstall` the release |
 
-### Типичный деплой
+### Typical deploy
 
 ```sh
-# Локальный OrbStack / k8s: values-local.yaml в корне репозитория
+# Local OrbStack / k8s: values-local.yaml in the repo root
 VALUES_FILE=./values-local.yaml ./scripts/deploy-k8s-with-build.sh
 
-# С prod values (ingress, upstream API и т.д.)
+# Prod values (ingress, upstream API, etc.)
 VALUES_FILE=deploy/helm/mdwiki-frontend/values-prod.yaml ./scripts/deploy-k8s-with-build.sh
 
-# Только helm, образ уже в registry
+# Helm only, image already in a registry
 IMAGE_REPOSITORY=ghcr.io/your-org/mdwiki-frontend \
 IMAGE_TAG=v0.1.0 \
 ./scripts/deploy-k8s.sh
 ```
 
-Сначала должен быть развёрнут API (см.
+The API should be deployed first (see
 [mdwiki-api/scripts/deploy-k8s-with-build.sh](../mdwiki-api/scripts/deploy-k8s-with-build.sh)).
-По умолчанию nginx проксирует на `http://mdwiki-api-mdwiki-api:8080`
-(`api.upstream` в values).
+By default nginx proxies to `http://mdwiki-api-mdwiki-api:8080`
+(`api.upstream` in values).
 
-Образ тегируется одним тегом — **`git describe --tags --always`**
-(например `mdwiki-frontend:v0.1.0` или `mdwiki-frontend:v0.1.0-3-g7dc9ede`).
-В сборку передаются `APP_GIT_SHA` и `APP_VERSION_TAG` (для UI, не как
-второй docker-тег).
+The image gets a single tag — **`git describe --tags --always`**
+(for example `mdwiki-frontend:v0.1.0` or `mdwiki-frontend:v0.1.0-3-g7dc9ede`).
+Builds receive `APP_GIT_SHA` and `APP_VERSION_TAG` (for the UI, not as a
+second docker tag).
 
-### Полезные переменные окружения
+### Useful environment variables
 
-| Переменная | По умолчанию | Описание |
-|------------|--------------|----------|
-| `RELEASE_NAME` | `mdwiki-frontend` | Имя Helm-релиза |
-| `NAMESPACE` | `mdwiki` | Namespace (тот же, что у API) |
-| `VALUES_FILE` | — | Дополнительный values-файл |
-| `IMAGE_REPOSITORY` | `mdwiki-frontend` | Репозиторий образа |
-| `IMAGE_TAG` | `git describe --tags --always` (+ `-dirty`) | Тег образа |
-| `PUSH_IMAGE` | `true` для remote registry, иначе `false` | Пушить образ после сборки |
-| `IMAGE_PULL_POLICY` | `Always` / `IfNotPresent` | Политика pull в кластере |
-| `TIMEOUT` | `5m` | Таймаут деплоя |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RELEASE_NAME` | `mdwiki-frontend` | Helm release name |
+| `NAMESPACE` | `mdwiki` | Namespace (same as the API) |
+| `VALUES_FILE` | — | Extra values file |
+| `IMAGE_REPOSITORY` | `mdwiki-frontend` | Image repository |
+| `IMAGE_TAG` | `git describe --tags --always` (+ `-dirty`) | Image tag |
+| `PUSH_IMAGE` | `true` for a remote registry, otherwise `false` | Push the image after build |
+| `IMAGE_PULL_POLICY` | `Always` / `IfNotPresent` | Cluster pull policy |
+| `TIMEOUT` | `5m` | Deploy timeout |
 
-### Снятие с кластера
+### Remove from the cluster
 
 ```sh
 ./scripts/undeploy-k8s.sh
 ```
 
-Подробнее по chart — `deploy/helm/mdwiki-frontend/README.md`.
+Chart details: `deploy/helm/mdwiki-frontend/README.md`.

@@ -1,12 +1,14 @@
 # mdwiki-frontend Helm chart
 
-Chart разворачивает Vue frontend (nginx) и проксирует `/api/*` на backend-сервис в кластере.
+Русская версия: `README.ru.md`
 
-## Быстрый старт
+The chart deploys the Vue frontend (nginx) and proxies `/api/*` to the backend service in the cluster.
+
+## Quick start
 
 ```bash
-# Обычно деплоят через scripts/deploy-k8s-with-build.sh
-# (тег образа = git describe, например v0.1.0-3-g7dc9ede).
+# Usually deployed via scripts/deploy-k8s-with-build.sh
+# (image tag = git describe, e.g. v0.1.0-3-g7dc9ede).
 helm upgrade --install mdwiki-frontend ./deploy/helm/mdwiki-frontend \
   --namespace mdwiki \
   --create-namespace \
@@ -14,15 +16,15 @@ helm upgrade --install mdwiki-frontend ./deploy/helm/mdwiki-frontend \
   --set image.tag=v0.1.0
 ```
 
-Локальный кластер: `VALUES_FILE=./values-local.yaml ./scripts/deploy-k8s-with-build.sh`
-из корня репозитория.
+Local cluster: `VALUES_FILE=./values-local.yaml ./scripts/deploy-k8s-with-build.sh`
+from the repo root.
 
-## Обязательные параметры
+## Required settings
 
 - `image.repository`
-- `image.tag` (предпочтительно `git describe --tags --always`)
+- `image.tag` (prefer `git describe --tags --always`)
 
-## Полезные параметры
+## Useful settings
 
-- `api.upstream` (по умолчанию `http://mdwiki-api-mdwiki-api:8080`)
+- `api.upstream` (default `http://mdwiki-api-mdwiki-api:8080`)
 - `ingress.enabled` / `ingress.hosts`
