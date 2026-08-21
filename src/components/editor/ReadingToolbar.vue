@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ReadingTheme } from '@/types'
+import MdwikiMark from '@/components/layout/MdwikiMark.vue'
 
 const { t } = useI18n()
 
@@ -46,7 +47,10 @@ function toggleToc() {
 </script>
 
 <template>
-  <router-link to="/" class="reading-logo">MDWiki</router-link>
+  <router-link to="/" class="reading-logo">
+    <MdwikiMark class="reading-logo-mark" />
+    <span>MDWiki</span>
+  </router-link>
   <div class="reading-title" :title="props.title || ''">{{ props.title || t('common.untitled') }}</div>
   <div class="reading-controls" :class="{ 'theme-dark': props.theme === 'dark' }">
     <input
@@ -125,6 +129,9 @@ function toggleToc() {
 
 <style scoped>
 .reading-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 700;
@@ -133,8 +140,19 @@ function toggleToc() {
   letter-spacing: -0.3px;
 }
 
+.reading-logo-mark {
+  width: 22px;
+  height: 22px;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
 .reading-logo:hover {
   color: var(--color-primary);
+}
+
+.reading-logo:hover .reading-logo-mark {
+  color: var(--color-primary-hover);
 }
 
 .reading-title {

@@ -12,6 +12,7 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import { getLocale, toggleLocale } from '@/i18n'
 import ThemeModeIcon from './ThemeModeIcon.vue'
+import MdwikiMark from './MdwikiMark.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -99,7 +100,10 @@ function onNavClick() {
       <span class="material-symbols-outlined notranslate" translate="no">menu</span>
     </button>
 
-    <router-link to="/" class="logo" @click="onNavClick">MDWiki</router-link>
+    <router-link to="/" class="logo" @click="onNavClick">
+      <MdwikiMark class="logo-mark" />
+      <span>MDWiki</span>
+    </router-link>
 
     <form class="search-form" @submit.prevent="onSearch">
       <input v-model="searchQuery" :placeholder="t('header.searchPlaceholder')" type="search" />
@@ -168,7 +172,10 @@ function onNavClick() {
         class="mobile-nav-menu show-mobile-only"
         :aria-label="t('header.mobileNav')"
       >
-        <div class="mobile-nav-title">MDWiki</div>
+        <div class="mobile-nav-title">
+          <MdwikiMark class="logo-mark" />
+          <span>MDWiki</span>
+        </div>
         <router-link
           v-for="link in navLinks"
           :key="link.label"
@@ -221,6 +228,9 @@ function onNavClick() {
 }
 
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 700;
@@ -231,9 +241,20 @@ function onNavClick() {
   flex-shrink: 0;
 }
 
+.logo-mark {
+  width: 22px;
+  height: 22px;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
 .logo:hover {
   color: var(--color-primary);
   text-decoration: none;
+}
+
+.logo:hover .logo-mark {
+  color: var(--color-primary-hover);
 }
 
 .search-form {
@@ -395,6 +416,9 @@ function onNavClick() {
 }
 
 .mobile-nav-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 700;
