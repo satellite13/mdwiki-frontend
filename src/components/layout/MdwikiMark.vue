@@ -1,13 +1,12 @@
 <template>
   <svg class="mdwiki-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-    <rect width="32" height="32" rx="8" fill="currentColor" />
+    <rect x="3" y="3" width="26" height="26" rx="4" fill="#0d9488" />
     <path
+      d="M14 8h-3.5A1.5 1.5 0 0 0 9 9.5v13a1.5 1.5 0 0 0 1.5 1.5H14M23 8h-3.5A1.5 1.5 0 0 0 18 9.5v13a1.5 1.5 0 0 0 1.5 1.5H23"
       fill="none"
       stroke="#fff"
-      stroke-width="2.5"
+      stroke-width="2.6"
       stroke-linecap="square"
-      stroke-linejoin="miter"
-      d="M12.5 8H8v16h4.5M19 10.5h-4.5v11H19"
     />
   </svg>
 </template>
