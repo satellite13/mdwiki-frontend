@@ -204,3 +204,48 @@ export interface ImportMdPagesResponse {
   skipped: number
   errors: number
 }
+
+export interface BundleExportRequest {
+  pageSlugs: string[]
+  folderIds: string[]
+}
+
+export interface BundlePreviewPage {
+  slug: string
+  title: string
+  folderPath: string[]
+}
+
+export interface BundlePreviewFolder {
+  path: string[]
+  name: string
+}
+
+export interface BundlePreviewAttachment {
+  storedName: string
+  originalName: string
+  sizeBytes: number
+  referencedBy: string[]
+}
+
+export interface BundlePreviewResponse {
+  folders: BundlePreviewFolder[]
+  pages: BundlePreviewPage[]
+  attachments: BundlePreviewAttachment[]
+  attachmentCount: number
+  attachmentBytes: number
+  warnings: string[]
+}
+
+export interface BundleSlugRemap {
+  from: string
+  to: string
+}
+
+export interface BundleImportResponse {
+  createdPages: number
+  createdFolders: number
+  remappedSlugs: BundleSlugRemap[]
+  attachments: number
+  errors: string[]
+}

@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 // Переводится в aria-label на диалоге (prop не может называться aria-label — конфликт с DOM-атрибутом).
-defineProps<{ label: string }>()
+withDefaults(defineProps<{ label: string; wide?: boolean }>(), { wide: false })
 const emit = defineEmits<{ close: [] }>()
 
 const modalRef = ref<HTMLElement | null>(null)
@@ -24,7 +24,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="app-modal-overlay" @click.self="emit('close')">
-    <div ref="modalRef" class="app-modal" role="dialog" aria-modal="true" :aria-label="label">
+    <div
+      ref="modalRef"
+      :class="['app-modal', { wide }]"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="label"
+    >
       <slot />
     </div>
   </div>
@@ -48,5 +54,11 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   padding: 1.25rem;
   box-shadow: var(--shadow, 0 8px 30px rgba(0, 0, 0, 0.12));
+}
+
+.app-modal.wide {
+  width: min(640px, 100%);
+  max-height: 85vh;
+  overflow: auto;
 }
 </style>

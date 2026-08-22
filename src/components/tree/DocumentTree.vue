@@ -14,6 +14,8 @@ import type { FolderTreeNode } from '@/types'
 import TreeFolder from './TreeFolder.vue'
 import TreePage from './TreePage.vue'
 import TreeContextMenu from './TreeContextMenu.vue'
+import BundleExportModal from './BundleExportModal.vue'
+import BundleImportModal from './BundleImportModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 const { t } = useI18n()
@@ -52,8 +54,10 @@ const contextMenuItems = computed(() => {
     items.push({ label: t('tree.newPage'), action: 'new-page' })
     items.push({ label: t('tree.newFolder'), action: 'new-folder' })
     items.push({ label: t('tree.importMd'), action: 'import-md' })
+    items.push({ label: t('tree.importBundle'), action: 'import-bundle' })
   }
   if (contextMenu.value?.node) {
+    items.push({ label: t('tree.exportBundle'), action: 'export-bundle' })
     if (contextMenu.value.node.type === 'folder') {
       items.push({ label: t('tree.rename'), action: 'rename' })
     }
@@ -97,6 +101,11 @@ async function onContextAction(action: string) {
     } else if (action === 'import-md') {
       const folderId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
       await treeActions.importMdPages(folderId || undefined)
+    } else if (action === 'export-bundle' && ctx.node) {
+      openExportModal(ctx.node.id)
+    } else if (action === 'import-bundle') {
+      const folderId = ctx.node?.type === 'folder' ? ctx.node.id : ctx.parentId
+      await openImportModal(folderId || null)
     } else if (action === 'rename' && ctx.node?.type === 'folder') {
       await treeActions.renameFolderNode(ctx.node)
     } else if (action === 'delete' && ctx.node) {
@@ -151,6 +160,44 @@ async function refreshTree() {
 
 useTreeSse({ onTreeUpdated: refreshTree })
 
+const exportOpen = ref(false)
+const exportNodeId = ref<string | null>(null)
+const importOpen = ref(false)
+const importFile = ref<File | null>(null)
+const importFolderId = ref<string | null>(null)
+
+function openExportModal(nodeId?: string | null) {
+  exportNodeId.value = nodeId ?? null
+  exportOpen.value = true
+}
+
+function pickZipFile(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.zip,application/zip'
+    let settled = false
+    const finish = (file: File | null) => {
+      if (settled) return
+      settled = true
+      resolve(file)
+    }
+    input.addEventListener('change', () => {
+      finish(input.files?.[0] ?? null)
+    })
+    input.addEventListener('cancel', () => finish(null))
+    input.click()
+  })
+}
+
+async function openImportModal(folderId?: string | null) {
+  const file = await pickZipFile()
+  if (!file) return
+  importFile.value = file
+  importFolderId.value = folderId ?? null
+  importOpen.value = true
+}
+
 onMounted(async () => {
   await folderStore.fetchTree()
   await refreshTagData()
@@ -176,6 +223,12 @@ onMounted(async () => {
         </button>
         <button class="tree-action-btn" :title="t('tree.importMd')" @click.stop="treeActions.importMdPages()">
           <span class="material-symbols-outlined tree-action-icon notranslate" translate="no">upload_file</span>
+        </button>
+        <button class="tree-action-btn" :title="t('tree.exportBundle')" @click.stop="openExportModal()">
+          <span class="material-symbols-outlined tree-action-icon notranslate" translate="no">ios_share</span>
+        </button>
+        <button class="tree-action-btn" :title="t('tree.importBundle')" @click.stop="openImportModal()">
+          <span class="material-symbols-outlined tree-action-icon notranslate" translate="no">unarchive</span>
         </button>
       </div>
     </div>
@@ -272,6 +325,20 @@ onMounted(async () => {
       :items="contextMenuItems"
       @action="onContextAction"
       @close="contextMenu = null"
+    />
+
+    <BundleExportModal
+      v-if="exportOpen"
+      :tree="folderStore.tree"
+      :initial-node-id="exportNodeId"
+      @close="exportOpen = false"
+    />
+    <BundleImportModal
+      v-if="importOpen && importFile"
+      :tree="folderStore.tree"
+      :file="importFile"
+      :initial-folder-id="importFolderId"
+      @close="importOpen = false"
     />
   </div>
 </template>
