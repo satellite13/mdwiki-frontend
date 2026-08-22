@@ -9,27 +9,7 @@ import { countPagesInFolder, folderContainsPageSlug } from '@/utils/folderTree'
 import { useI18n } from 'vue-i18n'
 import type { FolderTreeNode, ImportMdPagesResponse } from '@/types'
 import type { FolderDeletePageAction } from '@/api/folders'
-
-function pickMarkdownFiles(): Promise<File[] | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.md,.markdown,text/markdown'
-    input.multiple = true
-    let settled = false
-    const finish = (files: File[] | null) => {
-      if (settled) return
-      settled = true
-      resolve(files)
-    }
-    input.addEventListener('change', () => {
-      const list = input.files ? Array.from(input.files) : []
-      finish(list.length > 0 ? list : null)
-    })
-    input.addEventListener('cancel', () => finish(null))
-    input.click()
-  })
-}
+import { pickFiles } from '@/utils/pickFiles'
 
 function formatImportSummary(
   result: ImportMdPagesResponse,
@@ -91,8 +71,8 @@ export function useTreeActions(options: UseTreeActionsOptions) {
   }
 
   async function importMdPages(folderId?: string) {
-    const files = await pickMarkdownFiles()
-    if (!files?.length) return
+    const files = await pickFiles({ accept: '.md,.markdown,text/markdown', multiple: true })
+    if (!files.length) return
 
     const mode = await dialog.choice(
       t('tree.importOverwritePrompt', { count: files.length }),

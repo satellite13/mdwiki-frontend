@@ -9,6 +9,7 @@ import { useTreeSse } from '@/composables/useTreeSse'
 import { useTreeActions } from '@/composables/useTreeActions'
 import { useTreeDropTarget } from '@/composables/useTreeDnd'
 import { invalidatePageIndex } from '@/services/pageIndex'
+import { pickFiles } from '@/utils/pickFiles'
 import { useI18n } from 'vue-i18n'
 import type { FolderTreeNode } from '@/types'
 import TreeFolder from './TreeFolder.vue'
@@ -171,27 +172,8 @@ function openExportModal(nodeId?: string | null) {
   exportOpen.value = true
 }
 
-function pickZipFile(): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.zip,application/zip'
-    let settled = false
-    const finish = (file: File | null) => {
-      if (settled) return
-      settled = true
-      resolve(file)
-    }
-    input.addEventListener('change', () => {
-      finish(input.files?.[0] ?? null)
-    })
-    input.addEventListener('cancel', () => finish(null))
-    input.click()
-  })
-}
-
 async function openImportModal(folderId?: string | null) {
-  const file = await pickZipFile()
+  const [file] = await pickFiles({ accept: '.zip,application/zip' })
   if (!file) return
   importFile.value = file
   importFolderId.value = folderId ?? null
