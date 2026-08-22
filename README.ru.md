@@ -6,7 +6,7 @@ Markdown с превью, деревом документов, графом св
 
 English version: `README.md`
 
-Текущая версия: **v0.1.9** (см. git tag; в UI — `git describe` на странице профиля).
+Текущая версия: **v0.1.10** (см. git tag; в UI — `git describe` на странице профиля).
 
 ## Стек
 
