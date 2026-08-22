@@ -17,33 +17,32 @@ const emit = defineEmits<{
 
 const depth = props.depth ?? 0
 const mode = props.mode ?? 'multi'
-
-function onActivate(node: FolderTreeNode) {
-  if (mode === 'single') emit('select', node.id)
-  else emit('toggle', node.id)
-}
 </script>
 
 <template>
   <ul class="selectable-tree" :style="{ paddingLeft: depth === 0 ? '0' : '14px' }">
     <li v-for="node in nodes" :key="node.id">
-      <button
-        type="button"
+      <label
+        v-if="mode === 'multi'"
         class="tree-row"
-        :class="{
-          folder: node.type === 'folder',
-          active: mode === 'single' && activeId === node.id
-        }"
-        @click="onActivate(node)"
+        :class="{ folder: node.type === 'folder' }"
       >
         <input
-          v-if="mode === 'multi'"
           type="checkbox"
           :checked="bundleNodeState(node, selected) === 'checked'"
           :indeterminate="bundleNodeState(node, selected) === 'indeterminate'"
-          tabindex="-1"
-          @click.stop="emit('toggle', node.id)"
+          @change="emit('toggle', node.id)"
         />
+        <span class="row-name">{{ node.name }}</span>
+        <span v-if="node.type === 'page' && node.slug" class="row-slug">{{ node.slug }}</span>
+      </label>
+      <button
+        v-else
+        type="button"
+        class="tree-row"
+        :class="{ folder: node.type === 'folder', active: activeId === node.id }"
+        @click="emit('select', node.id)"
+      >
         <span class="row-name">{{ node.name }}</span>
         <span v-if="node.type === 'page' && node.slug" class="row-slug">{{ node.slug }}</span>
       </button>
@@ -95,6 +94,51 @@ function onActivate(node: FolderTreeNode) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tree-row input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  border: 1.5px solid var(--color-text-muted, #656d76);
+  border-radius: 4px;
+  background: var(--color-bg, #fff);
+  box-shadow: none;
+  cursor: pointer;
+  position: relative;
+}
+
+.tree-row input[type='checkbox']:checked,
+.tree-row input[type='checkbox']:indeterminate {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.tree-row input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.tree-row input[type='checkbox']:indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  width: 8px;
+  height: 0;
+  border-top: 2px solid #fff;
 }
 
 .tree-row.folder .row-name {
