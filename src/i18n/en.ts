@@ -58,7 +58,10 @@ export const en = {
     wikiRoot: 'Wiki root',
     importAction: 'Import',
     importFailed: 'Could not import the bundle',
-    importSummary: 'Created pages: {pages}, folders: {folders}, attachments: {attachments}'
+    importSummary: 'Created pages: {pages}, folders: {folders}, attachments: {attachments}',
+    importing: 'Importing bundle…',
+    importUploading: 'Uploading file…',
+    importProcessing: 'Unpacking archive and creating pages…'
   },
   admin: {
     confirmDeleteUser: 'Delete user "{username}"?',

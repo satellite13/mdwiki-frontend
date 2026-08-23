@@ -137,7 +137,7 @@ h2 {
 .warnings {
   margin: 0 0 0.75rem;
   padding-left: 1.2rem;
-  color: #a40;
+  color: var(--color-warning);
   font-size: 12px;
 }
 

@@ -58,7 +58,10 @@ export const ru = {
     wikiRoot: 'Корень вики',
     importAction: 'Импортировать',
     importFailed: 'Не удалось импортировать бандл',
-    importSummary: 'Создано страниц: {pages}, папок: {folders}, вложений: {attachments}'
+    importSummary: 'Создано страниц: {pages}, папок: {folders}, вложений: {attachments}',
+    importing: 'Импортируем бандл…',
+    importUploading: 'Загружаем файл…',
+    importProcessing: 'Распаковываем архив и создаём страницы…'
   },
   admin: {
     confirmDeleteUser: 'Удалить пользователя "{username}"?',

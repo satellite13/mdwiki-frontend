@@ -2,13 +2,20 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 // Переводится в aria-label на диалоге (prop не может называться aria-label — конфликт с DOM-атрибутом).
-withDefaults(defineProps<{ label: string; wide?: boolean }>(), { wide: false })
+const props = withDefaults(defineProps<{ label: string; wide?: boolean; closeDisabled?: boolean }>(), {
+  wide: false,
+  closeDisabled: false
+})
 const emit = defineEmits<{ close: [] }>()
 
 const modalRef = ref<HTMLElement | null>(null)
 
+function requestClose() {
+  if (!props.closeDisabled) emit('close')
+}
+
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') emit('close')
+  if (e.key === 'Escape') requestClose()
 }
 
 onMounted(() => {
@@ -23,7 +30,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-modal-overlay" @click.self="emit('close')">
+  <div class="app-modal-overlay" @click.self="requestClose">
     <div
       ref="modalRef"
       :class="['app-modal', { wide }]"
@@ -40,7 +47,8 @@ onBeforeUnmount(() => {
 .app-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(36, 41, 47, 0.45);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -50,10 +58,12 @@ onBeforeUnmount(() => {
 
 .app-modal {
   width: min(520px, 100%);
-  background: var(--color-surface, #fff);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 1.25rem;
-  box-shadow: var(--shadow, 0 8px 30px rgba(0, 0, 0, 0.12));
+  box-shadow: 0 12px 40px rgba(36, 41, 47, 0.15);
 }
 
 .app-modal.wide {

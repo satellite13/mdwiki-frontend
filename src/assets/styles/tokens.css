@@ -11,6 +11,7 @@
   --color-bg-secondary: #f6f8fa;
   --color-bg-tertiary: #eef1f5;
   --color-bg-hover: #e8ecf1;
+  --color-surface: #ffffff;
 
   /* Text */
   --color-text: #24292f;
@@ -57,6 +58,7 @@
   --color-bg-secondary: #1e1f23;
   --color-bg-tertiary: #292a2f;
   --color-bg-hover: #32333a;
+  --color-surface: #1a1b1e;
   --color-text: #e1e3e6;
   --color-text-muted: #a8abb2;
   --color-text-faint: #6a6d75;

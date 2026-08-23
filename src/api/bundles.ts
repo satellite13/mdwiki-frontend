@@ -18,7 +18,11 @@ export async function exportBundle(body: BundleExportRequest): Promise<void> {
   URL.revokeObjectURL(url)
 }
 
-export function importBundle(file: File, targetFolderId?: string | null) {
+export function importBundle(
+  file: File,
+  targetFolderId?: string | null,
+  onUploadProgress?: (percent: number | null) => void
+) {
   const formData = new FormData()
   formData.append('file', file)
   if (targetFolderId) {
@@ -32,6 +36,14 @@ export function importBundle(file: File, targetFolderId?: string | null) {
         }
         return data
       }
-    ]
+    ],
+    onUploadProgress: (event) => {
+      if (!onUploadProgress) return
+      if (event.total && event.total > 0) {
+        onUploadProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)))
+        return
+      }
+      onUploadProgress(null)
+    }
   })
 }
