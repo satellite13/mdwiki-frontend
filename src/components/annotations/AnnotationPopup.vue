@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { createAnnotation } from '@/api/annotations'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { getPageSlugFromUrl } from '@/utils/pageSlug'
+import { clampPopupPosition, POPUP_MARGIN } from '@/utils/popupPosition'
 import type { Annotation } from '@/types'
 
 const { t } = useI18n()
@@ -65,19 +66,44 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
+const popupEl = ref<HTMLElement | null>(null)
+const position = ref<{ left: number; top: number } | null>(null)
+
+function updatePosition() {
+  if (!popupEl.value) return
+  const rect = popupEl.value.getBoundingClientRect()
+  position.value = clampPopupPosition(
+    props.x,
+    props.y,
+    rect.width,
+    rect.height,
+    window.innerWidth,
+    window.innerHeight,
+    POPUP_MARGIN
+  )
+}
+
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
+  updatePosition()
+  window.addEventListener('resize', updatePosition)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('resize', updatePosition)
 })
 </script>
 
 <template>
   <div
+    ref="popupEl"
     class="annotation-popup"
-    :style="{ left: x + 'px', top: y + 'px' }"
+    :style="
+      position
+        ? { left: position.left + 'px', top: position.top + 'px' }
+        : { left: x + 'px', top: y + 'px' }
+    "
     @click.stop
   >
     <div class="popup-header">
@@ -126,6 +152,8 @@ onBeforeUnmount(() => {
   position: fixed;
   z-index: 1000;
   width: 340px;
+  max-height: calc(100vh - 2 * 12px);
+  overflow-y: auto;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: 10px;

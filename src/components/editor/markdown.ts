@@ -9,12 +9,21 @@ import hljs from 'highlight.js/lib/core'
 import type { LanguageFn } from 'highlight.js'
 import bash from 'highlight.js/lib/languages/bash'
 import css from 'highlight.js/lib/languages/css'
+import diff from 'highlight.js/lib/languages/diff'
+import dockerfile from 'highlight.js/lib/languages/dockerfile'
+import gradle from 'highlight.js/lib/languages/gradle'
+import http from 'highlight.js/lib/languages/http'
+import ini from 'highlight.js/lib/languages/ini'
 import java from 'highlight.js/lib/languages/java'
 import javascript from 'highlight.js/lib/languages/javascript'
 import json from 'highlight.js/lib/languages/json'
 import kotlin from 'highlight.js/lib/languages/kotlin'
+import makefile from 'highlight.js/lib/languages/makefile'
 import markdown from 'highlight.js/lib/languages/markdown'
+import nginx from 'highlight.js/lib/languages/nginx'
 import plaintext from 'highlight.js/lib/languages/plaintext'
+import powershell from 'highlight.js/lib/languages/powershell'
+import properties from 'highlight.js/lib/languages/properties'
 import python from 'highlight.js/lib/languages/python'
 import sql from 'highlight.js/lib/languages/sql'
 import typescript from 'highlight.js/lib/languages/typescript'
@@ -65,7 +74,18 @@ function registerHighlightLanguages() {
     ['py', python],
     ['java', java],
     ['kotlin', kotlin],
-    ['sql', sql]
+    ['sql', sql],
+    ['http', http],
+    ['dockerfile', dockerfile],
+    ['diff', diff],
+    ['ini', ini],
+    ['properties', properties],
+    ['console', bash],
+    ['terminal', bash],
+    ['powershell', powershell],
+    ['nginx', nginx],
+    ['makefile', makefile],
+    ['gradle', gradle]
   ]
   for (const [name, definition] of langEntries) {
     hljs.registerLanguage(name, definition)
@@ -291,7 +311,7 @@ export function createMarkdownRenderer(): MarkdownIt {
       const hasLanguage = !!lang && hljs.getLanguage(lang)
       const highlighted = hasLanguage
         ? hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
-        : hljs.highlightAuto(code).value
+        : escapeHtml(code)
       return `<pre><code class="hljs${lang ? ` language-${escapeHtml(lang)}` : ''}">${highlighted}</code></pre>`
     }
   })

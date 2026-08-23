@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDialogStore } from '@/stores/dialog'
 import { deleteAnnotation } from '@/api/annotations'
+import AnnotationComment from '@/components/annotations/AnnotationComment.vue'
 import type { Annotation } from '@/types'
 
 const props = defineProps<{
@@ -65,7 +66,7 @@ async function onDelete(annotation: Annotation) {
         <div class="annotation-item-text">
           <q>{{ a.highlightedText }}</q>
         </div>
-        <div v-if="a.comment" class="annotation-item-comment">{{ a.comment }}</div>
+        <AnnotationComment v-if="a.comment" :comment="a.comment" />
         <div class="annotation-item-meta">
           <span class="annotation-item-author">{{ a.createdBy }}</span>
           <span class="annotation-item-date">{{ formatDate(a.createdAt) }}</span>

@@ -25,6 +25,7 @@ import EditorPreviewPane from '@/components/editor/EditorPreviewPane.vue'
 import EditorInputPane from '@/components/editor/EditorInputPane.vue'
 import AnnotationPanel from '@/components/annotations/AnnotationPanel.vue'
 import AnnotationPopup from '@/components/annotations/AnnotationPopup.vue'
+import AnnotationComment from '@/components/annotations/AnnotationComment.vue'
 import type { ReadingTheme } from '@/types'
 import { usePreviewCopyDecorations } from '@/components/editor/usePreviewCopyDecorations'
 import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPipeline'
@@ -754,9 +755,12 @@ defineExpose({
       <div class="tooltip-text">
         <q>{{ tooltipAnnotation.annotation.highlightedText }}</q>
       </div>
-      <div v-if="tooltipAnnotation.annotation.comment" class="tooltip-comment">
-        {{ tooltipAnnotation.annotation.comment }}
-      </div>
+      <AnnotationComment
+        v-if="tooltipAnnotation.annotation.comment"
+        :comment="tooltipAnnotation.annotation.comment"
+        bare
+        class="tooltip-comment"
+      />
       <div class="tooltip-meta">
         <span>{{ tooltipAnnotation.annotation.createdBy }}</span>
       </div>

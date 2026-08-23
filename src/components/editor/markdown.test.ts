@@ -201,3 +201,32 @@ describe('createMarkdownRenderer image url shorthand', () => {
     expect(html).not.toContain('src="https://example.com/a.png"')
   })
 })
+
+describe('createMarkdownRenderer code highlighting', () => {
+  it('renders http fence with hljs language class and spans', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('```http\nGET /api/v1/users HTTP/1.1\nHost: example.com\n```')
+
+    expect(html).toContain('class="hljs language-http"')
+    expect(html).toContain('<span class="hljs-keyword">GET</span>')
+    expect(html).toContain('<span class="hljs-meta">HTTP/1.1</span>')
+  })
+
+  it('renders unknown language fence as escaped plain text without spans', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('```unknown-xyz\n<div class="x">&</div>\n```')
+
+    expect(html).toContain('class="hljs language-unknown-xyz"')
+    expect(html).toContain('&lt;div class=&quot;x&quot;&gt;&amp;&lt;/div&gt;')
+    expect(html).not.toContain('<div class="x">')
+    expect(html).not.toContain('<span')
+  })
+
+  it('keeps bash fences highlighted', () => {
+    const md = createMarkdownRenderer()
+    const html = md.render('```bash\nls -la\n```')
+
+    expect(html).toContain('class="hljs language-bash"')
+    expect(html).toContain('<span class="hljs-built_in">ls</span>')
+  })
+})
