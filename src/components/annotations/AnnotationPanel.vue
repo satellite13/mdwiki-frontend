@@ -14,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   deleted: [id: string]
+  select: [annotation: Annotation]
 }>()
 
 const { t } = useI18n()
@@ -62,6 +63,7 @@ async function onDelete(annotation: Annotation) {
         :key="a.id"
         class="annotation-item"
         :style="{ borderLeftColor: a.color || '#ffeb3b' }"
+        @click="emit('select', a)"
       >
         <div class="annotation-item-text">
           <q>{{ a.highlightedText }}</q>
@@ -76,7 +78,7 @@ async function onDelete(annotation: Annotation) {
           class="annotation-item-delete"
           :title="t('annotations.delete')"
           :aria-label="t('annotations.delete')"
-          @click="onDelete(a)"
+          @click.stop="onDelete(a)"
         >
           <span class="material-symbols-outlined notranslate" translate="no">delete</span>
         </button>
@@ -149,6 +151,7 @@ async function onDelete(annotation: Annotation) {
   border-left-width: 4px;
   border-radius: 6px;
   background: var(--color-bg);
+  cursor: pointer;
 }
 
 .annotation-item-text q {

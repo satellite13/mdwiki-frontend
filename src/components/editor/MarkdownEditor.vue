@@ -31,7 +31,7 @@ import { usePreviewCopyDecorations } from '@/components/editor/usePreviewCopyDec
 import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPipeline'
 import { useReadingToc } from '@/components/editor/useReadingToc'
 import { useSplitScrollSync } from '@/components/editor/useSplitScrollSync'
-import { useAnnotations } from '@/components/editor/useAnnotations'
+import { scrollToAnnotation, useAnnotations } from '@/components/editor/useAnnotations'
 import { useToolbarActions } from '@/components/editor/useToolbarActions'
 import type MarkdownIt from 'markdown-it'
 import { renderStructurizrSvg } from './structurizr'
@@ -531,6 +531,18 @@ async function refreshPreview() {
   await renderPreviewDiagrams()
 }
 
+const tooltipCurrent = computed(() => {
+  const tooltip = tooltipAnnotation.value
+  return tooltip ? tooltip.annotations[tooltip.index] : null
+})
+
+function tooltipCycle(delta: number) {
+  const tooltip = tooltipAnnotation.value
+  if (!tooltip) return
+  const total = tooltip.annotations.length
+  tooltip.index = (tooltip.index + delta + total) % total
+}
+
 async function onPreviewClick(event: MouseEvent) {
   tooltipAnnotation.value = null
   const tagName = previewHashtagName(event.target as Element | null)
@@ -660,7 +672,7 @@ defineExpose({
         @dblclick="resetSplitRatio"
       />
       <div
-        v-if="editorMode === 'reading' && annotationsVisible"
+        v-if="editorMode === 'reading'"
         class="reading-with-annotations"
       >
         <EditorPreviewPane
@@ -686,16 +698,18 @@ defineExpose({
           @find-close="previewFind.closeFind()"
         />
         <AnnotationPanel
+          v-show="annotationsVisible"
           :annotations="annotations"
           :visible="annotationsVisible"
           @update:visible="annotationsVisible = $event"
+          @select="scrollToAnnotation($event.id)"
           @deleted="onAnnotationDeleted"
         />
       </div>
       <EditorPreviewPane
-        v-else-if="editorMode !== 'editor'"
+        v-else-if="editorMode === 'split' || editorMode === 'preview'"
         ref="previewPaneRef"
-        :is-reading="editorMode === 'reading'"
+        :is-reading="false"
         :reading-theme="readingTheme"
         :show-toc="previewHasToc"
         :reading-toc-items="readingTocItems"
@@ -752,17 +766,36 @@ defineExpose({
       :style="{ left: tooltipAnnotation.x + 'px', top: tooltipAnnotation.y + 'px' }"
       @click.stop="tooltipAnnotation = null"
     >
-      <div class="tooltip-text">
-        <q>{{ tooltipAnnotation.annotation.highlightedText }}</q>
-      </div>
-      <AnnotationComment
-        v-if="tooltipAnnotation.annotation.comment"
-        :comment="tooltipAnnotation.annotation.comment"
-        bare
-        class="tooltip-comment"
-      />
-      <div class="tooltip-meta">
-        <span>{{ tooltipAnnotation.annotation.createdBy }}</span>
+      <template v-if="tooltipCurrent">
+        <div class="tooltip-text">
+          <q>{{ tooltipCurrent.highlightedText }}</q>
+        </div>
+        <AnnotationComment
+          v-if="tooltipCurrent.comment"
+          :comment="tooltipCurrent.comment"
+          bare
+          class="tooltip-comment"
+        />
+        <div class="tooltip-meta">
+          <span>{{ tooltipCurrent.createdBy }}</span>
+        </div>
+      </template>
+      <div v-if="tooltipAnnotation.annotations.length > 1" class="tooltip-pager">
+        <button
+          type="button"
+          class="tooltip-pager-btn"
+          @click.stop="tooltipCycle(-1)"
+        >
+          ‹
+        </button>
+        <span class="tooltip-pager-counter">{{ tooltipAnnotation.index + 1 }} / {{ tooltipAnnotation.annotations.length }}</span>
+        <button
+          type="button"
+          class="tooltip-pager-btn"
+          @click.stop="tooltipCycle(1)"
+        >
+          ›
+        </button>
       </div>
     </div>
   </div>
@@ -1165,6 +1198,15 @@ defineExpose({
   filter: brightness(0.85);
 }
 
+:deep(.annotation-highlight.annotation-flash) {
+  animation: annotation-flash 1.2s ease;
+}
+
+@keyframes annotation-flash {
+  0%, 100% { opacity: 1; }
+  40% { opacity: 0.35; }
+}
+
 .annotation-tooltip {
   position: fixed;
   z-index: 600;
@@ -1200,6 +1242,39 @@ defineExpose({
   margin-top: 4px;
   font-size: 10px;
   color: var(--color-text-faint);
+}
+
+.annotation-tooltip .tooltip-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.annotation-tooltip .tooltip-pager-btn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.annotation-tooltip .tooltip-pager-btn:hover {
+  background: var(--color-bg-hover);
+}
+
+.annotation-tooltip .tooltip-pager-counter {
+  font-size: 11px;
+  color: var(--color-text-muted);
 }
 
 @media (max-width: 768px) {

@@ -2,6 +2,7 @@ import { nextTick, ref } from 'vue'
 import { listAnnotations } from '@/api/annotations'
 import type { Annotation } from '@/types'
 import { getPageSlugFromUrl } from '@/utils/pageSlug'
+import { groupAnnotationsByText } from '@/utils/groupAnnotations'
 import type { EditorMode } from './editorPreferences'
 
 export interface AnnotationsOptions {
@@ -16,7 +17,7 @@ export function useAnnotations(options: AnnotationsOptions) {
   const annotationPopup = ref<{ selectedText: string; anchorContext: string; x: number; y: number } | null>(null)
   const floatingBtn = ref<{ x: number; y: number } | null>(null)
   const pendingAnnotation = ref<{ text: string; context: string } | null>(null)
-  const tooltipAnnotation = ref<{ annotation: Annotation; x: number; y: number } | null>(null)
+  const tooltipAnnotation = ref<{ annotations: Annotation[]; index: number; x: number; y: number } | null>(null)
   let annotationHighlightSpans: HTMLSpanElement[] = []
   let touchEndTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -49,15 +50,17 @@ export function useAnnotations(options: AnnotationsOptions) {
     const container = options.getPreviewContentElement()
     if (!container) return
 
-    for (const annotation of annotations.value) {
-      const text = annotation.highlightedText
-      if (!text) continue
-      const color = annotation.color || '#ffeb3b'
-      highlightTextInNode(container, text, color)
+    for (const group of groupAnnotationsByText(annotations.value)) {
+      const groupAnnotations = group.ids
+        .map((id) => annotations.value.find((a) => a.id === id))
+        .filter((a): a is Annotation => a !== undefined)
+      if (groupAnnotations.length === 0) continue
+      const color = groupAnnotations[0].color || '#ffeb3b'
+      highlightTextInNode(container, group.text, color, groupAnnotations)
     }
   }
 
-  function highlightTextInNode(root: HTMLElement, searchText: string, color: string) {
+  function highlightTextInNode(root: HTMLElement, searchText: string, color: string, groupAnnotations: Annotation[]) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) => {
         if (!node.textContent || !node.textContent.includes(searchText)) return NodeFilter.FILTER_REJECT
@@ -91,17 +94,17 @@ export function useAnnotations(options: AnnotationsOptions) {
       markEl.style.borderRadius = '2px'
       markEl.style.padding = '0 1px'
       markEl.dataset.annotationText = searchText
+      markEl.dataset.annotationIds = JSON.stringify(groupAnnotations.map((a) => a.id))
       markEl.textContent = match
       const afterNode = document.createTextNode(after)
 
       annotationHighlightSpans.push(markEl)
       markEl.addEventListener('click', (e) => {
         e.stopPropagation()
-        const ann = annotations.value.find(a => a.highlightedText === searchText)
-        if (!ann) return
         const rect = (e.target as HTMLElement).getBoundingClientRect()
         tooltipAnnotation.value = {
-          annotation: ann,
+          annotations: groupAnnotations,
+          index: 0,
           x: rect.left + rect.width / 2,
           y: rect.top - 8
         }
@@ -229,5 +232,26 @@ export function useAnnotations(options: AnnotationsOptions) {
     onAnnotationDeleted,
     handleModeChange,
     dispose
+  }
+}
+
+/** Скроллит к подсветке аннотации по id и ненадолго мигает ей, чтобы показать место. */
+export function scrollToAnnotation(annotationId: string): void {
+  const marks = document.querySelectorAll<HTMLElement>('mark.annotation-highlight')
+  for (const markEl of Array.from(marks)) {
+    if (!parseAnnotationIds(markEl).includes(annotationId)) continue
+    markEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    markEl.classList.add('annotation-flash')
+    window.setTimeout(() => markEl.classList.remove('annotation-flash'), 1200)
+    break
+  }
+}
+
+function parseAnnotationIds(markEl: HTMLElement): string[] {
+  try {
+    const parsed: unknown = JSON.parse(markEl.dataset.annotationIds || '[]')
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []
+  } catch {
+    return []
   }
 }
