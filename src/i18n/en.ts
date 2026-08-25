@@ -123,6 +123,7 @@ export const en = {
     pdfButton: 'Export PDF',
     pdfFailed: 'Failed to export PDF',
     pdfNoPreview: 'Unable to prepare preview for export',
+    mdButton: 'Export Markdown',
   },
   dialog: {
     ok: 'OK',

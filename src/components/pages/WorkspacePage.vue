@@ -6,6 +6,7 @@ import { useEditorUiStore } from '@/stores/editorUi'
 import type { EditorMode } from '@/components/editor/editorPreferences'
 import { useI18n } from 'vue-i18n'
 import { setFrontmatterField } from '@/utils/frontmatter'
+import { downloadPageMarkdown } from '@/utils/exportPageMarkdown'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
@@ -48,6 +49,14 @@ async function exportPdf() {
   } finally {
     exportingPdf.value = false
   }
+}
+
+function exportMarkdown() {
+  if (!page.value) return
+  downloadPageMarkdown({
+    filenameBase: page.value.slug || title.value,
+    contentMd: content.value
+  })
 }
 
 function onEditorModeChange(mode: EditorMode) {
@@ -113,6 +122,15 @@ function toggleLock() {
       </button>
       <button
         type="button"
+        class="md-export-btn"
+        :title="t('export.mdButton')"
+        :aria-label="t('export.mdButton')"
+        @click="exportMarkdown"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no">markdown</span>
+      </button>
+      <button
+        type="button"
         class="pdf-export-btn"
         :disabled="exportingPdf"
         :title="t('export.pdfButton')"
@@ -145,6 +163,7 @@ function toggleLock() {
         @update:modelValue="onContentChange"
         @save="onEditorSave"
         @mode-change="onEditorModeChange"
+        @export-markdown="exportMarkdown"
       />
     </div>
 
@@ -295,6 +314,7 @@ function toggleLock() {
   flex-shrink: 0;
 }
 
+.md-export-btn,
 .pdf-export-btn,
 .graph-toggle {
   display: flex;
@@ -312,6 +332,7 @@ function toggleLock() {
   flex-shrink: 0;
 }
 
+.md-export-btn:hover,
 .pdf-export-btn:hover:not(:disabled),
 .graph-toggle:hover {
   color: var(--color-text);
@@ -323,6 +344,7 @@ function toggleLock() {
   cursor: not-allowed;
 }
 
+.md-export-btn .material-symbols-outlined,
 .pdf-export-btn .material-symbols-outlined {
   font-size: 18px;
   line-height: 1;

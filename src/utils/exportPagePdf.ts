@@ -1,4 +1,6 @@
-import html2canvas from 'html2canvas'
+// html2canvas 1.4 cannot parse CSS Color 4 (`color()`, oklch, …); Safari/Chrome
+// serialize computed styles as color(srgb …) and abort PDF export.
+import html2canvas from 'html2canvas-pro'
 import { jsPDF } from 'jspdf'
 import { i18n } from '@/i18n'
 

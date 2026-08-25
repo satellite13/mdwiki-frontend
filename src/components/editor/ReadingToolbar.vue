@@ -24,6 +24,7 @@ const emit = defineEmits<{
   find: []
   exit: []
   exportPdf: []
+  exportMarkdown: []
 }>()
 
 const themeOptions = computed<Array<{ id: ReadingTheme; ariaLabel: string; title: string; className: string }>>(() => [
@@ -105,6 +106,15 @@ function toggleToc() {
       @click="emit('find')"
     >
       <span class="material-symbols-outlined notranslate" translate="no">search</span>
+    </button>
+    <button
+      type="button"
+      class="reading-export-btn"
+      :title="t('export.mdButton')"
+      :aria-label="t('export.mdButton')"
+      @click="emit('exportMarkdown')"
+    >
+      <span class="material-symbols-outlined notranslate" translate="no">markdown</span>
     </button>
     <button
       type="button"

@@ -123,6 +123,7 @@ export const ru = {
     pdfButton: 'Экспорт PDF',
     pdfFailed: 'Не удалось экспортировать PDF',
     pdfNoPreview: 'Не удалось подготовить превью для экспорта',
+    mdButton: 'Экспорт Markdown',
   },
   dialog: {
     ok: 'OK',

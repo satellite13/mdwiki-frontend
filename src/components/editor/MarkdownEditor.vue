@@ -74,6 +74,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
   'save': []
   'mode-change': [mode: EditorMode]
+  'exportMarkdown': []
 }>()
 
 const themeStore = useThemeStore()
@@ -622,6 +623,7 @@ defineExpose({
           @find="openEditorFind"
           @exit="exitReadingMode"
           @export-pdf="exportToPdf"
+          @export-markdown="emit('exportMarkdown')"
         />
       </template>
       <template v-else>
