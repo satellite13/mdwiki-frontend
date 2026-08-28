@@ -5,7 +5,7 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useEditorUiStore } from '@/stores/editorUi'
 import type { EditorMode } from '@/components/editor/editorPreferences'
 import { useI18n } from 'vue-i18n'
-import { setFrontmatterField } from '@/utils/frontmatter'
+import { setFrontmatterField, isFrontmatterLocked } from '@/utils/frontmatter'
 import { downloadPageMarkdown } from '@/utils/exportPageMarkdown'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
@@ -32,6 +32,7 @@ const {
   onContentChange,
   onTitleInput,
   onEditorSave,
+  doSave,
   clearSaveError,
   toggleGraph
 } = useWorkspacePage()
@@ -40,6 +41,7 @@ const editorUi = useEditorUiStore()
 const { isMobile } = useBreakpoint()
 const editorRef = ref<MarkdownEditorHandle | null>(null)
 const exportingPdf = ref(false)
+const lockBusy = ref(false)
 
 async function exportPdf() {
   if (!editorRef.value?.exportToPdf || exportingPdf.value) return
@@ -73,15 +75,29 @@ watch(page, (nextPage) => {
   }
 })
 
-const isLocked = computed(() => page.value?.locked ?? false)
+const isLocked = computed(() => {
+  if (isFrontmatterLocked(content.value)) return true
+  return page.value?.locked ?? false
+})
 
-function toggleLock() {
-  if (!page.value) return
-  const newLocked = !page.value.locked
-  const newContent = setFrontmatterField(content.value, 'locked', newLocked)
+async function toggleLock() {
+  if (!page.value || lockBusy.value) return
+  const prevContent = content.value
+  const currentlyLocked = isLocked.value
+  const newLocked = !currentlyLocked
+  const newContent = setFrontmatterField(prevContent, 'locked', newLocked)
+  if (newContent === prevContent) return
+
+  lockBusy.value = true
   content.value = newContent
-  page.value = { ...page.value, locked: newLocked }
-  onEditorSave()
+  try {
+    const ok = await doSave()
+    if (!ok) {
+      content.value = prevContent
+    }
+  } finally {
+    lockBusy.value = false
+  }
 }
 </script>
 
@@ -108,51 +124,56 @@ function toggleLock() {
         :placeholder="t('workspace.pageTitle')"
         :disabled="isLocked"
       />
-      <span v-if="isDirty()" class="unsaved-dot" :title="t('workspace.unsavedChanges')"></span>
-      <span v-if="saveError" class="save-error" @click="clearSaveError">{{ saveError }}</span>
-      <button
-        type="button"
-        class="lock-btn"
-        :class="{ locked: isLocked }"
-        :title="isLocked ? t('workspace.unlockPage') : t('workspace.lockPageReadonly')"
-        :aria-label="isLocked ? t('workspace.unlockPage') : t('workspace.lockPage')"
-        @click="toggleLock"
-      >
-        <span class="material-symbols-outlined notranslate" translate="no">{{ isLocked ? 'lock' : 'lock_open' }}</span>
-      </button>
-      <button
-        type="button"
-        class="md-export-btn"
-        :title="t('export.mdButton')"
-        :aria-label="t('export.mdButton')"
-        @click="exportMarkdown"
-      >
-        <span class="material-symbols-outlined notranslate" translate="no">markdown</span>
-      </button>
-      <button
-        type="button"
-        class="pdf-export-btn"
-        :disabled="exportingPdf"
-        :title="t('export.pdfButton')"
-        :aria-label="t('export.pdfButton')"
-        @click="exportPdf"
-      >
-        <span class="material-symbols-outlined notranslate" translate="no">picture_as_pdf</span>
-      </button>
-      <button
-        class="graph-toggle"
-        @click="toggleGraph"
-        :title="showGraph ? t('workspace.graphHide') : t('workspace.graphShow')"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" :stroke="showGraph ? 'var(--color-primary)' : 'currentColor'" stroke-width="2">
-          <circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/>
-          <line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="7.5"/>
-        </svg>
-      </button>
-      <span :class="['save-status', saveStatus]">
-        <template v-if="saveStatus === 'saving'">{{ t('common.saving') }}</template>
-        <template v-else-if="saveStatus === 'saved'">{{ t('workspace.saved') }}</template>
-      </span>
+      <div class="header-actions">
+        <div class="save-slot" aria-live="polite">
+          <span v-if="isDirty()" class="unsaved-dot" :title="t('workspace.unsavedChanges')"></span>
+          <span v-if="saveError" class="save-error" @click="clearSaveError">{{ saveError }}</span>
+          <span v-else :class="['save-status', saveStatus]">
+            <template v-if="saveStatus === 'saving'">{{ t('common.saving') }}</template>
+            <template v-else-if="saveStatus === 'saved'">{{ t('workspace.saved') }}</template>
+          </span>
+        </div>
+        <button
+          type="button"
+          class="lock-btn"
+          :class="{ locked: isLocked }"
+          :disabled="lockBusy"
+          :title="isLocked ? t('workspace.unlockPage') : t('workspace.lockPageReadonly')"
+          :aria-label="isLocked ? t('workspace.unlockPage') : t('workspace.lockPage')"
+          @click="toggleLock"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no">{{ isLocked ? 'lock' : 'lock_open' }}</span>
+        </button>
+        <button
+          type="button"
+          class="md-export-btn"
+          :title="t('export.mdButton')"
+          :aria-label="t('export.mdButton')"
+          @click="exportMarkdown"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no">markdown</span>
+        </button>
+        <button
+          type="button"
+          class="pdf-export-btn"
+          :disabled="exportingPdf"
+          :title="t('export.pdfButton')"
+          :aria-label="t('export.pdfButton')"
+          @click="exportPdf"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no">picture_as_pdf</span>
+        </button>
+        <button
+          class="graph-toggle"
+          @click="toggleGraph"
+          :title="showGraph ? t('workspace.graphHide') : t('workspace.graphShow')"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" :stroke="showGraph ? 'var(--color-primary)' : 'currentColor'" stroke-width="2">
+            <circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/>
+            <line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="7.5"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="editor-area">
@@ -222,8 +243,26 @@ function toggleLock() {
   margin-bottom: 12px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.save-slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 8.5rem;
+  min-height: 32px;
+  margin-right: 4px;
+}
+
 .title-input {
   flex: 1;
+  min-width: 0;
   font-size: 28px;
   font-weight: 700;
   border: none;
@@ -264,6 +303,11 @@ function toggleLock() {
   background: var(--color-bg-hover);
 }
 
+.lock-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .lock-btn.locked {
   color: var(--color-primary);
   border-color: var(--color-primary);
@@ -281,7 +325,7 @@ function toggleLock() {
 .save-status {
   font-size: 12px;
   color: var(--color-text-muted);
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .save-status.saved {
@@ -311,7 +355,10 @@ function toggleLock() {
   font-size: 12px;
   color: #e53e3e;
   cursor: pointer;
-  flex-shrink: 0;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .md-export-btn,

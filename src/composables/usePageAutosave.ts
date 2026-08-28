@@ -31,6 +31,7 @@ export function usePageAutosave(
   const isSaving = ref(false)
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   let statusResetTimer: ReturnType<typeof setTimeout> | null = null
+  let saveChain: Promise<unknown> = Promise.resolve()
 
   function isDirty() {
     return state.title.value !== state.lastSavedTitle.value || state.content.value !== state.lastSavedContentMd.value
@@ -68,47 +69,57 @@ export function usePageAutosave(
     }, 2000)
   }
 
-  async function doSave() {
-    if (!state.page.value) return
-    if (isSaving.value) return
-    clearSaveTimer()
-    if (!isDirty()) return
-    isSaving.value = true
-    saveStatus.value = 'saving'
-    saveError.value = null
-    const prevTitle = state.lastSavedTitle.value
-    const prevSlug = state.page.value.slug
-    try {
-      const { data: updatedPage } = await pagesApi.updatePage(state.page.value.slug, {
-        title: state.title.value,
-        contentMd: state.content.value,
-        clearFolder: false,
-        expectedUpdatedAt: state.page.value.updatedAt
-      })
-      state.page.value = updatedPage
-      state.lastSavedTitle.value = updatedPage.title
-      state.lastSavedContentMd.value = updatedPage.contentMd || ''
-      if (updatedPage.slug !== prevSlug) {
-        await deps.router.replace(`/page/${encodeURIComponent(updatedPage.slug)}`)
+  async function doSave(): Promise<boolean> {
+    const run = async (): Promise<boolean> => {
+      if (!state.page.value) return false
+      clearSaveTimer()
+      if (!isDirty()) return true
+      isSaving.value = true
+      saveStatus.value = 'saving'
+      saveError.value = null
+      const prevTitle = state.lastSavedTitle.value
+      const prevSlug = state.page.value.slug
+      try {
+        const { data: updatedPage } = await pagesApi.updatePage(state.page.value.slug, {
+          title: state.title.value,
+          contentMd: state.content.value,
+          clearFolder: false,
+          expectedUpdatedAt: state.page.value.updatedAt
+        })
+        state.page.value = updatedPage
+        state.lastSavedTitle.value = updatedPage.title
+        state.lastSavedContentMd.value = updatedPage.contentMd || ''
+        if (updatedPage.slug !== prevSlug) {
+          await deps.router.replace(`/page/${encodeURIComponent(updatedPage.slug)}`)
+        }
+        if (updatedPage.title !== prevTitle || updatedPage.slug !== prevSlug) {
+          await deps.fetchTree()
+        }
+        saveStatus.value = 'saved'
+        clearStatusResetTimer()
+        statusResetTimer = setTimeout(() => {
+          if (saveStatus.value === 'saved') saveStatus.value = 'idle'
+          statusResetTimer = null
+        }, 2000)
+        return true
+      } catch (e) {
+        saveStatus.value = 'idle'
+        saveError.value = isApiErrorWithStatus(e, 409)
+          ? t('errors.pageChangedElsewhere')
+          : getApiErrorMessage(e, t('errors.savePageFailed'))
+        console.error('Failed to save page:', e)
+        return false
+      } finally {
+        isSaving.value = false
       }
-      if (updatedPage.title !== prevTitle || updatedPage.slug !== prevSlug) {
-        await deps.fetchTree()
-      }
-      saveStatus.value = 'saved'
-      clearStatusResetTimer()
-      statusResetTimer = setTimeout(() => {
-        if (saveStatus.value === 'saved') saveStatus.value = 'idle'
-        statusResetTimer = null
-      }, 2000)
-    } catch (e) {
-      saveStatus.value = 'idle'
-      saveError.value = isApiErrorWithStatus(e, 409)
-        ? t('errors.pageChangedElsewhere')
-        : getApiErrorMessage(e, t('errors.savePageFailed'))
-      console.error('Failed to save page:', e)
-    } finally {
-      isSaving.value = false
     }
+
+    const result = saveChain.then(run, run)
+    saveChain = result.then(
+      () => undefined,
+      () => undefined
+    )
+    return result
   }
 
   async function flushPendingSave() {

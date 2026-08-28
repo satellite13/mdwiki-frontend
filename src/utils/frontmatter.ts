@@ -110,3 +110,20 @@ export function setFrontmatterField(markdown: string, key: string, value: boolea
   }
   return src
 }
+
+/** Есть ли в YAML frontmatter поле `locked: true`. */
+export function isFrontmatterLocked(markdown: string): boolean {
+  const src = markdown ?? ''
+  const lines = src.split(/\r?\n/)
+  const firstLine = (lines[0] ?? '').replace(/^\uFEFF/, '')
+  if (!isFenceLine(firstLine)) return false
+
+  const scanEnd = Math.min(lines.length, 1 + MAX_FRONTMATTER_LINES)
+  for (let i = 1; i < scanEnd; i++) {
+    if (!isFenceLine(lines[i] ?? '')) continue
+    const inner = lines.slice(1, i)
+    if (!innerLooksLikeYamlBlock(inner)) continue
+    return inner.some((ln) => /^\s*locked\s*:\s*true\s*$/.test(ln))
+  }
+  return false
+}

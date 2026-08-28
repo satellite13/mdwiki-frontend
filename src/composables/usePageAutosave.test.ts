@@ -89,11 +89,24 @@ describe('usePageAutosave', () => {
     )
     const { wrapper, state } = mountAutosave(page())
 
-    await wrapper.vm.doSave()
+    const ok = await wrapper.vm.doSave()
     await flushPromises()
 
+    expect(ok).toBe(false)
     expect(state.lastSavedContentMd.value).toBe('hello')
     expect(state.content.value).toBe('hello changed')
     expect(wrapper.vm.saveError).toContain('changed elsewhere')
+  })
+
+  it('returns true after a successful save', async () => {
+    mockUpdatePage.mockResolvedValue({
+      data: page({ contentMd: 'hello changed', updatedAt: '2026-08-15T10:01:00Z' })
+    })
+    const { wrapper } = mountAutosave(page())
+
+    const ok = await wrapper.vm.doSave()
+    await flushPromises()
+
+    expect(ok).toBe(true)
   })
 })

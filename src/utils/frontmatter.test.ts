@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { setFrontmatterField, stripMarkdownFrontmatter } from './frontmatter'
+import { isFrontmatterLocked, setFrontmatterField, stripMarkdownFrontmatter } from './frontmatter'
 
 describe('stripMarkdownFrontmatter', () => {
   it('removes a simple YAML frontmatter block at the start', () => {
@@ -97,5 +97,18 @@ describe('setFrontmatterField', () => {
   it('returns source unchanged when removing a missing key', () => {
     const src = '---\ntitle: Doc\n---\n\nbody'
     expect(setFrontmatterField(src, 'locked', false)).toBe(src)
+  })
+})
+
+describe('isFrontmatterLocked', () => {
+  it('detects locked: true in frontmatter', () => {
+    expect(isFrontmatterLocked('---\nlocked: true\n---\n\nbody')).toBe(true)
+    expect(isFrontmatterLocked('---\ntitle: Doc\nlocked: true\n---\n\nbody')).toBe(true)
+  })
+
+  it('is false when locked is absent or false', () => {
+    expect(isFrontmatterLocked('---\ntitle: Doc\n---\n\nbody')).toBe(false)
+    expect(isFrontmatterLocked('---\nlocked: false\n---\n\nbody')).toBe(false)
+    expect(isFrontmatterLocked('# no frontmatter')).toBe(false)
   })
 })
