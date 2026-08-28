@@ -6,7 +6,7 @@ wikilinks, open tasks, and a broken-links page.
 
 Русская версия: `README.ru.md`
 
-Current version: **v0.1.14** (see the git tag; in the UI — `git describe` on the profile page).
+Current version: **v0.1.15** (see the git tag; in the UI — `git describe` on the profile page).
 
 ## Stack
 
