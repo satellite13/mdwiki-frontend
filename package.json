@@ -16,8 +16,6 @@
     "dompurify": "^3.4.12",
     "event-source-polyfill": "^1.0.31",
     "highlight.js": "^11.11.1",
-    "html2canvas-pro": "^2.4.0",
-    "jspdf": "^4.2.1",
     "markdown-it": "^14.1.1",
     "markdown-it-anchor": "^9.2.0",
     "markdown-it-mark": "^4.0.0",

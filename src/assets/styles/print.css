@@ -2,7 +2,25 @@
    Print & PDF Export Styles
    ============================================ */
 
-/* ---------- PDF export host (button-triggered via html2canvas + jsPDF) ---------- */
+/* ---------- Isolated print document (main-window window.print) ---------- */
+
+.pdf-print-frame {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 794px;
+  border: 0;
+  z-index: -1;
+}
+
+@media screen {
+  [data-pdf-print-host] {
+    position: absolute;
+    left: -10000px;
+    top: 0;
+    width: 794px;
+  }
+}
 
 .pdf-export-host {
   font-family: var(--font-body);
@@ -168,14 +186,58 @@
 /* ---------- @media print (browser Cmd+P) ---------- */
 
 @media print {
-  *,
-  *::before,
-  *::after {
+  html:not(.pdf-print-root) *,
+  html:not(.pdf-print-root) *::before,
+  html:not(.pdf-print-root) *::after {
     background: #ffffff !important;
     color: #000000 !important;
     box-shadow: none !important;
     text-shadow: none !important;
     border-radius: 0 !important;
+  }
+
+  .pdf-print-root,
+  .pdf-print-root body {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #ffffff;
+    color: #24292f;
+  }
+
+  .pdf-print-root #app {
+    display: none !important;
+  }
+
+  .pdf-print-root [data-pdf-print-host] {
+    position: static !important;
+    left: auto !important;
+    width: auto !important;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+    overflow: visible !important;
+  }
+
+  .pdf-print-root img,
+  .pdf-print-root blockquote {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .pdf-print-root .mermaid,
+  .pdf-print-root .structurizr,
+  .pdf-print-root pre,
+  .pdf-print-root table {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .pdf-print-root .mermaid svg,
+  .pdf-print-root .structurizr svg {
+    max-width: 100%;
+    height: auto;
   }
 
   .app-header,
@@ -186,6 +248,11 @@
   .workspace-header,
   .graph-toggle,
   .backlinks-panel,
+  .toolbar,
+  .reading-logo,
+  .reading-title,
+  .reading-controls,
+  .reading-toc,
   .pdf-export-btn,
   .md-export-btn,
   .heading-copy-btn,

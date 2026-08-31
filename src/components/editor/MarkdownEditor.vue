@@ -6,7 +6,7 @@ import { useThemeStore } from '@/stores/theme'
 import { previewHashtagName } from '@/utils/previewHashtag'
 import { uploadAttachment } from '@/api/attachments'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { downloadPagePdf } from '@/utils/exportPagePdf'
+import { printPagePdf } from '@/utils/exportPagePdf'
 import { useI18n } from 'vue-i18n'
 import { readString, writeString } from '@/utils/localPreferences'
 import { useEditorHistory } from '@/composables/useEditorHistory'
@@ -453,7 +453,6 @@ async function exportToPdf() {
       await refreshPreview()
       await nextTick()
     } else {
-      await renderPreviewDiagrams()
       await nextTick()
     }
 
@@ -463,7 +462,7 @@ async function exportToPdf() {
       return
     }
 
-    await downloadPagePdf({
+    await printPagePdf({
       title: props.readingTitle || t('common.untitled'),
       contentElement: content
     })
