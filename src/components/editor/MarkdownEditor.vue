@@ -6,7 +6,7 @@ import { useThemeStore } from '@/stores/theme'
 import { previewHashtagName } from '@/utils/previewHashtag'
 import { uploadAttachment } from '@/api/attachments'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { printPagePdf } from '@/utils/exportPagePdf'
+import { openPdfPrintWindow, printPagePdf } from '@/utils/exportPagePdf'
 import { useI18n } from 'vue-i18n'
 import { readString, writeString } from '@/utils/localPreferences'
 import { useEditorHistory } from '@/composables/useEditorHistory'
@@ -444,6 +444,11 @@ function getPreviewContentElement(): HTMLElement | null {
 
 async function exportToPdf() {
   if (exportingPdf.value) return
+  const printWindow = openPdfPrintWindow()
+  if (!printWindow) {
+    await dialog.alert(t('export.pdfPopupBlocked'))
+    return
+  }
   exportingPdf.value = true
   const previousMode = editorMode.value
   try {
@@ -458,15 +463,18 @@ async function exportToPdf() {
 
     const content = getPreviewContentElement()
     if (!content) {
+      printWindow.close()
       await dialog.alert(t('export.pdfNoPreview'))
       return
     }
 
     await printPagePdf({
       title: props.readingTitle || t('common.untitled'),
-      contentElement: content
+      contentElement: content,
+      targetWindow: printWindow
     })
   } catch (error) {
+    printWindow.close()
     await dialog.alert(getApiErrorMessage(error, t('export.pdfFailed')))
   } finally {
     if (previousMode === 'editor') {

@@ -123,6 +123,7 @@ export const en = {
     pdfButton: 'Export PDF',
     pdfFailed: 'Failed to export PDF',
     pdfNoPreview: 'Unable to prepare preview for export',
+    pdfPopupBlocked: 'The browser blocked the print window. Allow pop-ups for this site.',
     mdButton: 'Export Markdown',
   },
   dialog: {

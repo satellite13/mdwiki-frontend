@@ -50,6 +50,13 @@ export function createPdfPrintHost(title: string, contentElement: HTMLElement): 
   }
 
   host.append(body)
+
+  const slack = document.createElement('div')
+  slack.className = 'pdf-print-slack'
+  slack.setAttribute('data-pdf-print-slack', '')
+  slack.setAttribute('aria-hidden', 'true')
+  host.append(slack)
+
   return host
 }
 
@@ -69,8 +76,8 @@ function copyStylesInto(target: Document): void {
 const PDF_PRINT_UNLOCK_CSS = `
 html.pdf-print-root,
 html.pdf-print-root body,
-html.pdf-print-root .pdf-export-host,
-html.pdf-print-root .pdf-export-host * {
+html.pdf-print-root [data-pdf-print-host],
+html.pdf-print-root [data-pdf-print-host] * {
   height: auto !important;
   max-height: none !important;
   min-height: 0 !important;
@@ -85,10 +92,6 @@ function injectPrintUnlock(target: Document): void {
   target.head.appendChild(style)
 }
 
-function measurePrintDocumentHeight(doc: Document): number {
-  return Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, 1)
-}
-
 export function fillPdfPrintDocument(
   target: Document,
   title: string,
@@ -98,43 +101,30 @@ export function fillPdfPrintDocument(
   target.documentElement.classList.add('pdf-print-root')
   target.title = printTitle
   copyStylesInto(target)
-  target.body.className = 'pdf-export-host'
   target.body.replaceChildren()
   const host = createPdfPrintHost(title, contentElement)
-  Array.from(host.childNodes).forEach((node) => {
-    target.body.appendChild(target.importNode(node, true))
-  })
+  target.body.appendChild(target.importNode(host, true))
   injectPrintUnlock(target)
+}
+
+export function openPdfPrintWindow(): Window | null {
+  return window.open('', '_blank')
 }
 
 export async function printPagePdf(options: {
   title: string
   contentElement: HTMLElement
+  targetWindow?: Window
+  openWindow?: () => Window | null
   print?: (win: Window) => void
 }): Promise<void> {
-  const iframe = document.createElement('iframe')
-  iframe.className = 'pdf-print-frame'
-  iframe.setAttribute('aria-hidden', 'true')
-  Object.assign(iframe.style, {
-    position: 'fixed',
-    left: '0',
-    top: '0',
-    width: '794px',
-    height: '100vh',
-    border: '0',
-    zIndex: '-1'
-  })
-  document.body.appendChild(iframe)
-
-  const doc = iframe.contentDocument
-  const win = iframe.contentWindow
-  if (!doc || !win) {
-    iframe.remove()
-    throw new Error('print frame unavailable')
+  const opened =
+    options.targetWindow ?? (options.openWindow ?? openPdfPrintWindow)()
+  if (!opened) {
+    throw new Error(i18n.global.t('export.pdfPopupBlocked'))
   }
 
-  fillPdfPrintDocument(doc, options.title, options.contentElement)
-  iframe.style.height = `${measurePrintDocumentHeight(doc)}px`
+  fillPdfPrintDocument(opened.document, options.title, options.contentElement)
 
   await new Promise<void>((resolve, reject) => {
     let settled = false
@@ -142,17 +132,19 @@ export async function printPagePdf(options: {
       if (settled) return
       settled = true
       window.clearTimeout(timeoutId)
-      iframe.remove()
+      opened.removeEventListener('afterprint', finish)
+      if (opened !== window) opened.close()
       resolve()
     }
     const timeoutId = window.setTimeout(finish, 60_000)
-    win.addEventListener('afterprint', finish, { once: true })
+    opened.addEventListener('afterprint', finish, { once: true })
     try {
-      if (options.print) options.print(win)
-      else win.print()
+      if (options.print) options.print(opened)
+      else opened.print()
     } catch (error) {
       window.clearTimeout(timeoutId)
-      iframe.remove()
+      opened.removeEventListener('afterprint', finish)
+      if (opened !== window) opened.close()
       settled = true
       reject(error)
     }

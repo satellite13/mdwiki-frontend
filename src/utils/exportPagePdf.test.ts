@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { createPdfPrintHost, fillPdfPrintDocument, printPagePdf, sanitizePdfFilename } from './exportPagePdf'
+import { describe, expect, it, vi } from 'vitest'
+import { createPdfPrintHost, printPagePdf, sanitizePdfFilename } from './exportPagePdf'
 
 describe('sanitizePdfFilename', () => {
   it('returns page for empty title', () => {
@@ -51,78 +51,82 @@ describe('createPdfPrintHost', () => {
     expect(headings).toEqual(['Architecture'])
     expect(host.textContent).toContain('Body')
   })
-})
 
-describe('fillPdfPrintDocument', () => {
-  it('does not copy external font stylesheets into the print document', () => {
-    const fontLink = document.createElement('link')
-    fontLink.rel = 'stylesheet'
-    fontLink.href = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans'
-    document.head.appendChild(fontLink)
+  it('appends trailing slack so print can grow onto an extra page instead of clipping the last paragraph', () => {
+    const source = document.createElement('div')
+    source.innerHTML = '<p>Body</p>'
 
-    const source = document.createElement('article')
-    source.textContent = 'Hello'
-    const doc = document.implementation.createHTMLDocument('')
-    fillPdfPrintDocument(doc, 'Note', source)
+    const host = createPdfPrintHost('Note', source)
+    const slack = host.querySelector('[data-pdf-print-slack]')
 
-    const hrefs = Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).map(
-      (node) => (node as HTMLLinkElement).href
-    )
-    expect(hrefs.some((href) => href.includes('fonts.googleapis.com'))).toBe(false)
-
-    fontLink.remove()
-  })
-
-  it('injects an always-on overflow unlock so app CSS cannot clip the article to one page', () => {
-    const clip = document.createElement('style')
-    clip.textContent = 'html, body { height: 100%; overflow: hidden; }'
-    document.head.appendChild(clip)
-
-    const source = document.createElement('article')
-    source.innerHTML = Array.from({ length: 40 }, (_, index) => `<p>Paragraph ${index}</p>`).join('')
-    const doc = document.implementation.createHTMLDocument('')
-    fillPdfPrintDocument(doc, 'Note', source)
-
-    const unlock = doc.head.querySelector('[data-pdf-print-unlock]')
-    expect(unlock?.textContent).toMatch(/overflow:\s*visible\s*!important/)
-    expect(doc.body.textContent).toContain('Paragraph 39')
-    const unlockCss = unlock?.textContent ?? ''
-    expect(unlockCss.indexOf('@media')).toBe(-1)
-
-    clip.remove()
+    expect(slack).not.toBeNull()
+    expect(host.lastElementChild).toBe(slack)
   })
 })
+
+function createPrintTarget(): { win: Window; dispose: () => void } {
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('data-pdf-test-frame', '')
+  document.body.appendChild(iframe)
+  const win = iframe.contentWindow
+  if (!win) throw new Error('test print frame unavailable')
+  return {
+    win,
+    dispose: () => iframe.remove()
+  }
+}
 
 describe('printPagePdf', () => {
-  it('prints an iframe document sized to the full article, not the main window', async () => {
+  it('prints a dedicated document window with the full article, not the app window', async () => {
     const source = document.createElement('article')
     source.innerHTML = Array.from({ length: 40 }, (_, index) => `<p>Paragraph ${index}</p>`).join('')
     document.body.appendChild(source)
+    const { win: target, dispose } = createPrintTarget()
 
     let printedWindow: Window | null = null
     await printPagePdf({
       title: 'Note',
       contentElement: source,
+      targetWindow: target,
       print: (win) => {
         printedWindow = win
-        const frame = document.querySelector('iframe.pdf-print-frame') as HTMLIFrameElement | null
-        expect(win).not.toBe(window)
-        expect(win.document.title).toBe('Note')
-        expect(win.document.body.textContent).toContain('Paragraph 0')
-        expect(win.document.body.textContent).toContain('Paragraph 39')
-        expect(frame).not.toBeNull()
-        const contentHeight = Math.max(
-          win.document.documentElement.scrollHeight,
-          win.document.body.scrollHeight
-        )
-        expect(parseInt(frame!.style.height, 10)).toBeGreaterThanOrEqual(contentHeight)
+        const host = win.document.querySelector('[data-pdf-print-host]') as HTMLElement | null
+        expect(win === window).toBe(false)
+        expect(win).toBe(target)
+        expect(win.document.documentElement.classList.contains('pdf-print-root')).toBe(true)
+        expect(host).not.toBeNull()
+        expect(host?.textContent).toContain('Paragraph 0')
+        expect(host?.textContent).toContain('Paragraph 39')
+        expect(document.querySelector('[data-pdf-print-host]')).toBeNull()
         win.dispatchEvent(new Event('afterprint'))
       }
     })
 
-    expect(printedWindow).not.toBeNull()
-    expect(printedWindow).not.toBe(window)
-    expect(document.querySelector('iframe.pdf-print-frame')).toBeNull()
+    expect(printedWindow === target).toBe(true)
+    expect(document.documentElement.classList.contains('pdf-print-root')).toBe(false)
+    dispose()
+    source.remove()
+  })
+
+  it('opens the print window before filling so the click is not lost after preview work', async () => {
+    const source = document.createElement('article')
+    source.innerHTML = '<p>Hello</p>'
+    document.body.appendChild(source)
+    const { win: target, dispose } = createPrintTarget()
+    const openWindow = vi.fn(() => target)
+
+    await printPagePdf({
+      title: 'Note',
+      contentElement: source,
+      openWindow,
+      print: (win) => {
+        expect(openWindow).toHaveBeenCalledTimes(1)
+        expect(win).toBe(target)
+        win.dispatchEvent(new Event('afterprint'))
+      }
+    })
+
+    dispose()
     source.remove()
   })
 
@@ -133,11 +137,13 @@ describe('printPagePdf', () => {
     img.src = 'http://127.0.0.1:9/never-loads.png'
     source.append(document.createTextNode('Visible text'), img)
     document.body.appendChild(source)
+    const { win: target, dispose } = createPrintTarget()
 
     let printed = false
     await printPagePdf({
       title: 'Note',
       contentElement: source,
+      targetWindow: target,
       print: (win) => {
         printed = true
         win.dispatchEvent(new Event('afterprint'))
@@ -145,6 +151,7 @@ describe('printPagePdf', () => {
     })
 
     expect(printed).toBe(true)
+    dispose()
     source.remove()
   }, 1500)
 })
