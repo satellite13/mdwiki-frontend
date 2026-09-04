@@ -19,6 +19,7 @@ export const en = {
     noDocuments: 'No documents',
     addPage: 'Add page',
     addSubfolder: 'Add subfolder',
+    renameFolder: 'Rename folder',
     deleteFolder: 'Delete folder',
     deletePage: 'Delete page',
     importOverwritePrompt: 'Import {count} file(s). How should existing pages with the same slug be handled?',

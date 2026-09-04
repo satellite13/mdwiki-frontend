@@ -278,6 +278,7 @@ onMounted(async () => {
         :activeSlug="activeSlug"
         @selectPage="onSelectPage"
         @contextmenu="onContextMenu"
+        @rename="treeActions.renameFolderNode"
         @delete="onDeleteNode"
         @addPage="onAddPageToFolder"
         @addSubfolder="onAddSubfolder"

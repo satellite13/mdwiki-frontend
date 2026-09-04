@@ -18,6 +18,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   selectPage: [slug: string]
   contextmenu: [event: MouseEvent, node: FolderTreeNode]
+  rename: [node: FolderTreeNode]
   delete: [node: FolderTreeNode]
   addPage: [folderId: string]
   addSubfolder: [parentId: string]
@@ -85,6 +86,9 @@ function onContextMenu(e: MouseEvent) {
         <button class="node-action" :title="t('tree.addSubfolder')" @click="emit('addSubfolder', node.id)">
           <span class="material-symbols-outlined node-action-icon notranslate" translate="no">create_new_folder</span>
         </button>
+        <button class="node-action" :title="t('tree.renameFolder')" @click="emit('rename', node)">
+          <span class="material-symbols-outlined node-action-icon notranslate" translate="no">edit</span>
+        </button>
         <button class="node-action danger" :title="t('tree.deleteFolder')" @click="emit('delete', node)">
           <span class="material-symbols-outlined node-action-icon notranslate" translate="no">delete</span>
         </button>
@@ -102,6 +106,7 @@ function onContextMenu(e: MouseEvent) {
           :activeSlug="activeSlug"
           @selectPage="emit('selectPage', $event)"
           @contextmenu="emit('contextmenu', $event, child)"
+          @rename="emit('rename', $event)"
           @delete="emit('delete', $event)"
           @addPage="emit('addPage', $event)"
           @addSubfolder="emit('addSubfolder', $event)"

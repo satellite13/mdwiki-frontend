@@ -117,8 +117,8 @@ export function useTreeActions(options: UseTreeActionsOptions) {
     if (!newName || newName === node.name) return
     try {
       await folderStore.renameFolder(node.id, newName)
-    } catch {
-      await dialog.alert(t('errors.renameFolderFailed'))
+    } catch (error) {
+      await dialog.alert(getApiErrorMessage(error, t('errors.renameFolderFailed')))
     }
   }
 

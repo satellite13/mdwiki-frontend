@@ -19,6 +19,7 @@ export const ru = {
     noDocuments: 'Нет документов',
     addPage: 'Добавить страницу',
     addSubfolder: 'Добавить подпапку',
+    renameFolder: 'Переименовать папку',
     deleteFolder: 'Удалить папку',
     deletePage: 'Удалить страницу',
     importOverwritePrompt: 'Импортировать файлов: {count}. Как обработать существующие страницы с тем же slug?',
