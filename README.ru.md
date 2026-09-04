@@ -6,7 +6,7 @@ Markdown с превью, деревом документов, графом св
 
 English version: `README.md`
 
-Текущая версия: **v0.1.17** (см. git tag; в UI — `git describe` на странице профиля).
+Текущая версия: **v0.1.18** (см. git tag; в UI — `git describe` на странице профиля).
 
 [![CI](https://github.com/satellite13/mdwiki-frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/satellite13/mdwiki-frontend/actions/workflows/ci.yml)
 
