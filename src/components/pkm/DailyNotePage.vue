@@ -15,10 +15,14 @@ const loading = ref(true)
 const error = ref('')
 const missing = ref(false)
 let controller: AbortController | null = null
+let generation = 0
 
 watch(() => route.params.date, async (raw) => {
   controller?.abort()
-  controller = new AbortController()
+  const requestController = new AbortController()
+  controller = requestController
+  const requestId = ++generation
+  const current = () => requestId === generation && !requestController.signal.aborted
   const date = typeof raw === 'string' && raw ? raw : localIsoDate()
   loading.value = true
   error.value = ''
@@ -29,25 +33,26 @@ watch(() => route.params.date, async (raw) => {
     return
   }
   try {
-    const { data } = await api.getDailyNote(date, controller.signal)
-    await router.replace(`/page/${data.page.slug}`)
+    const { data } = await api.getDailyNote(date, requestController.signal)
+    if (current()) await router.replace(`/page/${data.page.slug}`)
   } catch (cause) {
+    if (!current()) return
     if (isApiErrorWithStatus(cause, 404)) {
       if (!auth.isEditor) {
         missing.value = true
       } else {
         try {
-          const { data } = await api.putDailyNote(date, controller.signal)
-          await router.replace(`/page/${data.page.slug}`)
+          const { data } = await api.putDailyNote(date, requestController.signal)
+          if (current()) await router.replace(`/page/${data.page.slug}`)
         } catch (createCause) {
-          error.value = getApiErrorMessage(createCause, t('pkm.dailyFailed'))
+          if (current()) error.value = getApiErrorMessage(createCause, t('pkm.dailyFailed'))
         }
       }
     } else if ((cause as { code?: string }).code !== 'ERR_CANCELED') {
       error.value = getApiErrorMessage(cause, t('pkm.dailyFailed'))
     }
   } finally {
-    loading.value = false
+    if (current()) loading.value = false
   }
 }, { immediate: true })
 </script>

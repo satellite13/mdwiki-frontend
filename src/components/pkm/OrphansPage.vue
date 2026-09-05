@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import * as api from '@/api/linkInsights'
 import type { OrphanDefinition, OrphanPage } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
+import DiscoveryNav from './DiscoveryNav.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,6 +39,7 @@ function change() {
 
 <template>
   <main class="pkm-list">
+    <DiscoveryNav />
     <h1>{{ t('pkm.orphans') }}</h1>
     <label>{{ t('pkm.definition') }}
       <select v-model="definition" @change="change">

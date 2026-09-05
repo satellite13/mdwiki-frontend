@@ -13,26 +13,31 @@ const loading = ref(false)
 const error = ref('')
 const mode = computed(() => route.name === 'favorites' ? 'favorites' : 'recent')
 let controller: AbortController | null = null
+let requestId = 0
 
 async function load() {
   controller?.abort()
   controller = new AbortController()
+  const id = ++requestId
+  const requestedMode = mode.value
   loading.value = true
   error.value = ''
   try {
-    if (mode.value === 'favorites') {
-      items.value = (await library.getFavorites(controller.signal)).data
+    let next: Item[]
+    if (requestedMode === 'favorites') {
+      next = (await library.getFavorites(controller.signal)).data
         .map((x) => ({ page: x.page, at: x.favoritedAt }))
     } else {
-      items.value = (await library.getRecent(50, controller.signal)).data
+      next = (await library.getRecent(50, controller.signal)).data
         .map((x) => ({ page: x.page, at: x.lastOpenedAt, count: x.openCount }))
     }
+    if (id === requestId && mode.value === requestedMode) items.value = next
   } catch (cause) {
-    if ((cause as { code?: string }).code !== 'ERR_CANCELED') {
+    if (id === requestId && (cause as { code?: string }).code !== 'ERR_CANCELED') {
       error.value = getApiErrorMessage(cause, t('pkm.libraryFailed'))
     }
   } finally {
-    loading.value = false
+    if (id === requestId) loading.value = false
   }
 }
 watch(mode, load, { immediate: true })

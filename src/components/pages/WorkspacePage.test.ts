@@ -14,6 +14,9 @@ const onEditorSave = vi.fn()
 const flushPendingSave = vi.fn()
 const loadPage = vi.fn()
 const getPageSections = vi.fn()
+const getFavorites = vi.fn()
+const addFavorite = vi.fn()
+const removeFavorite = vi.fn()
 const content = ref('# Title')
 const page = ref({
   id: '1',
@@ -37,6 +40,11 @@ vi.mock('vue-router', () => ({
 vi.mock('@/api/pages', () => ({
   updatePage: (...args: unknown[]) => updatePage(...args),
   getPageSections: (...args: unknown[]) => getPageSections(...args)
+}))
+vi.mock('@/api/library', () => ({
+  getFavorites: (...args: unknown[]) => getFavorites(...args),
+  addFavorite: (...args: unknown[]) => addFavorite(...args),
+  removeFavorite: (...args: unknown[]) => removeFavorite(...args)
 }))
 vi.mock('@/composables/useWorkspacePage', () => ({
   useWorkspacePage: () => ({
@@ -90,6 +98,9 @@ describe('WorkspacePage permissions', () => {
     getPageSections.mockResolvedValue({
       data: { slug: 'old-slug', updatedAt: '2026-09-05T10:00:00Z', sections: [] }
     })
+    getFavorites.mockResolvedValue({ data: [] })
+    addFavorite.mockResolvedValue(undefined)
+    removeFavorite.mockResolvedValue(undefined)
   })
 
   it('renders READER workspace without mutation controls and passes readonly', async () => {
@@ -189,5 +200,32 @@ describe('WorkspacePage permissions', () => {
     resolveOld({ data: { slug: 'old-slug', updatedAt: '2026-09-05T10:00:00Z', sections: [] } })
     await flushPromises()
     expect(wrapper.get('.markdown-editor-stub').attributes('data-section-slug')).toBe('new-page')
+  })
+
+  it('does not roll back favorite state on a different page', async () => {
+    let rejectOld!: (reason: unknown) => void
+    addFavorite.mockReturnValue(new Promise((_resolve, reject) => { rejectOld = reject }))
+    getFavorites.mockResolvedValue({ data: [{ page: { id: '2' } }] })
+    const wrapper = mountPage()
+    await flushPromises()
+    await wrapper.get('.favorite-btn').trigger('click')
+    page.value = { ...page.value, id: '2', slug: 'new-page' }
+    await flushPromises()
+    rejectOld(new Error('failed'))
+    await flushPromises()
+
+    expect(wrapper.get('.favorite-btn').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('optimistically toggles favorite and rolls back on failure', async () => {
+    let reject!: (reason: unknown) => void
+    addFavorite.mockReturnValue(new Promise((_resolve, fail) => { reject = fail }))
+    const wrapper = mountPage()
+    await flushPromises()
+    await wrapper.get('.favorite-btn').trigger('click')
+    expect(wrapper.get('.favorite-btn').attributes('aria-pressed')).toBe('true')
+    reject(new Error('failed'))
+    await flushPromises()
+    expect(wrapper.get('.favorite-btn').attributes('aria-pressed')).toBe('false')
   })
 })

@@ -8,6 +8,7 @@ import { getPages, invalidatePageIndex } from '@/services/pageIndex'
 import * as api from '@/api/linkInsights'
 import type { PageListItem, UnlinkedMention } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
+import DiscoveryNav from './DiscoveryNav.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -72,6 +73,7 @@ async function link(item: UnlinkedMention) {
 
 <template>
   <main class="pkm-list">
+    <DiscoveryNav />
     <h1>{{ t('pkm.unlinked') }}</h1>
     <label>{{ t('pkm.targetPage') }}
       <select v-model="target" @change="select">

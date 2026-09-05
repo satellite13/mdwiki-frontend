@@ -269,6 +269,10 @@ Authenticated users now have compact navigation for:
 - `/recent` and `/favorites` — personal page lists; the workspace star updates favorites optimistically;
 - `/links/unlinked` and `/links/orphans` — unlinked mention and orphan discovery. Readers can inspect results; Editors/Admins can convert a mention to a wiki-link.
 
+Both Discovery pages expose a keyboard-accessible local navigation with current-page state.
+Async Daily, library, page/backlink, recent and favorite operations use navigation-generation
+guards so delayed responses cannot overwrite the current route.
+
 Для авторизованных пользователей доступны:
 
 - `/inbox` — быстрый захват текста, ссылок и изображений; черновик сохраняется после ошибки;

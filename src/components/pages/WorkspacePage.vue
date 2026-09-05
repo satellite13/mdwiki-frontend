@@ -69,6 +69,7 @@ const routeSectionKey = computed(() =>
   typeof route.query.section === 'string' ? route.query.section : undefined
 )
 let sectionMapRequestId = 0
+let favoriteRequestId = 0
 
 async function exportPdf() {
   if (!editorRef.value?.exportToPdf || exportingPdf.value) return
@@ -97,6 +98,8 @@ onBeforeUnmount(() => {
 })
 
 watch(page, (nextPage) => {
+  const favoriteId = ++favoriteRequestId
+  favoriteBusy.value = false
   const requestId = ++sectionMapRequestId
   sectionMap.value = null
   if (!nextPage) {
@@ -105,7 +108,11 @@ watch(page, (nextPage) => {
   }
   favorite.value = false
   void libraryApi.getFavorites()
-    .then(({ data }) => { if (page.value?.id === nextPage.id) favorite.value = data.some((item) => item.page.id === nextPage.id) })
+    .then(({ data }) => {
+      if (favoriteId === favoriteRequestId && page.value?.id === nextPage.id) {
+        favorite.value = data.some((item) => item.page.id === nextPage.id)
+      }
+    })
     .catch(() => undefined)
   const pageVersion = `${nextPage.slug}:${nextPage.updatedAt}`
   void pagesApi.getPageSections(nextPage.slug)
@@ -126,17 +133,21 @@ watch(page, (nextPage) => {
 
 async function toggleFavorite() {
   if (!page.value || favoriteBusy.value) return
+  const pageId = page.value.id
+  const requestId = favoriteRequestId
   const previous = favorite.value
   favorite.value = !previous
   favoriteBusy.value = true
   try {
-    if (favorite.value) await libraryApi.addFavorite(page.value.id)
-    else await libraryApi.removeFavorite(page.value.id)
+    if (favorite.value) await libraryApi.addFavorite(pageId)
+    else await libraryApi.removeFavorite(pageId)
   } catch (error) {
-    favorite.value = previous
-    await dialog.alert(getApiErrorMessage(error, t('pkm.favoriteFailed')))
+    if (requestId === favoriteRequestId && page.value?.id === pageId) {
+      favorite.value = previous
+      await dialog.alert(getApiErrorMessage(error, t('pkm.favoriteFailed')))
+    }
   } finally {
-    favoriteBusy.value = false
+    if (requestId === favoriteRequestId && page.value?.id === pageId) favoriteBusy.value = false
   }
 }
 
