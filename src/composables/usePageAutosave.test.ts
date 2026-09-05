@@ -149,4 +149,62 @@ describe('usePageAutosave', () => {
     expect(state.lastSavedContentMd.value).toBe('hello')
     expect(mockUpdatePage).toHaveBeenCalledTimes(1)
   })
+
+  it('drains edits made during an in-flight save through a second snapshot', async () => {
+    let resolveFirst!: (value: unknown) => void
+    let resolveSecond!: (value: unknown) => void
+    mockUpdatePage
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve }))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveSecond = resolve }))
+    const { wrapper, state } = mountAutosave(page(), 'first edit')
+
+    void wrapper.vm.doSave()
+    await flushPromises()
+    wrapper.vm.onContentChange('second edit')
+    const flush = wrapper.vm.flushPendingSave()
+
+    resolveFirst({
+      data: page({ contentMd: 'first edit', updatedAt: '2026-08-15T10:01:00Z' })
+    })
+    await flushPromises()
+    expect(mockUpdatePage).toHaveBeenNthCalledWith(2, 'note', {
+      title: 'Note',
+      contentMd: 'second edit',
+      clearFolder: false,
+      expectedUpdatedAt: '2026-08-15T10:01:00Z'
+    })
+
+    let drained = false
+    void flush.then(() => { drained = true })
+    await flushPromises()
+    expect(drained).toBe(false)
+    resolveSecond({
+      data: page({ contentMd: 'second edit', updatedAt: '2026-08-15T10:02:00Z' })
+    })
+
+    expect(await flush).toBe(true)
+    expect(state.content.value).toBe('second edit')
+    expect(state.lastSavedContentMd.value).toBe('second edit')
+  })
+
+  it('stops draining after a conflict and keeps the newest local edit dirty', async () => {
+    let resolveFirst!: (value: unknown) => void
+    mockUpdatePage
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve }))
+      .mockRejectedValueOnce(new Error('conflict'))
+    const { wrapper, state } = mountAutosave(page(), 'first edit')
+
+    void wrapper.vm.doSave()
+    await flushPromises()
+    wrapper.vm.onContentChange('second edit')
+    const flush = wrapper.vm.flushPendingSave()
+    resolveFirst({
+      data: page({ contentMd: 'first edit', updatedAt: '2026-08-15T10:01:00Z' })
+    })
+
+    expect(await flush).toBe(false)
+    expect(mockUpdatePage).toHaveBeenCalledTimes(2)
+    expect(state.content.value).toBe('second edit')
+    expect(state.lastSavedContentMd.value).toBe('first edit')
+  })
 })

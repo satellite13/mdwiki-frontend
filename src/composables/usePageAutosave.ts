@@ -33,6 +33,7 @@ export function usePageAutosave(
   let statusResetTimer: ReturnType<typeof setTimeout> | null = null
   let saveChain: Promise<unknown> = Promise.resolve()
   let pendingSave: Promise<boolean> | null = null
+  let pendingFlush: Promise<boolean> | null = null
 
   function isDirty() {
     return state.title.value !== state.lastSavedTitle.value || state.content.value !== state.lastSavedContentMd.value
@@ -127,11 +128,26 @@ export function usePageAutosave(
     return result
   }
 
-  async function flushPendingSave(): Promise<boolean> {
-    clearSaveTimer()
-    if (pendingSave) return pendingSave
-    if (isDirty()) return doSave()
-    return true
+  function flushPendingSave(): Promise<boolean> {
+    if (pendingFlush) return pendingFlush
+    const drain = async (): Promise<boolean> => {
+      while (true) {
+        clearSaveTimer()
+        const currentSave = pendingSave
+        if (currentSave) {
+          if (!await currentSave) return false
+          continue
+        }
+        if (!isDirty()) return true
+        if (!await doSave()) return false
+      }
+    }
+    const result = drain()
+    pendingFlush = result
+    void result.finally(() => {
+      if (pendingFlush === result) pendingFlush = null
+    })
+    return result
   }
 
   function onContentChange(value: string) {
