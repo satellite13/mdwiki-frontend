@@ -97,6 +97,7 @@ export function useWorkspacePage() {
     onTitleInput: autosave.onTitleInput,
     onEditorSave: autosave.onEditorSave,
     doSave: autosave.doSave,
+    flushPendingSave: autosave.flushPendingSave,
     clearSaveError,
     toggleGraph
   }

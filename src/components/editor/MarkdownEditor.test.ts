@@ -50,12 +50,13 @@ const ReadingToolbarStub = {
   `
 }
 
-function mountReadonly() {
+function mountEditor(readonly = true) {
   return mount(MarkdownEditor, {
     props: {
       modelValue: '# Read only',
+      pageSlug: 'read-only',
       readingTitle: 'Read only',
-      readonly: true
+      readonly
     },
     global: {
       plugins: [createPinia(), i18n],
@@ -86,7 +87,7 @@ describe('MarkdownEditor readonly', () => {
 
   it.each(['editor', 'split'])('ignores saved %s mode and exposes only readonly controls', async (savedMode) => {
     window.localStorage.setItem('mdwiki-editor-mode', savedMode)
-    const wrapper = mountReadonly()
+    const wrapper = mountEditor()
     await flushPromises()
 
     expect(wrapper.emitted('mode-change')?.[0]).toEqual(['preview'])
@@ -102,7 +103,7 @@ describe('MarkdownEditor readonly', () => {
 
   it('blocks save and annotation creation while keeping reading find and exports', async () => {
     window.localStorage.setItem('mdwiki-editor-mode', 'preview')
-    const wrapper = mountReadonly()
+    const wrapper = mountEditor()
     await flushPromises()
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', metaKey: true }))
@@ -130,5 +131,25 @@ describe('MarkdownEditor readonly', () => {
     await wrapper.get('.reading-exit').trigger('click')
     await flushPromises()
     expect(wrapper.find('.mode-preview').exists()).toBe(true)
+  })
+
+  it('localizes the add annotation action', async () => {
+    i18n.global.locale.value = 'ru'
+    window.localStorage.setItem('mdwiki-editor-mode', 'preview')
+    const wrapper = mountEditor(false)
+    await wrapper.get('.mode-reading').trigger('click')
+    await flushPromises()
+    window.getSelection = vi.fn().mockReturnValue({
+      isCollapsed: false,
+      toString: () => 'Read only',
+      getRangeAt: () => ({ getBoundingClientRect: () => ({ left: 0, top: 0, width: 10 }) }),
+      removeAllRanges: vi.fn()
+    })
+
+    await wrapper.get('.preview-mouseup').trigger('mouseup')
+
+    expect(wrapper.get('.annotation-floating-btn').text()).toContain('Добавить аннотацию')
+    wrapper.unmount()
+    i18n.global.locale.value = 'en'
   })
 })

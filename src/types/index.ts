@@ -190,6 +190,8 @@ export interface CreateAnnotationPayload {
 export interface UpdateAnnotationPayload {
   comment?: string | null
   color?: string | null
+  clearComment?: boolean
+  clearColor?: boolean
 }
 
 export interface EmbeddingSettings {

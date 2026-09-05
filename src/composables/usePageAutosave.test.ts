@@ -109,4 +109,44 @@ describe('usePageAutosave', () => {
 
     expect(ok).toBe(true)
   })
+
+  it('flushes an in-flight save and returns its result without retrying', async () => {
+    let resolveSave!: (value: unknown) => void
+    mockUpdatePage.mockReturnValue(new Promise((resolve) => { resolveSave = resolve }))
+    const { wrapper } = mountAutosave(page())
+
+    const save = wrapper.vm.doSave()
+    await flushPromises()
+    let flushed = false
+    const flush = wrapper.vm.flushPendingSave().then((value: boolean) => {
+      flushed = true
+      return value
+    })
+    await flushPromises()
+    expect(flushed).toBe(false)
+    expect(mockUpdatePage).toHaveBeenCalledTimes(1)
+
+    resolveSave({
+      data: page({ contentMd: 'hello changed', updatedAt: '2026-08-15T10:01:00Z' })
+    })
+    expect(await save).toBe(true)
+    expect(await flush).toBe(true)
+    expect(mockUpdatePage).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a failed in-flight save to a flush caller', async () => {
+    let rejectSave!: (error: Error) => void
+    mockUpdatePage.mockReturnValue(new Promise((_, reject) => { rejectSave = reject }))
+    const { wrapper, state } = mountAutosave(page())
+
+    void wrapper.vm.doSave()
+    await flushPromises()
+    const flush = wrapper.vm.flushPendingSave()
+    rejectSave(new Error('save failed'))
+
+    expect(await flush).toBe(false)
+    expect(state.content.value).toBe('hello changed')
+    expect(state.lastSavedContentMd.value).toBe('hello')
+    expect(mockUpdatePage).toHaveBeenCalledTimes(1)
+  })
 })

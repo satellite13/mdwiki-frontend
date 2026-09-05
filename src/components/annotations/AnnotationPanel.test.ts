@@ -53,4 +53,50 @@ describe('AnnotationPanel', () => {
     expect(updateAnnotation).toHaveBeenCalledWith('a1', { comment: 'new', color: '#90caf9' })
     expect(wrapper.emitted('updated')?.[0]).toEqual([updated])
   })
+
+  it('sends an explicit clear operation for an empty comment', async () => {
+    updateAnnotation.mockResolvedValue({ data: { ...annotation, comment: null } })
+    const wrapper = mount(AnnotationPanel, {
+      props: { annotations: [annotation], visible: true, canEdit: true },
+      global: { plugins: [i18n] }
+    })
+
+    await wrapper.get('.annotation-item-edit').trigger('click')
+    await wrapper.get('.annotation-edit-comment').setValue('   ')
+    await wrapper.get('.annotation-edit-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(updateAnnotation).toHaveBeenCalledWith('a1', {
+      clearComment: true,
+      color: '#ffeb3b'
+    })
+  })
+
+  it('exposes keyboard selection without nesting action buttons', async () => {
+    const wrapper = mount(AnnotationPanel, {
+      props: { annotations: [annotation], visible: true, canEdit: true },
+      global: { plugins: [i18n] }
+    })
+    const select = wrapper.get<HTMLButtonElement>('.annotation-item-select')
+
+    expect(select.element.tagName).toBe('BUTTON')
+    expect(select.find('button').exists()).toBe(false)
+    await select.trigger('keydown', { key: 'Enter' })
+    await select.trigger('keydown', { key: ' ' })
+
+    expect(wrapper.emitted('select')).toEqual([[annotation], [annotation]])
+  })
+
+  it('gives every color option a localized accessible name and title', async () => {
+    const wrapper = mount(AnnotationPanel, {
+      props: { annotations: [annotation], visible: true, canEdit: true },
+      global: { plugins: [i18n] }
+    })
+    await wrapper.get('.annotation-item-edit').trigger('click')
+
+    for (const swatch of wrapper.findAll('.color-swatch')) {
+      expect(swatch.attributes('aria-label')).toContain(swatch.attributes('data-color'))
+      expect(swatch.attributes('title')).toBe(swatch.attributes('aria-label'))
+    }
+  })
 })

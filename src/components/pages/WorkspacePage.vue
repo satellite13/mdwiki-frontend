@@ -38,11 +38,11 @@ const {
   saveStatus,
   saveError,
   isDirty,
-  loadPage,
   onContentChange: updateContent,
   onTitleInput,
   onEditorSave: saveFromEditor,
   doSave,
+  flushPendingSave,
   clearSaveError,
   toggleGraph
 } = useWorkspacePage()
@@ -65,6 +65,7 @@ const renameError = ref('')
 const routeSectionKey = computed(() =>
   typeof route.query.section === 'string' ? route.query.section : undefined
 )
+let sectionMapRequestId = 0
 
 async function exportPdf() {
   if (!editorRef.value?.exportToPdf || exportingPdf.value) return
@@ -93,14 +94,27 @@ onBeforeUnmount(() => {
 })
 
 watch(page, (nextPage) => {
+  const requestId = ++sectionMapRequestId
+  sectionMap.value = null
   if (!nextPage) {
     editorUi.setReadingMode(false)
-    sectionMap.value = null
     return
   }
+  const pageVersion = `${nextPage.slug}:${nextPage.updatedAt}`
   void pagesApi.getPageSections(nextPage.slug)
-    .then(({ data }) => { sectionMap.value = data })
-    .catch(() => { sectionMap.value = null })
+    .then(({ data }) => {
+      const current = page.value
+      if (
+        requestId === sectionMapRequestId &&
+        current &&
+        `${current.slug}:${current.updatedAt}` === pageVersion
+      ) {
+        sectionMap.value = data
+      }
+    })
+    .catch(() => {
+      if (requestId === sectionMapRequestId) sectionMap.value = null
+    })
 }, { immediate: true })
 
 const isLocked = computed(() => {
@@ -150,10 +164,12 @@ async function renameSlug() {
     renameError.value = t('workspace.slugRequired')
     return
   }
-  const currentSlug = page.value.slug
   renameBusy.value = true
   renameError.value = ''
   try {
+    const saved = await flushPendingSave()
+    if (!saved || !page.value) return
+    const currentSlug = page.value.slug
     const { data } = await pagesApi.updatePage(currentSlug, {
       slug: nextSlug,
       expectedUpdatedAt: page.value.updatedAt
@@ -162,7 +178,6 @@ async function renameSlug() {
     renameOpen.value = false
     await router.replace(`/page/${encodeURIComponent(data.slug)}`)
     await folderStore.fetchTree(true)
-    await loadPage(data.slug)
   } catch (error) {
     renameError.value = getApiErrorMessage(error, t('workspace.renameSlugFailed'))
     await dialog.alert(renameError.value)
@@ -263,6 +278,7 @@ async function renameSlug() {
       <MarkdownEditor
         ref="editorRef"
         :modelValue="content"
+        :page-slug="page.slug"
         :readingTitle="title || page.title"
         :readonly="!auth.isEditor || isLocked"
         :section-map="sectionMap"

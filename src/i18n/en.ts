@@ -380,6 +380,7 @@ export const en = {
     edit: 'Edit annotation',
     delete: 'Delete annotation',
     add: 'Add annotation',
+    selectColor: 'Select annotation color {color}',
     addComment: 'Add a comment...',
     slugUnknown: 'Could not determine page slug',
     createFailed: 'Failed to create annotation',

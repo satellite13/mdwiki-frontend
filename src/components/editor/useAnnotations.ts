@@ -1,13 +1,13 @@
 import { nextTick, ref } from 'vue'
 import { listAnnotations } from '@/api/annotations'
 import type { Annotation } from '@/types'
-import { getPageSlugFromUrl } from '@/utils/pageSlug'
 import { groupAnnotationsByText } from '@/utils/groupAnnotations'
 import type { EditorMode } from './editorPreferences'
 
 export interface AnnotationsOptions {
   getPreviewContentElement: () => HTMLElement | null
   getEditorMode: () => EditorMode
+  getPageSlug: () => string
   canMutate?: () => boolean
 }
 
@@ -21,16 +21,25 @@ export function useAnnotations(options: AnnotationsOptions) {
   const tooltipAnnotation = ref<{ annotations: Annotation[]; index: number; x: number; y: number } | null>(null)
   let annotationHighlightSpans: HTMLSpanElement[] = []
   let touchEndTimer: ReturnType<typeof setTimeout> | undefined
+  let annotationRequestId = 0
 
   async function fetchAnnotations() {
-    const slug = getPageSlugFromUrl()
-    if (!slug) return
+    const slug = options.getPageSlug()
+    const requestId = ++annotationRequestId
+    if (!slug) {
+      annotations.value = []
+      return
+    }
     try {
       const { data } = await listAnnotations(slug)
-      annotations.value = data
+      if (requestId === annotationRequestId && options.getPageSlug() === slug) {
+        annotations.value = data
+      }
     } catch (e) {
       console.warn('Failed to load annotations:', e)
-      annotations.value = []
+      if (requestId === annotationRequestId && options.getPageSlug() === slug) {
+        annotations.value = []
+      }
     }
   }
 
@@ -222,7 +231,24 @@ export function useAnnotations(options: AnnotationsOptions) {
     }
   }
 
+  function handlePageChange() {
+    annotationRequestId++
+    annotations.value = []
+    annotationsVisible.value = false
+    annotationPopup.value = null
+    floatingBtn.value = null
+    pendingAnnotation.value = null
+    tooltipAnnotation.value = null
+    clearAnnotationHighlights()
+    if (options.getEditorMode() === 'reading' && options.getPageSlug()) {
+      void fetchAnnotations().then(() => {
+        void nextTick().then(() => applyAnnotationHighlights())
+      })
+    }
+  }
+
   function dispose() {
+    annotationRequestId++
     if (touchEndTimer !== undefined) clearTimeout(touchEndTimer)
   }
 
@@ -243,6 +269,7 @@ export function useAnnotations(options: AnnotationsOptions) {
     onAnnotationDeleted,
     onAnnotationUpdated,
     handleModeChange,
+    handlePageChange,
     dispose
   }
 }

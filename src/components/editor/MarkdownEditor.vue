@@ -68,6 +68,7 @@ async function getMarkdownRenderer(): Promise<MarkdownIt> {
 const { t } = useI18n()
 const props = defineProps<{
   modelValue: string
+  pageSlug: string
   readingTitle?: string
   readonly?: boolean
   sectionMap?: PageSectionMapResponse | null
@@ -177,7 +178,6 @@ const {
   annotationPopup,
   floatingBtn,
   tooltipAnnotation,
-  fetchAnnotations,
   applyAnnotationHighlights,
   onReadingMouseUp,
   onReadingMouseDown,
@@ -187,10 +187,12 @@ const {
   onAnnotationDeleted,
   onAnnotationUpdated,
   handleModeChange: handleAnnotationModeChange,
+  handlePageChange: handleAnnotationPageChange,
   dispose: disposeAnnotations
 } = useAnnotations({
   getPreviewContentElement,
   getEditorMode: () => editorMode.value,
+  getPageSlug: () => props.pageSlug,
   canMutate: () => !props.readonly
 })
 
@@ -617,10 +619,12 @@ onMounted(() => {
   void refreshPreview()
   window.addEventListener('keydown', onGlobalFindKeydown)
   if (editorMode.value === 'reading') {
-    void fetchAnnotations().then(() => {
-      void nextTick().then(() => applyAnnotationHighlights())
-    })
+    handleAnnotationPageChange()
   }
+})
+
+watch(() => props.pageSlug, () => {
+  handleAnnotationPageChange()
 })
 
 watch(
@@ -806,7 +810,7 @@ defineExpose({
       @click.stop="startAnnotation"
     >
       <span class="material-symbols-outlined notranslate" translate="no">chat_bubble</span>
-      Add annotation
+      {{ t('annotations.add') }}
     </button>
     <AnnotationPopup
       v-if="!props.readonly && annotationPopup"

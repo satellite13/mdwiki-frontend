@@ -66,8 +66,9 @@ async function saveEdit(annotation: Annotation) {
   editBusy.value = true
   editError.value = ''
   try {
+    const comment = editComment.value.trim()
     const { data } = await updateAnnotation(annotation.id, {
-      comment: editComment.value.trim() || null,
+      ...(comment ? { comment } : { clearComment: true }),
       color: editColor.value
     })
     emit('updated', data)
@@ -103,11 +104,16 @@ async function saveEdit(annotation: Annotation) {
         :key="a.id"
         class="annotation-item"
         :style="{ borderLeftColor: a.color || '#ffeb3b' }"
-        @click="emit('select', a)"
       >
-        <div class="annotation-item-text">
+        <button
+          type="button"
+          class="annotation-item-select"
+          @click="emit('select', a)"
+          @keydown.enter.prevent="emit('select', a)"
+          @keydown.space.prevent="emit('select', a)"
+        >
           <q>{{ a.highlightedText }}</q>
-        </div>
+        </button>
         <form
           v-if="editingId === a.id"
           class="annotation-edit-form"
@@ -124,6 +130,8 @@ async function saveEdit(annotation: Annotation) {
               :class="{ active: editColor === color }"
               :style="{ background: color }"
               :data-color="color"
+              :aria-label="t('annotations.selectColor', { color })"
+              :title="t('annotations.selectColor', { color })"
               @click="editColor = color"
             />
           </div>
@@ -231,10 +239,20 @@ async function saveEdit(annotation: Annotation) {
   border-left-width: 4px;
   border-radius: 6px;
   background: var(--color-bg);
+}
+
+.annotation-item-select {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.annotation-item-text q {
+.annotation-item-select q {
   font-style: italic;
   color: var(--color-text);
   font-size: 13px;
