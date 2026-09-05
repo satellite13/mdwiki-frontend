@@ -27,6 +27,7 @@ import AnnotationPanel from '@/components/annotations/AnnotationPanel.vue'
 import AnnotationPopup from '@/components/annotations/AnnotationPopup.vue'
 import AnnotationComment from '@/components/annotations/AnnotationComment.vue'
 import type { PageSectionMapResponse, ReadingTheme } from '@/types'
+import type { TocItem } from './tocTypes'
 import { usePreviewCopyDecorations } from '@/components/editor/usePreviewCopyDecorations'
 import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPipeline'
 import { useReadingToc } from '@/components/editor/useReadingToc'
@@ -73,6 +74,7 @@ const props = defineProps<{
   readonly?: boolean
   sectionMap?: PageSectionMapResponse | null
   sectionKey?: string
+  copySectionLink?: (sectionKey: string, stableId?: string) => Promise<boolean>
 }>()
 
 const emit = defineEmits<{
@@ -88,6 +90,7 @@ const dialog = useDialogStore()
 const { isMobile } = useBreakpoint()
 
 const uploadError = ref('')
+const copyLinkStatus = ref('')
 const uploadInput = ref<HTMLInputElement | null>(null)
 const editorRef = ref<InstanceType<typeof EditorInputPane> | null>(null)
 const splitShellRef = ref<HTMLElement | null>(null)
@@ -158,7 +161,10 @@ const readingPreviewStyle = computed(() =>
     : undefined
 )
 const previewHasToc = computed(() => editorMode.value === 'reading' && readingTocVisible.value && readingTocItems.value.length > 0)
-const previewCopyDecorations = usePreviewCopyDecorations(() => getPreviewPaneElement())
+const previewCopyDecorations = usePreviewCopyDecorations(
+  () => getPreviewPaneElement(),
+  async (sectionKey, stableId) => copySection(sectionKey, stableId)
+)
 const previewRenderPipeline = usePreviewRenderPipeline({
   getRoot: () => getPreviewPaneElement(),
   shouldRender: () => editorMode.value !== 'editor',
@@ -547,18 +553,30 @@ function resetSplitRatio() {
 
 async function renderPreviewDiagrams() {
   await previewRenderPipeline.renderPreviewBase()
-  previewCopyDecorations.decorateHeadingAnchors()
-  previewCopyDecorations.decorateCodeCopyButtons()
-  readingToc.buildReadingToc()
   const previewContent = getPreviewContentElement()
   if (previewContent && props.sectionMap) {
     applySectionMap(previewContent, props.sectionMap)
     if (props.sectionKey) focusSection(previewContent, props.sectionKey)
   }
+  previewCopyDecorations.decorateHeadingAnchors()
+  previewCopyDecorations.decorateCodeCopyButtons()
+  readingToc.buildReadingToc()
   if (editorMode.value === 'reading') {
     applyAnnotationHighlights()
   }
   if (previewFind.open.value) previewFind.refreshMatches()
+}
+
+async function copySection(sectionKey: string, stableId?: string): Promise<boolean> {
+  const copied = props.copySectionLink
+    ? await props.copySectionLink(sectionKey, stableId)
+    : false
+  copyLinkStatus.value = copied ? t('editor.anchorCopied') : t('editor.copyFailed')
+  return copied
+}
+
+function copyTocSection(item: TocItem) {
+  void copySection(item.sectionKey || item.id, item.stableId)
 }
 
 async function refreshPreview() {
@@ -748,6 +766,7 @@ defineExpose({
           @click="onPreviewClick"
           @scroll="onPreviewScroll"
           @select-heading="readingToc.scrollToHeading"
+          @copy-heading="copyTocSection"
           @mouseup="onReadingMouseUp"
           @mousedown="onReadingMouseDown"
           @touchend="onReadingTouchEnd"
@@ -782,6 +801,7 @@ defineExpose({
         @click="onPreviewClick"
         @scroll="onPreviewScroll"
         @select-heading="readingToc.scrollToHeading"
+        @copy-heading="copyTocSection"
         @mouseup="onReadingMouseUp"
         @mousedown="onReadingMouseDown"
         @touchend="onReadingTouchEnd"
@@ -802,6 +822,7 @@ defineExpose({
     <p v-if="uploadError" class="upload-error">
       {{ uploadError }}
     </p>
+    <p class="visually-hidden" aria-live="polite">{{ copyLinkStatus }}</p>
     <button
       v-if="!props.readonly && floatingBtn"
       type="button"

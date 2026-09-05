@@ -7,11 +7,13 @@ import * as pages from '@/api/pages'
 import type { RevisionSnapshot, RevisionSummary } from '@/types'
 import { diffRows } from '@/utils/diffRows'
 import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
+import { useDialogStore } from '@/stores/dialog'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const { t } = useI18n()
+const dialog = useDialogStore()
 const slug = computed(() => String(route.params.slug))
 const revisions = ref<RevisionSummary[]>([])
 const before = ref<RevisionSnapshot | null>(null)
@@ -19,19 +21,20 @@ const after = ref<RevisionSnapshot | null>(null)
 const loading = ref(true)
 const error = ref('')
 const conflict = ref(false)
-let requestId = 0
+let listRequestId = 0
+let selectionRequestId = 0
 
 const rows = computed(() => before.value && after.value
   ? diffRows(before.value.contentMd, after.value.contentMd).rows
   : [])
 
 async function loadList() {
-  const id = ++requestId
+  const id = ++listRequestId
   loading.value = true
   error.value = ''
   try {
     revisions.value = (await pages.listRevisions(slug.value, { limit: 50 })).data
-    if (id !== requestId || revisions.value.length === 0) return
+    if (id !== listRequestId || revisions.value.length === 0) return
     const routeFrom = Number(route.query.from)
     const routeTo = Number(route.query.to)
     const to = revisions.value.some(r => r.revisionNo === routeTo) ? routeTo : revisions.value[0]!.revisionNo
@@ -40,28 +43,28 @@ async function loadList() {
       : revisions.value[1]?.revisionNo ?? to
     await select(from, to, true)
   } catch (e) {
-    if (id === requestId) error.value = getApiErrorMessage(e, t('history.loadFailed'))
+    if (id === listRequestId) error.value = getApiErrorMessage(e, t('history.loadFailed'))
   } finally {
-    if (id === requestId) loading.value = false
+    if (id === listRequestId) loading.value = false
   }
 }
 
 async function select(from: number, to: number, canonical = false) {
-  const id = ++requestId
+  const id = ++selectionRequestId
   conflict.value = false
   if (canonical) await router.replace({ query: { ...route.query, from: String(from), to: String(to) } })
   try {
     const [left, right] = await Promise.all([pages.getRevision(slug.value, from), pages.getRevision(slug.value, to)])
-    if (id !== requestId) return
+    if (id !== selectionRequestId) return
     before.value = left.data
     after.value = right.data
   } catch (e) {
-    if (id === requestId) error.value = getApiErrorMessage(e, t('history.loadFailed'))
+    if (id === selectionRequestId) error.value = getApiErrorMessage(e, t('history.loadFailed'))
   }
 }
 
 async function restore() {
-  if (!before.value || !confirm(t('history.restoreConfirm'))) return
+  if (!before.value || !await dialog.confirm(t('history.restoreConfirm'))) return
   try {
     const current = (await pages.getPage(slug.value)).data
     const restored = (await pages.restoreRevision(slug.value, before.value.revisionNo, current.updatedAt)).data

@@ -1,5 +1,5 @@
 import client from './client'
-import type { Page, PageListItem, Backlink, ImportMdPagesResponse, PageSectionMapResponse, RevisionSummary, RevisionSnapshot } from '@/types'
+import type { Page, PageListItem, Backlink, ImportMdPagesResponse, PageSectionMapResponse, RevisionSummary, RevisionSnapshot, StableLinkResponse } from '@/types'
 import { stripFolderPrefix } from '@/utils/folderId'
 import { isApiErrorWithStatus } from '@/utils/apiError'
 import { invalidatePageIndex } from '@/services/pageIndex'
@@ -37,7 +37,7 @@ export async function restoreRevision(slug: string, revisionNo: number, expected
 }
 
 export function materializeStableLink(slug: string, sectionKey: string, expectedUpdatedAt: string) {
-  return client.post(`/pages/${encodeURIComponent(slug)}/sections/stable-link`, { sectionKey, expectedUpdatedAt })
+  return client.post<StableLinkResponse>(`/pages/${encodeURIComponent(slug)}/sections/stable-link`, { sectionKey, expectedUpdatedAt })
 }
 
 export async function createPage(slug: string, title: string, contentMd: string, folderId?: string) {

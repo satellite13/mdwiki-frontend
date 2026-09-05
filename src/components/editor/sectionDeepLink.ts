@@ -7,13 +7,20 @@ export function applySectionMap(root: HTMLElement, map: PageSectionMapResponse):
   const mappedSections = map.sections.filter((section) => section.heading !== null)
   headings.forEach((heading, index) => {
     const section = mappedSections[index]
-    if (section) heading.dataset.sectionKey = section.key
+    if (section) {
+      heading.dataset.sectionKey = section.key
+      if (section.stableId) heading.dataset.stableId = section.stableId
+      else delete heading.dataset.stableId
+    }
   })
 }
 
 export function focusSection(root: HTMLElement, sectionKey: string): boolean {
   const heading = Array.from(root.querySelectorAll<HTMLElement>(HEADING_SELECTOR))
-    .find((element) => element.dataset.sectionKey === sectionKey)
+    .find((element) =>
+      element.dataset.sectionKey === sectionKey ||
+      element.dataset.stableId === sectionKey
+    )
   if (!heading) return false
   heading.tabIndex = -1
   heading.scrollIntoView({ behavior: 'smooth', block: 'center' })

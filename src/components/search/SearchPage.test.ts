@@ -8,7 +8,11 @@ const route = reactive({ query: { q: 'knowledge' } as Record<string, string> })
 const replace = vi.fn()
 const searchPages = vi.fn()
 const searchPagesRag = vi.fn()
+const answerQuestion = vi.fn()
+const getSavedSearch = vi.fn()
 const alert = vi.fn()
+const prompt = vi.fn()
+const confirm = vi.fn()
 
 vi.mock('vue-router', () => ({
   useRoute: () => route,
@@ -16,10 +20,17 @@ vi.mock('vue-router', () => ({
 }))
 vi.mock('@/api/search', () => ({
   searchPages: (...args: unknown[]) => searchPages(...args),
-  searchPagesRag: (...args: unknown[]) => searchPagesRag(...args)
+  searchPagesRag: (...args: unknown[]) => searchPagesRag(...args),
+  answerQuestion: (...args: unknown[]) => answerQuestion(...args)
+}))
+vi.mock('@/api/savedSearches', () => ({
+  getSavedSearch: (...args: unknown[]) => getSavedSearch(...args),
+  createSavedSearch: vi.fn(),
+  updateSavedSearch: vi.fn(),
+  deleteSavedSearch: vi.fn()
 }))
 vi.mock('@/stores/dialog', () => ({
-  useDialogStore: () => ({ alert })
+  useDialogStore: () => ({ alert, prompt, confirm })
 }))
 
 function mountPage(attachToDocument = false) {
@@ -57,6 +68,7 @@ describe('SearchPage', () => {
         tags: ['pkm']
       }]
     })
+    answerQuestion.mockResolvedValue({ data: { answerMd: '', citations: [], grounded: false, model: 'extractive-rag' } })
   })
 
   it('defaults to hybrid search and builds section deep links', async () => {
@@ -213,5 +225,40 @@ describe('SearchPage', () => {
     expect(wrapper.find('.score-filter').exists()).toBe(true)
     await wrapper.get('.score-select').setValue('0.9')
     expect(wrapper.findAll('.result-card')).toHaveLength(1)
+  })
+
+  it('sanitizes grounded answer and renders citation route without hiding hits', async () => {
+    answerQuestion.mockResolvedValue({ data: {
+      answerMd: '**Safe** [1]<img src=x onerror=alert(1)>',
+      grounded: true,
+      model: 'extractive-rag',
+      citations: [{ id: 1, pageSlug: 'alpha', pageTitle: 'Alpha', sectionKey: 'stable',
+        sectionHeading: 'H', quote: 'Safe', score: 0.9 }]
+    } })
+    const wrapper = mountPage()
+    await flushPromises()
+    await wrapper.get('.answer-panel button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('.answer-text').html()).toContain('<strong>Safe</strong>')
+    expect(wrapper.get('.answer-text').html()).not.toContain('onerror')
+    expect(wrapper.findAll('.result-card')).toHaveLength(1)
+    expect(wrapper.get('.answer-panel ol a').text()).toContain('Alpha')
+  })
+
+  it('hydrates saved definition and keeps saved id in canonical URL', async () => {
+    route.query = { saved: 's1' }
+    getSavedSearch.mockResolvedValue({ data: {
+      id: 's1', name: 'Mine', queryText: 'saved query', mode: 'TEXT', tags: ['one'],
+      minScore: null, sort: 'UPDATED', version: 1, createdAt: '', updatedAt: ''
+    } })
+    mountPage()
+    await flushPromises()
+
+    expect(getSavedSearch).toHaveBeenCalledWith('s1')
+    expect(replace).toHaveBeenCalledWith({ query: {
+      saved: 's1', q: 'saved query', mode: 'text', tags: 'one', minScore: '', sort: 'updated'
+    } })
+    expect(searchPages).toHaveBeenCalledWith('saved query')
   })
 })

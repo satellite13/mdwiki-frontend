@@ -12,6 +12,10 @@ import {
   type NormalizedSearchResult
 } from './normalizeSearchResults'
 import type { AnswerResponse } from '@/types'
+import type { SavedSearch, SavedSearchMode, SavedSearchSort } from '@/types'
+import * as savedSearchApi from '@/api/savedSearches'
+import { isSavedSearchModified, savedSearchQuery } from './savedSearchState'
+import { renderAnswerMarkdown } from './renderAnswerMarkdown'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -29,12 +33,27 @@ const warning = ref<string | null>(null)
 const query = ref((route.query.q as string) || '')
 const selectedTag = ref<string | null>(null)
 const minScore = ref<number>(0)
+const sort = ref<SavedSearchSort>('RELEVANCE')
+const activeSaved = ref<SavedSearch | null>(null)
+const savedLoading = ref(false)
+const currentDefinition = computed(() => ({
+  queryText: query.value.trim(),
+  mode: mode.value.toUpperCase() as SavedSearchMode,
+  tags: selectedTag.value ? [selectedTag.value] : [],
+  minScore: minScore.value || null,
+  sort: sort.value,
+}))
+const savedModified = computed(() => activeSaved.value
+  ? isSavedSearchModified(activeSaved.value, currentDefinition.value)
+  : false)
 let searchRequestId = 0
 let answerRequestId = 0
+let savedRequestId = 0
 let answerAbort: AbortController | null = null
 const answer = ref<AnswerResponse | null>(null)
 const answerLoading = ref(false)
 const answerError = ref('')
+const answerHtml = computed(() => answer.value ? renderAnswerMarkdown(answer.value.answerMd) : '')
 const modes = computed(() => [
   { value: 'hybrid' as const, label: t('search.modeHybrid') },
   { value: 'text' as const, label: t('search.modeText') },
@@ -92,8 +111,10 @@ async function doSearch(searchMode: SearchMode = mode.value) {
     results.value = []
     loading.value = false
     warning.value = null
-    selectedTag.value = null
-    minScore.value = 0
+    if (!activeSaved.value) {
+      selectedTag.value = null
+      minScore.value = 0
+    }
     return
   }
   loading.value = true
@@ -149,6 +170,70 @@ async function askAnswer() {
   }
 }
 
+async function hydrateSaved(id: string) {
+  const requestId = ++savedRequestId
+  savedLoading.value = true
+  try {
+    const { data } = await savedSearchApi.getSavedSearch(id)
+    if (requestId !== savedRequestId || route.query.saved !== id) return
+    activeSaved.value = data
+    query.value = data.queryText
+    mode.value = data.mode.toLowerCase() as SearchMode
+    selectedTag.value = data.tags[0] ?? null
+    minScore.value = data.minScore ?? 0
+    sort.value = data.sort
+    await router.replace({ query: savedSearchQuery(data) })
+    await doSearch(mode.value)
+  } catch (e) {
+    if (requestId === savedRequestId) {
+      activeSaved.value = null
+      await dialog.alert(getApiErrorMessage(e, t('savedSearches.loadOneFailed')))
+    }
+  } finally {
+    if (requestId === savedRequestId) savedLoading.value = false
+  }
+}
+
+async function saveAsNew() {
+  const name = await dialog.prompt(t('savedSearches.namePrompt'))
+  if (!name?.trim()) return
+  try {
+    const { data } = await savedSearchApi.createSavedSearch({ name: name.trim(), ...currentDefinition.value })
+    activeSaved.value = data
+    await router.replace({ query: savedSearchQuery(data) })
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t('savedSearches.saveFailed')))
+  }
+}
+
+async function updateSaved() {
+  if (!activeSaved.value || !savedModified.value) return
+  try {
+    const { data } = await savedSearchApi.updateSavedSearch(activeSaved.value.id, {
+      name: activeSaved.value.name,
+      ...currentDefinition.value,
+      expectedVersion: activeSaved.value.version,
+    })
+    activeSaved.value = data
+    await router.replace({ query: savedSearchQuery(data) })
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t('savedSearches.saveFailed')))
+  }
+}
+
+async function deleteSaved() {
+  if (!activeSaved.value || !await dialog.confirm(t('savedSearches.deleteConfirm', { name: activeSaved.value.name }), { danger: true })) return
+  try {
+    await savedSearchApi.deleteSavedSearch(activeSaved.value.id)
+    activeSaved.value = null
+    const queryWithoutSaved = { ...route.query }
+    delete queryWithoutSaved.saved
+    await router.replace({ query: queryWithoutSaved })
+  } catch (e) {
+    await dialog.alert(getApiErrorMessage(e, t('savedSearches.deleteFailed')))
+  }
+}
+
 function setMode(nextMode: SearchMode) {
   if (mode.value === nextMode) return
   mode.value = nextMode
@@ -198,6 +283,10 @@ async function canonicalizeMode() {
 }
 
 onMounted(async () => {
+  if (typeof route.query.saved === 'string') {
+    await hydrateSaved(route.query.saved)
+    return
+  }
   await canonicalizeMode()
   await doSearch()
 })
@@ -213,12 +302,23 @@ watch(() => route.query.mode, async () => {
   await canonicalizeMode()
   if (changed) void doSearch()
 })
+watch(() => route.query.saved, (saved) => {
+  if (typeof saved === 'string' && saved !== activeSaved.value?.id) void hydrateSaved(saved)
+  if (!saved) activeSaved.value = null
+})
 </script>
 
 <template>
   <div class="search-page">
     <h1>{{ t('search.title') }}</h1>
     <p v-if="query" class="query-info">{{ t('search.resultsFor', { query }) }}</p>
+    <nav class="saved-actions" :aria-label="t('savedSearches.actions')">
+      <span v-if="activeSaved">{{ activeSaved.name }}<span v-if="savedModified"> · {{ t('savedSearches.modified') }}</span></span>
+      <button v-if="activeSaved && savedModified" type="button" @click="updateSaved">{{ t('savedSearches.update') }}</button>
+      <button type="button" :disabled="savedLoading || !query.trim()" @click="saveAsNew">{{ activeSaved ? t('savedSearches.saveAsNew') : t('savedSearches.saveSearch') }}</button>
+      <button v-if="activeSaved" type="button" @click="deleteSaved">{{ t('common.delete') }}</button>
+      <router-link to="/saved-searches">{{ t('savedSearches.manage') }}</router-link>
+    </nav>
 
     <div class="search-modes" role="radiogroup" :aria-label="t('search.modeLabel')">
       <button
@@ -241,7 +341,7 @@ watch(() => route.query.mode, async () => {
       <p v-if="answerError" role="alert">{{ answerError }}</p>
       <p v-if="answer && !answer.grounded" role="status">{{ t('search.answerUngrounded') }}</p>
       <template v-else-if="answer">
-        <div class="answer-text">{{ answer.answerMd }}</div>
+        <div class="answer-text markdown-body" v-html="answerHtml" />
         <ol>
           <li v-for="citation in answer.citations" :key="citation.id">
             <router-link :to="{ path: `/page/${encodeURIComponent(citation.pageSlug)}`, query: citation.sectionKey ? { section: citation.sectionKey } : {} }">[{{ citation.id }}] {{ citation.pageTitle }}</router-link>
@@ -267,6 +367,13 @@ watch(() => route.query.mode, async () => {
         <span class="filter-label">{{ t('search.scoreLabel') }}</span>
         <select v-model.number="minScore" class="score-select">
           <option v-for="o in scoreOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+        </select>
+      </div>
+      <div class="score-filter">
+        <span class="filter-label">{{ t('savedSearches.sort') }}</span>
+        <select v-model="sort" class="score-select">
+          <option value="RELEVANCE">{{ t('savedSearches.relevance') }}</option>
+          <option value="UPDATED">{{ t('savedSearches.updated') }}</option>
         </select>
       </div>
     </div>
@@ -302,6 +409,7 @@ watch(() => route.query.mode, async () => {
   font-family: var(--font-body);
   margin-bottom: 8px;
 }
+.saved-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
 
 .search-modes {
   display: inline-flex;

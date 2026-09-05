@@ -8,7 +8,7 @@ const sectionMap: PageSectionMapResponse = {
   sections: [
     { key: 'preamble-key', heading: null, headingPath: '', level: 0, length: 4, hash: 'p', includesChildren: false },
     { key: 'same-first', heading: 'Same', headingPath: 'Same', level: 2, length: 5, hash: 'a', includesChildren: false },
-    { key: 'same-second', heading: 'Same', headingPath: 'Same', level: 2, length: 5, hash: 'b', includesChildren: false }
+    { key: 'same-second', stableId: 'sec_stable', heading: 'Same', headingPath: 'Same', level: 2, length: 5, hash: 'b', includesChildren: false }
   ]
 }
 
@@ -21,6 +21,7 @@ describe('section deep links', () => {
 
     expect([...root.querySelectorAll('h2')].map((heading) => heading.getAttribute('data-section-key')))
       .toEqual(['same-first', 'same-second'])
+    expect(root.querySelectorAll('h2')[1]!.getAttribute('data-stable-id')).toBe('sec_stable')
   })
 
   it('scrolls and highlights a valid key without failing on stale keys', () => {
@@ -34,5 +35,15 @@ describe('section deep links', () => {
     expect(heading.scrollIntoView).toHaveBeenCalled()
     expect(heading.focus).toHaveBeenCalledWith({ preventScroll: true })
     expect(focusSection(root, 'stale')).toBe(false)
+  })
+
+  it('accepts a stable id from the section map as deep link target', () => {
+    const root = document.createElement('div')
+    root.innerHTML = '<h2>First</h2><h2>Second</h2>'
+    applySectionMap(root, sectionMap)
+    const heading = root.querySelectorAll('h2')[1] as HTMLElement
+    heading.scrollIntoView = vi.fn()
+    heading.focus = vi.fn()
+    expect(focusSection(root, 'sec_stable')).toBe(true)
   })
 })

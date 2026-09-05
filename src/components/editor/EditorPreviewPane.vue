@@ -21,6 +21,7 @@ const emit = defineEmits<{
   click: [event: MouseEvent]
   scroll: [event: Event]
   selectHeading: [id: string]
+  copyHeading: [item: TocItem]
   mouseup: [event: MouseEvent]
   mousedown: [event: MouseEvent]
   touchend: [event: TouchEvent]
@@ -74,6 +75,7 @@ defineExpose({
           :items="props.readingTocItems"
           :theme="props.readingTheme"
           @select="onSelectHeading"
+          @copy="emit('copyHeading', $event)"
         />
       </div>
     </div>

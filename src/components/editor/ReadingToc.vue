@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [id: string]
+  copy: [item: TocItem]
 }>()
 
 function onSelect(id: string) {
@@ -21,16 +22,17 @@ function onSelect(id: string) {
 <template>
   <aside class="reading-toc" :class="`reading-toc--${props.theme}`">
     <div class="reading-toc-title">{{ t('reading.toc') }}</div>
-    <button
+    <div
       v-for="item in props.items"
       :key="item.id"
-      type="button"
       class="reading-toc-item"
       :style="{ paddingLeft: `${Math.max(0, item.level - 1) * 10 + 8}px` }"
-      @click="onSelect(item.id)"
     >
-      {{ item.text }}
-    </button>
+      <button type="button" class="reading-toc-select" @click="onSelect(item.id)">{{ item.text }}</button>
+      <button type="button" class="reading-toc-copy" :aria-label="t('editor.copyAnchor')" @click="emit('copy', item)">
+        <span class="material-symbols-outlined notranslate" translate="no">content_copy</span>
+      </button>
+    </div>
   </aside>
 </template>
 
@@ -78,8 +80,7 @@ function onSelect(id: string) {
 
 .reading-toc-item {
   width: 100%;
-  border: none;
-  background: transparent;
+  display:flex;align-items:center;background:transparent;
   color: #1f2937;
   text-align: left;
   font-size: 12px;
@@ -90,6 +91,7 @@ function onSelect(id: string) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.reading-toc-select{min-width:0;flex:1;border:0;background:transparent;color:inherit;text-align:left;overflow:hidden;text-overflow:ellipsis}.reading-toc-copy{width:28px;min-width:28px;height:28px;padding:0;border:0;background:transparent;color:inherit}.reading-toc-copy .material-symbols-outlined{font-size:16px}
 
 .reading-toc--paper .reading-toc-item {
   color: #3f3a2d;

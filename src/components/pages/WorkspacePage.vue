@@ -19,6 +19,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import * as libraryApi from '@/api/library'
+import { copyTextToClipboard } from '@/utils/clipboard'
 
 type MarkdownEditorHandle = {
   exportToPdf: () => Promise<void>
@@ -219,6 +220,37 @@ async function renameSlug() {
     renameBusy.value = false
   }
 }
+
+async function copySectionLink(sectionKey: string, stableId?: string): Promise<boolean> {
+  if (!page.value) return false
+  try {
+    let linkPath = `/page/${encodeURIComponent(page.value.slug)}?section=${encodeURIComponent(stableId || sectionKey)}`
+    if (auth.isEditor && !stableId) {
+      const saved = await flushPendingSave()
+      if (!saved || !page.value) return false
+      const { data } = await pagesApi.materializeStableLink(
+        page.value.slug,
+        sectionKey,
+        page.value.updatedAt
+      )
+      linkPath = data.url
+      if (data.page) {
+        page.value = data.page
+        title.value = data.page.title
+        content.value = data.page.contentMd ?? ''
+      } else {
+        const refreshed = await pagesApi.getPage(data.pageSlug)
+        page.value = refreshed.data
+        title.value = refreshed.data.title
+        content.value = refreshed.data.contentMd ?? ''
+      }
+    }
+    return copyTextToClipboard(new URL(linkPath, window.location.origin).toString())
+  } catch (error) {
+    await dialog.alert(getApiErrorMessage(error, t('editor.copyFailed')))
+    return false
+  }
+}
 </script>
 
 <template>
@@ -329,6 +361,7 @@ async function renameSlug() {
         :readonly="!auth.isEditor || isLocked"
         :section-map="sectionMap"
         :section-key="routeSectionKey"
+        :copy-section-link="copySectionLink"
         @update:modelValue="onContentChange"
         @save="onEditorSave"
         @mode-change="onEditorModeChange"

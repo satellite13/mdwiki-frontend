@@ -17,6 +17,8 @@ const getPageSections = vi.fn()
 const getFavorites = vi.fn()
 const addFavorite = vi.fn()
 const removeFavorite = vi.fn()
+const materializeStableLink = vi.fn()
+const copyTextToClipboard = vi.fn()
 const content = ref('# Title')
 const page = ref({
   id: '1',
@@ -39,7 +41,11 @@ vi.mock('vue-router', () => ({
 }))
 vi.mock('@/api/pages', () => ({
   updatePage: (...args: unknown[]) => updatePage(...args),
-  getPageSections: (...args: unknown[]) => getPageSections(...args)
+  getPageSections: (...args: unknown[]) => getPageSections(...args),
+  materializeStableLink: (...args: unknown[]) => materializeStableLink(...args)
+}))
+vi.mock('@/utils/clipboard', () => ({
+  copyTextToClipboard: (...args: unknown[]) => copyTextToClipboard(...args)
 }))
 vi.mock('@/api/library', () => ({
   getFavorites: (...args: unknown[]) => getFavorites(...args),
@@ -74,9 +80,9 @@ function mountPage() {
       plugins: [createPinia(), i18n],
       stubs: {
         MarkdownEditor: {
-          props: ['readonly', 'sectionMap'],
+          props: ['readonly', 'sectionMap', 'copySectionLink'],
           emits: ['update:modelValue', 'save'],
-          template: '<div class="markdown-editor-stub" :data-readonly="String(readonly)" :data-section-slug="sectionMap?.slug"><button class="emit-change" @click="$emit(\'update:modelValue\', \'changed\')" /><button class="emit-save" @click="$emit(\'save\')" /></div>'
+          template: '<div class="markdown-editor-stub" :data-readonly="String(readonly)" :data-section-slug="sectionMap?.slug"><button class="emit-change" @click="$emit(\'update:modelValue\', \'changed\')" /><button class="emit-save" @click="$emit(\'save\')" /><button class="copy-computed" @click="copySectionLink(\'same-2\')" /><button class="copy-stable" @click="copySectionLink(\'same-2\', \'sec_id\')" /></div>'
         },
         GraphPanel: true,
         RouterLink: { template: '<a><slot /></a>' }
@@ -101,6 +107,35 @@ describe('WorkspacePage permissions', () => {
     getFavorites.mockResolvedValue({ data: [] })
     addFavorite.mockResolvedValue(undefined)
     removeFavorite.mockResolvedValue(undefined)
+    materializeStableLink.mockReset()
+    copyTextToClipboard.mockResolvedValue(true)
+  })
+
+  it('reader copies computed or existing stable URL without mutation', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    await wrapper.get('.copy-computed').trigger('click')
+    await wrapper.get('.copy-stable').trigger('click')
+    await flushPromises()
+    expect(materializeStableLink).not.toHaveBeenCalled()
+    expect(copyTextToClipboard).toHaveBeenNthCalledWith(1, 'http://localhost/page/old-slug?section=same-2')
+    expect(copyTextToClipboard).toHaveBeenNthCalledWith(2, 'http://localhost/page/old-slug?section=sec_id')
+  })
+
+  it('editor drains autosave before materializing and copies canonical URL once', async () => {
+    auth.isEditor = true
+    materializeStableLink.mockResolvedValue({ data: {
+      stableId: 'sec_new', sectionKey: 'sec_new', pageSlug: 'old-slug',
+      updatedAt: '2026-09-05T10:01:00Z', url: '/page/old-slug?section=sec_new',
+      page: { ...page.value, contentMd: '## Same {#sec_new}', updatedAt: '2026-09-05T10:01:00Z' }
+    } })
+    const wrapper = mountPage()
+    await flushPromises()
+    await wrapper.get('.copy-computed').trigger('click')
+    await flushPromises()
+    expect(flushPendingSave).toHaveBeenCalledBefore(materializeStableLink)
+    expect(materializeStableLink).toHaveBeenCalledWith('old-slug', 'same-2', '2026-09-05T10:00:00Z')
+    expect(copyTextToClipboard).toHaveBeenCalledWith('http://localhost/page/old-slug?section=sec_new')
   })
 
   it('renders READER workspace without mutation controls and passes readonly', async () => {

@@ -22,7 +22,13 @@ export function useReadingToc(getRoot: RootGetter) {
       // markdown-it-anchor permalink symbol is '#'; strip only the leading marker.
       const text = rawText.replace(/^#\s*/, '').trim() || heading.id
       const level = Number(heading.tagName[1])
-      return { id: heading.id, text, level: Number.isFinite(level) ? level : 2 }
+      return {
+        id: heading.id,
+        sectionKey: heading.dataset.sectionKey,
+        stableId: heading.dataset.stableId,
+        text,
+        level: Number.isFinite(level) ? level : 2
+      }
     })
     readingTocItems.value = items
   }

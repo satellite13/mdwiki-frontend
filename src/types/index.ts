@@ -172,6 +172,15 @@ export interface AnswerResponse {
   model: 'extractive-rag'
 }
 
+export interface StableLinkResponse {
+  stableId: string
+  sectionKey: string
+  pageSlug: string
+  updatedAt: string
+  url: string
+  page: Page | null
+}
+
 export interface PageSectionMapResponse {
   slug: string
   updatedAt: string
