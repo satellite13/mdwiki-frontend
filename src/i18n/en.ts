@@ -42,7 +42,9 @@ export const en = {
     titleColumn: 'Title',
     loadFailed: 'Could not load views.',
     createFailed: 'Could not create view.',
-    runFailed: 'Could not run view.'
+    runFailed: 'Could not run view.',
+    loadMore: 'Load more results',
+    loadMoreAria: 'Load more view results'
   },
   tree: {
     newPage: 'New page',

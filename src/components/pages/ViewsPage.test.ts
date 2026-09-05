@@ -26,4 +26,28 @@ describe('ViewsPage', () => {
     expect(wrapper.find('table').exists()).toBe(false)
     expect(wrapper.get('article').text()).toContain('One')
   })
+
+  it('appends cursor pages and retries a failed load more request', async () => {
+    const wrapper = mount(ViewsPage, { global: { plugins: [i18n], stubs: { RouterLink: { template: '<a><slot /></a>' } } } })
+    await flushPromises()
+    runView
+      .mockResolvedValueOnce({ data: { items: [{ page: { id: 'p1', slug: 'one', title: 'One' } }], nextCursor: 'cursor-1' } })
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce({ data: { items: [{ page: { id: 'p2', slug: 'two', title: 'Two' } }], nextCursor: null } })
+
+    await wrapper.get('li button').trigger('click')
+    await flushPromises()
+    const loadMore = wrapper.get('button[aria-label="Load more view results"]')
+    expect(loadMore.text()).toBe('Load more results')
+
+    await loadMore.trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Could not run view.')
+
+    await wrapper.get('button[aria-label="Load more view results"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('One')
+    expect(wrapper.text()).toContain('Two')
+    expect(runView).toHaveBeenLastCalledWith('cards', 'cursor-1')
+  })
 })

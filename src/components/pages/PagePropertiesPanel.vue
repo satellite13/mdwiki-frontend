@@ -34,11 +34,24 @@ async function load() {
 watch(() => `${props.page.slug}:${props.page.updatedAt}`, load, { immediate: true })
 const known = computed(() => data.value?.definitions ?? [])
 function textValue(key: string) { const value = data.value?.values[key]; return Array.isArray(value) ? value.join(', ') : String(value ?? '') }
+function datetimeLocalValue(key: string) {
+  const value = textValue(key)
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`
+}
 function valueFor(definition: PropertyDefinition, event: Event): unknown {
   const element = event.target as HTMLInputElement | HTMLSelectElement
   if (definition.type === 'BOOLEAN') return (element as HTMLInputElement).checked
   if (definition.type === 'NUMBER') return Number(element.value)
   if (definition.type === 'MULTI_SELECT') return Array.from((element as HTMLSelectElement).selectedOptions).map(option => option.value)
+  if (definition.type === 'DATETIME') {
+    if (!element.value) return ''
+    const date = new Date(`${element.value}Z`)
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString()
+  }
   return element.value
 }
 function valid(definition: PropertyDefinition, value: unknown) {
@@ -76,7 +89,7 @@ async function save(definition: PropertyDefinition, event: Event) {
         <dt>{{ definition.displayName }}</dt>
         <dd>
           <template v-if="editable">
-            <input v-if="['TEXT', 'URL', 'DATE', 'DATETIME'].includes(definition.type)" :type="definition.type === 'DATETIME' ? 'datetime-local' : definition.type.toLowerCase()" :value="textValue(definition.key)" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)">
+            <input v-if="['TEXT', 'URL', 'DATE', 'DATETIME'].includes(definition.type)" :type="definition.type === 'DATETIME' ? 'datetime-local' : definition.type.toLowerCase()" :value="definition.type === 'DATETIME' ? datetimeLocalValue(definition.key) : textValue(definition.key)" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)">
             <input v-else-if="definition.type === 'NUMBER'" type="number" :value="textValue(definition.key)" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)">
             <input v-else-if="definition.type === 'BOOLEAN'" type="checkbox" :checked="data.values[definition.key] === true" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)">
             <select v-else-if="definition.type === 'SELECT'" :value="textValue(definition.key)" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)"><option value="">{{ t('properties.empty') }}</option><option v-for="option in (definition.config.options as string[] || [])" :key="option" :value="option">{{ option }}</option></select>
