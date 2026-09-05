@@ -178,6 +178,10 @@ export const en = {
     loading: 'Loading…',
     retry: 'Retry',
     delete: 'Delete',
+    noMatchingOptions: 'No matching options',
+    clearSelection: 'Clear selection',
+    selectedCount: '{n} selected',
+    search: 'Search',
   },
   export: {
     pdfButton: 'Export PDF',
