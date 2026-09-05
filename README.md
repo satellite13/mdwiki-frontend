@@ -281,3 +281,10 @@ guards so delayed responses cannot overwrite the current route.
 - `/links/unlinked` и `/links/orphans` — поиск несвязанных упоминаний и страниц-сирот с учётом прав доступа.
 
 All interface strings are available in English and Russian. Reader-only states, keyboard navigation, mutation status announcements, mobile-width forms and 44px primary controls are included.
+
+## PKM Wave 2
+
+- `/page/:slug/history?from=<no>&to=<no>` lists revision summaries, loads selected snapshots, shows an accessible line diff, and lets Editors/Admins restore content with conflict protection.
+- `/saved-searches` lists the current user's private saved searches; saved definitions open the normal `/search` route.
+- Search keeps normal results visible while “Answer with sources” builds a synchronous extractive answer with quoted page links. It is not generative AI.
+- Explicit stable heading IDs are exposed by the section map and deep links continue to use the `section` query parameter.

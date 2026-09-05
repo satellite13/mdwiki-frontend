@@ -11,6 +11,7 @@ import {
   normalizeSearchResults,
   type NormalizedSearchResult
 } from './normalizeSearchResults'
+import type { AnswerResponse } from '@/types'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -29,6 +30,11 @@ const query = ref((route.query.q as string) || '')
 const selectedTag = ref<string | null>(null)
 const minScore = ref<number>(0)
 let searchRequestId = 0
+let answerRequestId = 0
+let answerAbort: AbortController | null = null
+const answer = ref<AnswerResponse | null>(null)
+const answerLoading = ref(false)
+const answerError = ref('')
 const modes = computed(() => [
   { value: 'hybrid' as const, label: t('search.modeHybrid') },
   { value: 'text' as const, label: t('search.modeText') },
@@ -127,6 +133,22 @@ async function doSearch(searchMode: SearchMode = mode.value) {
   }
 }
 
+async function askAnswer() {
+  const id = ++answerRequestId
+  answerAbort?.abort()
+  answerAbort = new AbortController()
+  answerLoading.value = true
+  answerError.value = ''
+  try {
+    const { data } = await searchApi.answerQuestion(query.value, 5, answerAbort.signal)
+    if (id === answerRequestId) answer.value = data
+  } catch (e) {
+    if (id === answerRequestId) answerError.value = getApiErrorMessage(e, t('search.answerFailed'))
+  } finally {
+    if (id === answerRequestId) answerLoading.value = false
+  }
+}
+
 function setMode(nextMode: SearchMode) {
   if (mode.value === nextMode) return
   mode.value = nextMode
@@ -179,7 +201,11 @@ onMounted(async () => {
   await canonicalizeMode()
   await doSearch()
 })
-watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch() })
+watch(() => route.query.q, (q) => {
+  query.value = (q as string) || ''
+  answerRequestId++; answerAbort?.abort(); answer.value = null; answerError.value = ''; answerLoading.value = false
+  doSearch()
+})
 watch(() => route.query.mode, async () => {
   const nextMode = routeMode()
   const changed = nextMode !== mode.value
@@ -208,6 +234,22 @@ watch(() => route.query.mode, async () => {
       >{{ item.label }}</button>
     </div>
     <p v-if="warning" class="search-warning" role="status">{{ warning }}</p>
+    <section class="answer-panel">
+      <button type="button" :disabled="answerLoading || !query.trim()" @click="askAnswer">
+        {{ answerLoading ? t('search.answerLoading') : t('search.answerAction') }}
+      </button>
+      <p v-if="answerError" role="alert">{{ answerError }}</p>
+      <p v-if="answer && !answer.grounded" role="status">{{ t('search.answerUngrounded') }}</p>
+      <template v-else-if="answer">
+        <div class="answer-text">{{ answer.answerMd }}</div>
+        <ol>
+          <li v-for="citation in answer.citations" :key="citation.id">
+            <router-link :to="{ path: `/page/${encodeURIComponent(citation.pageSlug)}`, query: citation.sectionKey ? { section: citation.sectionKey } : {} }">[{{ citation.id }}] {{ citation.pageTitle }}</router-link>
+            <blockquote>{{ citation.quote }}</blockquote>
+          </li>
+        </ol>
+      </template>
+    </section>
 
     <div v-if="results.length > 0" class="filters">
       <div v-if="resultTags.length > 0" class="tag-filter">
@@ -292,6 +334,7 @@ watch(() => route.query.mode, async () => {
   color: var(--color-text-muted);
   font-size: 13px;
 }
+.answer-panel{display:grid;gap:10px;margin-bottom:16px;padding:12px;border:1px solid var(--color-border);border-radius:8px}.answer-text{white-space:pre-wrap;line-height:1.6}.answer-panel blockquote{margin:4px 0;color:var(--color-text-muted)}
 
 .query-info {
   color: var(--color-text-muted);

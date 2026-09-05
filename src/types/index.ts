@@ -115,12 +115,61 @@ export interface RagSearchResult {
 
 export interface PageSectionMapItem {
   key: string
+  stableId?: string | null
   heading: string | null
   headingPath: string
   level: number
   length: number
   hash: string
   includesChildren: boolean
+}
+
+export type RevisionOperation = 'CREATE' | 'EDIT' | 'PATCH' | 'RESTORE' | 'IMPORT' | 'FILESYSTEM' | 'RENAME'
+export interface RevisionSummary {
+  revisionNo: number
+  contentHash: string
+  title: string
+  slug: string
+  folderId: string | null
+  operation: RevisionOperation
+  createdByName: string | null
+  createdAt: string
+  restoredFromRevisionNo: number | null
+}
+export interface RevisionSnapshot extends RevisionSummary {
+  id: string
+  contentMd: string
+}
+
+export type SavedSearchMode = 'HYBRID' | 'TEXT' | 'SEMANTIC'
+export type SavedSearchSort = 'RELEVANCE' | 'UPDATED'
+export interface SavedSearch {
+  id: string
+  name: string
+  queryText: string
+  mode: SavedSearchMode
+  tags: string[]
+  minScore: number | null
+  sort: SavedSearchSort
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AnswerCitation {
+  id: number
+  pageSlug: string
+  pageTitle: string
+  sectionKey: string | null
+  sectionHeading: string | null
+  quote: string
+  score: number
+}
+export interface AnswerResponse {
+  answerMd: string
+  citations: AnswerCitation[]
+  grounded: boolean
+  model: 'extractive-rag'
 }
 
 export interface PageSectionMapResponse {

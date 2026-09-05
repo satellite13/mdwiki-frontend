@@ -125,6 +125,7 @@ export const en = {
     openDocuments: 'Open documents',
     loading: 'Loading…',
     retry: 'Retry',
+    delete: 'Delete',
   },
   export: {
     pdfButton: 'Export PDF',
@@ -348,6 +349,22 @@ export const en = {
     noResults: 'No results found.',
     noFilteredResults: 'No results match the selected filters.',
     allScores: 'All scores',
+    answerAction: 'Answer with sources',
+    answerLoading: 'Building extractive answer…',
+    answerUngrounded: 'No grounded answer was found.',
+    answerFailed: 'Could not build an answer. Search results are still available.',
+  },
+  history: {
+    title: 'Page history', open: 'Open page history', back: 'Back to page',
+    before: 'Before', after: 'After', diff: 'Revision differences',
+    added: 'Added line', removed: 'Removed line', restore: 'Restore this revision',
+    restoreConfirm: 'Restore this revision content?', conflict: 'The page changed. Reload history and retry.',
+    loadFailed: 'Could not load page history', restoreFailed: 'Could not restore revision',
+  },
+  savedSearches: {
+    title: 'Saved searches', empty: 'No saved searches.',
+    loadFailed: 'Could not load saved searches', deleteFailed: 'Could not delete saved search',
+    deleteConfirm: 'Delete saved search "{name}"?', deleteName: 'Delete saved search {name}',
   },
   graph: {
     depth: 'Depth',

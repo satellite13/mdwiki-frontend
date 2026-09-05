@@ -246,6 +246,12 @@ async function renameSlug() {
         :disabled="isLocked"
       />
       <div class="header-actions">
+        <router-link
+          class="history-btn"
+          :to="`/page/${encodeURIComponent(page.slug)}/history`"
+          :title="t('history.open')"
+          :aria-label="t('history.open')"
+        ><span class="material-symbols-outlined notranslate" translate="no">history</span></router-link>
         <button type="button" class="favorite-btn" :class="{ active: favorite }"
           :aria-label="favorite ? t('pkm.removeFavorite') : t('pkm.addFavorite')"
           :aria-pressed="favorite" :aria-busy="favoriteBusy" :disabled="favoriteBusy"
@@ -534,6 +540,7 @@ async function renameSlug() {
 }
 
 .slug-rename-btn,
+.history-btn,
 .md-export-btn,
 .pdf-export-btn,
 .graph-toggle {
@@ -553,6 +560,7 @@ async function renameSlug() {
 }
 
 .slug-rename-btn:hover,
+.history-btn:hover,
 .md-export-btn:hover,
 .pdf-export-btn:hover:not(:disabled),
 .graph-toggle:hover {

@@ -13,7 +13,9 @@ const router = createRouter({
       children: [
         { path: '', name: 'workspace', component: () => import('@/components/pages/WorkspacePage.vue') },
         { path: 'page/:slug', name: 'page', component: () => import('@/components/pages/WorkspacePage.vue'), props: true },
+        { path: 'page/:slug/history', name: 'page-history', component: () => import('@/components/pages/PageHistory.vue') },
         { path: 'search', name: 'search', component: () => import('@/components/search/SearchPage.vue') },
+        { path: 'saved-searches', name: 'saved-searches', component: () => import('@/components/search/SavedSearchesPage.vue') },
         { path: 'graph', name: 'wiki-graph', component: () => import('@/components/graph/WikiGraphPage.vue') },
         { path: 'broken-links', name: 'broken-links', component: () => import('@/components/links/BrokenLinksPage.vue') },
         { path: 'inbox', name: 'inbox', component: () => import('@/components/pkm/InboxPage.vue') },

@@ -1,5 +1,5 @@
 import client from './client'
-import type { Page, PageListItem, Backlink, ImportMdPagesResponse, PageSectionMapResponse } from '@/types'
+import type { Page, PageListItem, Backlink, ImportMdPagesResponse, PageSectionMapResponse, RevisionSummary, RevisionSnapshot } from '@/types'
 import { stripFolderPrefix } from '@/utils/folderId'
 import { isApiErrorWithStatus } from '@/utils/apiError'
 import { invalidatePageIndex } from '@/services/pageIndex'
@@ -18,6 +18,26 @@ export function getBacklinks(slug: string) {
 
 export function getPageSections(slug: string) {
   return client.get<PageSectionMapResponse>(`/pages/${slug}/sections`)
+}
+
+export function listRevisions(slug: string, params?: { limit?: number; before?: number }) {
+  return client.get<RevisionSummary[]>(`/pages/${encodeURIComponent(slug)}/revisions`, { params })
+}
+
+export function getRevision(slug: string, revisionNo: number) {
+  return client.get<RevisionSnapshot>(`/pages/${encodeURIComponent(slug)}/revisions/${revisionNo}`)
+}
+
+export async function restoreRevision(slug: string, revisionNo: number, expectedUpdatedAt: string, restoreTitle = false) {
+  const res = await client.post<Page>(`/pages/${encodeURIComponent(slug)}/restore`, {
+    revisionNo, expectedUpdatedAt, restoreTitle,
+  })
+  invalidatePageIndex()
+  return res
+}
+
+export function materializeStableLink(slug: string, sectionKey: string, expectedUpdatedAt: string) {
+  return client.post(`/pages/${encodeURIComponent(slug)}/sections/stable-link`, { sectionKey, expectedUpdatedAt })
 }
 
 export async function createPage(slug: string, title: string, contentMd: string, folderId?: string) {
