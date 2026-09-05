@@ -101,6 +101,7 @@ export interface SearchResult {
   slug: string
   title: string
   snippet: string
+  updatedAt?: string | null
 }
 
 export interface RagSearchResult {
@@ -111,6 +112,7 @@ export interface RagSearchResult {
   snippet: string
   score: number
   tags: string[]
+  updatedAt?: string | null
 }
 
 export interface PageSectionMapItem {
@@ -131,6 +133,7 @@ export interface RevisionSummary {
   title: string
   slug: string
   folderId: string | null
+  deletedAt?: string | null
   operation: RevisionOperation
   createdByName: string | null
   createdAt: string

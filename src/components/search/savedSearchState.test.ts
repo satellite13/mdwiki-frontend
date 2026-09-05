@@ -26,4 +26,11 @@ describe('savedSearchState', () => {
       minScore: 0.75, sort: 'UPDATED',
     })).toBe(true)
   })
+
+  it('treats tag order, duplicates, whitespace and zero score as semantic equivalents', () => {
+    expect(isSavedSearchModified({ ...saved, tags: ['one', 'two'], minScore: null }, {
+      queryText: ' lambda ', mode: 'SEMANTIC', tags: ['two', 'one', 'one', ' '],
+      minScore: 0, sort: 'UPDATED',
+    })).toBe(false)
+  })
 })

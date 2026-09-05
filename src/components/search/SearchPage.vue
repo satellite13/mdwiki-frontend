@@ -14,7 +14,7 @@ import {
 import type { AnswerResponse } from '@/types'
 import type { SavedSearch, SavedSearchMode, SavedSearchSort } from '@/types'
 import * as savedSearchApi from '@/api/savedSearches'
-import { isSavedSearchModified, savedSearchQuery } from './savedSearchState'
+import { isSavedSearchModified, normalizeSearchDefinition, savedSearchQuery } from './savedSearchState'
 import { renderAnswerMarkdown } from './renderAnswerMarkdown'
 
 const { t } = useI18n()
@@ -31,15 +31,15 @@ const results = ref<NormalizedSearchResult[]>([])
 const loading = ref(false)
 const warning = ref<string | null>(null)
 const query = ref((route.query.q as string) || '')
-const selectedTag = ref<string | null>(null)
+const selectedTags = ref<string[]>([])
 const minScore = ref<number>(0)
 const sort = ref<SavedSearchSort>('RELEVANCE')
 const activeSaved = ref<SavedSearch | null>(null)
 const savedLoading = ref(false)
-const currentDefinition = computed(() => ({
+const currentDefinition = computed(() => normalizeSearchDefinition({
   queryText: query.value.trim(),
   mode: mode.value.toUpperCase() as SavedSearchMode,
-  tags: selectedTag.value ? [selectedTag.value] : [],
+  tags: selectedTags.value,
   minScore: minScore.value || null,
   sort: sort.value,
 }))
@@ -49,6 +49,7 @@ const savedModified = computed(() => activeSaved.value
 let searchRequestId = 0
 let answerRequestId = 0
 let savedRequestId = 0
+let lastSearchedQuery = ''
 let answerAbort: AbortController | null = null
 const answer = ref<AnswerResponse | null>(null)
 const answerLoading = ref(false)
@@ -78,15 +79,20 @@ const resultTags = computed(() => {
 })
 
 const filteredResults = computed(() => {
-  return results.value.filter(r => {
-    if (mode.value === 'semantic' && r.score !== null && r.score < minScore.value) return false
-    if (selectedTag.value && !r.tags.includes(selectedTag.value)) return false
+  const filtered = results.value.filter(r => {
+    if (r.score !== null && r.score < minScore.value) return false
+    if (selectedTags.value.some(tag => !r.tags.includes(tag))) return false
     return true
   })
+  return sort.value === 'UPDATED'
+    ? [...filtered].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+    : filtered
 })
 
 function toggleTag(tag: string) {
-  selectedTag.value = selectedTag.value === tag ? null : tag
+  selectedTags.value = selectedTags.value.includes(tag)
+    ? selectedTags.value.filter(selected => selected !== tag)
+    : [...selectedTags.value, tag]
 }
 
 function highlightSnippet(snippet: string, q: string): string {
@@ -112,11 +118,18 @@ async function doSearch(searchMode: SearchMode = mode.value) {
     loading.value = false
     warning.value = null
     if (!activeSaved.value) {
-      selectedTag.value = null
+      selectedTags.value = []
       minScore.value = 0
     }
     return
   }
+  const normalizedQuery = query.value.trim()
+  if (!activeSaved.value && normalizedQuery !== lastSearchedQuery) {
+    selectedTags.value = []
+    minScore.value = 0
+    sort.value = 'RELEVANCE'
+  }
+  lastSearchedQuery = normalizedQuery
   loading.value = true
   warning.value = null
   try {
@@ -143,8 +156,6 @@ async function doSearch(searchMode: SearchMode = mode.value) {
       if (semantic.status === 'rejected') warning.value = t('search.semanticUnavailable')
       if (text.status === 'rejected') warning.value = t('search.textUnavailable')
     }
-    selectedTag.value = null
-    minScore.value = 0
   } catch (e) {
     if (!isCurrent()) return
     results.value = []
@@ -179,7 +190,7 @@ async function hydrateSaved(id: string) {
     activeSaved.value = data
     query.value = data.queryText
     mode.value = data.mode.toLowerCase() as SearchMode
-    selectedTag.value = data.tags[0] ?? null
+    selectedTags.value = normalizeSearchDefinition(data).tags
     minScore.value = data.minScore ?? 0
     sort.value = data.sort
     await router.replace({ query: savedSearchQuery(data) })
@@ -357,10 +368,10 @@ watch(() => route.query.saved, (saved) => {
         <button
           v-for="tag in resultTags"
           :key="tag"
-          :class="['tag-chip', { active: selectedTag === tag }]"
+          :class="['tag-chip', { active: selectedTags.includes(tag) }]"
           @click="toggleTag(tag)"
         >{{ tag }}</button>
-        <button v-if="selectedTag" class="tag-chip clear" @click="selectedTag = null">{{ t('search.clearTag') }}</button>
+        <button v-if="selectedTags.length" class="tag-chip clear" @click="selectedTags = []">{{ t('search.clearTag') }}</button>
       </div>
 
       <div v-if="mode === 'semantic'" class="score-filter">

@@ -10,6 +10,9 @@ const searchPages = vi.fn()
 const searchPagesRag = vi.fn()
 const answerQuestion = vi.fn()
 const getSavedSearch = vi.fn()
+const createSavedSearch = vi.fn()
+const updateSavedSearch = vi.fn()
+const deleteSavedSearch = vi.fn()
 const alert = vi.fn()
 const prompt = vi.fn()
 const confirm = vi.fn()
@@ -25,9 +28,9 @@ vi.mock('@/api/search', () => ({
 }))
 vi.mock('@/api/savedSearches', () => ({
   getSavedSearch: (...args: unknown[]) => getSavedSearch(...args),
-  createSavedSearch: vi.fn(),
-  updateSavedSearch: vi.fn(),
-  deleteSavedSearch: vi.fn()
+  createSavedSearch: (...args: unknown[]) => createSavedSearch(...args),
+  updateSavedSearch: (...args: unknown[]) => updateSavedSearch(...args),
+  deleteSavedSearch: (...args: unknown[]) => deleteSavedSearch(...args)
 }))
 vi.mock('@/stores/dialog', () => ({
   useDialogStore: () => ({ alert, prompt, confirm })
@@ -260,5 +263,39 @@ describe('SearchPage', () => {
       saved: 's1', q: 'saved query', mode: 'text', tags: 'one', minScore: '', sort: 'updated'
     } })
     expect(searchPages).toHaveBeenCalledWith('saved query')
+  })
+
+  it('retains all saved filters through searches and update payload', async () => {
+    route.query = { saved: 's2' }
+    searchPagesRag.mockResolvedValue({ data: [{
+      pageSlug: 'alpha', pageTitle: 'Alpha', sectionHeading: 'Details',
+      sectionKey: 'details-key', snippet: 'semantic result', score: 0.8,
+      tags: ['one', 'two'], updatedAt: '2026-09-05T12:00:00Z'
+    }] })
+    const saved = {
+      id: 's2', name: 'Two tags', queryText: 'saved query', mode: 'SEMANTIC',
+      tags: ['two', 'one'], minScore: 0.75, sort: 'UPDATED',
+      version: 4, createdAt: '', updatedAt: ''
+    }
+    getSavedSearch.mockResolvedValue({ data: saved })
+    updateSavedSearch.mockResolvedValue({ data: { ...saved, sort: 'RELEVANCE', version: 5 } })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.findAll('.tag-chip.active').map(node => node.text()).sort()).toEqual(['one', 'two'])
+    expect((wrapper.get('.score-select').element as HTMLSelectElement).value).toBe('0.75')
+    expect((wrapper.findAll('.score-select')[1]!.element as HTMLSelectElement).value).toBe('UPDATED')
+
+    await wrapper.findAll('[role="radio"]')[0]!.trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.tag-chip.active')).toHaveLength(2)
+
+    await wrapper.findAll('.score-select').at(-1)!.setValue('RELEVANCE')
+    await wrapper.get('.saved-actions button').trigger('click')
+    await flushPromises()
+    expect(updateSavedSearch).toHaveBeenCalledWith('s2', {
+      name: 'Two tags', queryText: 'saved query', mode: 'HYBRID',
+      tags: ['one', 'two'], minScore: 0.75, sort: 'RELEVANCE', expectedVersion: 4
+    })
   })
 })

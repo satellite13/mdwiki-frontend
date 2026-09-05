@@ -10,6 +10,7 @@ export interface NormalizedSearchResult {
   sectionKey: string | null
   score: number | null
   tags: string[]
+  updatedAt?: string | null
   sources: SearchSource[]
 }
 
@@ -32,6 +33,7 @@ export function normalizeSearchResults(
         sectionKey: null,
         score: null,
         tags: [],
+        ...(textResult.updatedAt ? { updatedAt: textResult.updatedAt } : {}),
         sources: ['text']
       }
     }
@@ -60,6 +62,7 @@ function fromSemantic(
     sectionKey: result.sectionKey ?? null,
     score: result.score,
     tags: result.tags,
+    ...(result.updatedAt ? { updatedAt: result.updatedAt } : {}),
     sources
   }
 }
