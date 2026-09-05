@@ -38,7 +38,7 @@ function mountPage() {
 
 describe('PageHistory', () => {
   beforeEach(() => {
-    vi.clearAllMocks(); route.query = {}; auth.isEditor = false
+    vi.clearAllMocks(); route.query = {}; route.params.slug = 'note'; auth.isEditor = false
     listRevisions.mockResolvedValue({ data: summaries })
     getRevision.mockImplementation((_slug: string, no: number) => Promise.resolve({
       data: { ...summaries.find(r => r.revisionNo === no), id: String(no), contentMd: `line ${no}` }
@@ -73,5 +73,24 @@ describe('PageHistory', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('The page changed')
     expect(wrapper.findAll('select')[0]!.element.value).toBe('2')
+  })
+
+  it('ignores delayed responses from the previous slug', async () => {
+    let resolveOld!: (value: { data: RevisionSummary[] }) => void
+    const oldRequest = new Promise<{ data: RevisionSummary[] }>(resolve => { resolveOld = resolve })
+    const fresh = summaries.map(item => ({ ...item, title: 'Fresh B' }))
+    listRevisions
+      .mockReturnValueOnce(oldRequest)
+      .mockResolvedValueOnce({ data: fresh })
+    const wrapper = mountPage()
+    route.params.slug = 'fresh-b'
+    await flushPromises()
+    resolveOld({ data: summaries.map(item => ({ ...item, title: 'Stale A' })) })
+    await flushPromises()
+
+    expect(listRevisions).toHaveBeenCalledWith('fresh-b', { limit: 50 })
+    expect(getRevision).toHaveBeenCalledWith('fresh-b', 2)
+    expect(wrapper.findAll('option')[0]!.text()).toContain('Restored from trash')
+    expect(getRevision).not.toHaveBeenCalledWith('note', expect.any(Number))
   })
 })

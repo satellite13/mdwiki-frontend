@@ -16,4 +16,17 @@ describe('diffRows', () => {
     const after = Array.from({ length: 10_001 }, (_, i) => `after-${i}`).join('\n')
     expect(diffRows(before, after).truncated).toBe(true)
   })
+
+  it('keeps huge nearly identical documents fast and DOM-bounded', () => {
+    const lines = Array.from({ length: 100_000 }, (_, i) => `line-${i}`)
+    const before = lines.join('\n')
+    lines[50_000] = 'changed'
+    const started = performance.now()
+    const result = diffRows(before, lines.join('\n'))
+
+    expect(result.truncated).toBe(true)
+    expect(result.rows.length).toBeLessThan(100)
+    expect(result.rows.some(row => row.before === 'line-50000')).toBe(true)
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
 })

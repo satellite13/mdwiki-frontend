@@ -358,6 +358,7 @@ export const en = {
   history: {
     title: 'Page history', open: 'Open page history', back: 'Back to page',
     before: 'Before', after: 'After', diff: 'Revision differences',
+    diffTruncated: 'Large diff truncated to changed-area windows.',
     added: 'Added line', removed: 'Removed line', restore: 'Restore this revision',
     restoreConfirm: 'Restore this revision content?', conflict: 'The page changed. Reload history and retry.',
     loadFailed: 'Could not load page history', restoreFailed: 'Could not restore revision',

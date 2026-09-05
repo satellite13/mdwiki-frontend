@@ -102,6 +102,7 @@ export interface SearchResult {
   title: string
   snippet: string
   updatedAt?: string | null
+  tags?: string[]
 }
 
 export interface RagSearchResult {

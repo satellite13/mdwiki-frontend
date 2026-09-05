@@ -24,9 +24,10 @@ const conflict = ref(false)
 let listRequestId = 0
 let selectionRequestId = 0
 
-const rows = computed(() => before.value && after.value
-  ? diffRows(before.value.contentMd, after.value.contentMd).rows
-  : [])
+const diff = computed(() => before.value && after.value
+  ? diffRows(before.value.contentMd, after.value.contentMd)
+  : { rows: [], truncated: false })
+const rows = computed(() => diff.value.rows)
 
 function operationLabel(operation: RevisionSummary['operation']): string {
   return t(`history.operations.${operation}`)
@@ -34,11 +35,14 @@ function operationLabel(operation: RevisionSummary['operation']): string {
 
 async function loadList() {
   const id = ++listRequestId
+  const requestSlug = slug.value
   loading.value = true
   error.value = ''
   try {
-    revisions.value = (await pages.listRevisions(slug.value, { limit: 50 })).data
-    if (id !== listRequestId || revisions.value.length === 0) return
+    const nextRevisions = (await pages.listRevisions(requestSlug, { limit: 50 })).data
+    if (id !== listRequestId || slug.value !== requestSlug) return
+    revisions.value = nextRevisions
+    if (nextRevisions.length === 0) return
     const routeFrom = Number(route.query.from)
     const routeTo = Number(route.query.to)
     const to = revisions.value.some(r => r.revisionNo === routeTo) ? routeTo : revisions.value[0]!.revisionNo
@@ -55,11 +59,12 @@ async function loadList() {
 
 async function select(from: number, to: number, canonical = false) {
   const id = ++selectionRequestId
+  const requestSlug = slug.value
   conflict.value = false
   if (canonical) await router.replace({ query: { ...route.query, from: String(from), to: String(to) } })
   try {
-    const [left, right] = await Promise.all([pages.getRevision(slug.value, from), pages.getRevision(slug.value, to)])
-    if (id !== selectionRequestId) return
+    const [left, right] = await Promise.all([pages.getRevision(requestSlug, from), pages.getRevision(requestSlug, to)])
+    if (id !== selectionRequestId || slug.value !== requestSlug) return
     before.value = left.data
     after.value = right.data
   } catch (e) {
@@ -84,6 +89,17 @@ watch(() => [route.query.from, route.query.to], () => {
   const from = Number(route.query.from); const to = Number(route.query.to)
   if (from && to) void select(from, to)
 })
+watch(() => route.params.slug, () => {
+  listRequestId++
+  selectionRequestId++
+  revisions.value = []
+  before.value = null
+  after.value = null
+  error.value = ''
+  conflict.value = false
+  loading.value = true
+  void loadList()
+})
 </script>
 
 <template>
@@ -98,6 +114,7 @@ watch(() => [route.query.from, route.query.to], () => {
         <button v-if="auth.isEditor" @click="restore">{{ t('history.restore') }}</button>
       </div>
       <p v-if="conflict" role="alert">{{ t('history.conflict') }} <button @click="loadList">{{ t('common.retry') }}</button></p>
+      <p v-if="diff.truncated" role="status">{{ t('history.diffTruncated') }}</p>
       <div class="diff" role="table" :aria-label="t('history.diff')">
         <div v-for="(row, i) in rows" :key="i" :class="['diff-row', row.kind]" role="row">
           <div role="cell"><span class="sr-only">{{ row.kind === 'remove' ? t('history.removed') : t('history.before') }}</span>{{ row.before ?? '' }}</div>

@@ -262,7 +262,7 @@ describe('SearchPage', () => {
     expect(replace).toHaveBeenCalledWith({ query: {
       saved: 's1', q: 'saved query', mode: 'text', tags: 'one', minScore: '', sort: 'updated'
     } })
-    expect(searchPages).toHaveBeenCalledWith('saved query')
+    expect(searchPages).toHaveBeenCalledWith('saved query', ['one'])
   })
 
   it('retains all saved filters through searches and update payload', async () => {
@@ -289,6 +289,8 @@ describe('SearchPage', () => {
     await wrapper.findAll('[role="radio"]')[0]!.trigger('click')
     await flushPromises()
     expect(wrapper.findAll('.tag-chip.active')).toHaveLength(2)
+    expect(searchPages).toHaveBeenCalledWith('saved query', ['one', 'two'])
+    expect(searchPagesRag).toHaveBeenCalledWith('saved query', undefined, ['one', 'two'])
 
     await wrapper.findAll('.score-select').at(-1)!.setValue('RELEVANCE')
     await wrapper.get('.saved-actions button').trigger('click')

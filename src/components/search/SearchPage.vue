@@ -81,7 +81,6 @@ const resultTags = computed(() => {
 const filteredResults = computed(() => {
   const filtered = results.value.filter(r => {
     if (r.score !== null && r.score < minScore.value) return false
-    if (selectedTags.value.some(tag => !r.tags.includes(tag))) return false
     return true
   })
   return sort.value === 'UPDATED'
@@ -93,6 +92,13 @@ function toggleTag(tag: string) {
   selectedTags.value = selectedTags.value.includes(tag)
     ? selectedTags.value.filter(selected => selected !== tag)
     : [...selectedTags.value, tag]
+  void doSearch()
+}
+
+function clearTags() {
+  if (selectedTags.value.length === 0) return
+  selectedTags.value = []
+  void doSearch()
 }
 
 function highlightSnippet(snippet: string, q: string): string {
@@ -134,17 +140,25 @@ async function doSearch(searchMode: SearchMode = mode.value) {
   warning.value = null
   try {
     if (searchMode === 'text') {
-      const { data } = await searchApi.searchPages(query.value)
+      const { data } = selectedTags.value.length
+        ? await searchApi.searchPages(query.value, selectedTags.value)
+        : await searchApi.searchPages(query.value)
       if (!isCurrent()) return
       results.value = normalizeSearchResults(data, [])
     } else if (searchMode === 'semantic') {
-      const { data } = await searchApi.searchPagesRag(query.value)
+      const { data } = selectedTags.value.length
+        ? await searchApi.searchPagesRag(query.value, undefined, selectedTags.value)
+        : await searchApi.searchPagesRag(query.value)
       if (!isCurrent()) return
       results.value = normalizeSearchResults([], data)
     } else {
       const [text, semantic] = await Promise.allSettled([
-        searchApi.searchPages(query.value),
-        searchApi.searchPagesRag(query.value)
+        selectedTags.value.length
+          ? searchApi.searchPages(query.value, selectedTags.value)
+          : searchApi.searchPages(query.value),
+        selectedTags.value.length
+          ? searchApi.searchPagesRag(query.value, undefined, selectedTags.value)
+          : searchApi.searchPagesRag(query.value)
       ])
       if (!isCurrent()) return
       if (text.status === 'rejected' && semantic.status === 'rejected') {
@@ -371,7 +385,7 @@ watch(() => route.query.saved, (saved) => {
           :class="['tag-chip', { active: selectedTags.includes(tag) }]"
           @click="toggleTag(tag)"
         >{{ tag }}</button>
-        <button v-if="selectedTags.length" class="tag-chip clear" @click="selectedTags = []">{{ t('search.clearTag') }}</button>
+        <button v-if="selectedTags.length" class="tag-chip clear" @click="clearTags">{{ t('search.clearTag') }}</button>
       </div>
 
       <div v-if="mode === 'semantic'" class="score-filter">

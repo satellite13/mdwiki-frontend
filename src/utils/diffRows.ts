@@ -7,16 +7,45 @@ export type DiffRow = {
 export function diffRows(before: string, after: string): { rows: DiffRow[]; truncated: boolean } {
   const left = before.split('\n')
   const right = after.split('\n')
-  if (left.length * right.length > 4_000_000) {
-    const prefix = left.findIndex((line, index) => line !== right[index])
-    const same = prefix < 0 ? Math.min(left.length, right.length) : prefix
+  if (left.length > 5_000 || right.length > 5_000 || left.length * right.length > 1_000_000) {
+    let prefix = 0
+    while (prefix < left.length && prefix < right.length && left[prefix] === right[prefix]) prefix++
+    let suffix = 0
+    while (
+      suffix < left.length - prefix &&
+      suffix < right.length - prefix &&
+      left[left.length - 1 - suffix] === right[right.length - 1 - suffix]
+    ) suffix++
+    const context = 20
+    const changeBudget = 20
+    const rows: DiffRow[] = []
+    const marker = () => rows.push({ kind: 'context', before: '…', after: '…' })
+    const prefixStart = Math.max(0, prefix - context)
+    if (prefixStart > 0) marker()
+    for (let i = prefixStart; i < prefix; i++) {
+      rows.push({ kind: 'context', before: left[i]!, after: right[i]! })
+    }
+    const leftChangeEnd = left.length - suffix
+    const rightChangeEnd = right.length - suffix
+    for (let i = prefix; i < Math.min(leftChangeEnd, prefix + changeBudget); i++) {
+      rows.push({ kind: 'remove', before: left[i]!, after: null })
+    }
+    for (let i = prefix; i < Math.min(rightChangeEnd, prefix + changeBudget); i++) {
+      rows.push({ kind: 'add', before: null, after: right[i]! })
+    }
+    if (leftChangeEnd - prefix > changeBudget || rightChangeEnd - prefix > changeBudget) marker()
+    const suffixCount = Math.min(suffix, context)
+    for (let offset = suffixCount; offset > 0; offset--) {
+      rows.push({
+        kind: 'context',
+        before: left[left.length - offset]!,
+        after: right[right.length - offset]!,
+      })
+    }
+    if (suffix > context) marker()
     return {
       truncated: true,
-      rows: [
-        ...left.slice(0, same).map(line => ({ kind: 'context' as const, before: line, after: line })),
-        ...left.slice(same, same + 2000).map(line => ({ kind: 'remove' as const, before: line, after: null })),
-        ...right.slice(same, same + 2000).map(line => ({ kind: 'add' as const, before: null, after: line })),
-      ],
+      rows,
     }
   }
   const lengths = Array.from({ length: left.length + 1 }, () => new Uint32Array(right.length + 1))

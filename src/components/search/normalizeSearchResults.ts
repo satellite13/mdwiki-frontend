@@ -32,7 +32,7 @@ export function normalizeSearchResults(
         sectionHeading: null,
         sectionKey: null,
         score: null,
-        tags: [],
+        tags: textResult.tags ?? [],
         ...(textResult.updatedAt ? { updatedAt: textResult.updatedAt } : {}),
         sources: ['text']
       }
