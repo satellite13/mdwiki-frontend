@@ -7,11 +7,13 @@ import UnlinkedMentionsPage from './UnlinkedMentionsPage.vue'
 const route = reactive({ name: 'unlinked-mentions', query: { target: 'target' as string | undefined } })
 const replace = vi.fn()
 const auth = { isEditor: false }
+const confirm = vi.fn()
 const getUnlinkedMentions = vi.fn()
 const linkUnlinkedMention = vi.fn()
 vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace }) }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('@/stores/folders', () => ({ useFolderStore: () => ({ fetchTree: vi.fn() }) }))
+vi.mock('@/stores/dialog', () => ({ useDialogStore: () => ({ confirm }) }))
 vi.mock('@/services/pageIndex', () => ({
   getPages: vi.fn().mockResolvedValue([{ id: '1', slug: 'target', title: 'Target' }]),
   invalidatePageIndex: vi.fn()
@@ -31,6 +33,12 @@ function mountPage() {
       }
     }
   })
+}
+
+async function pickAppSelectOption(wrapper: ReturnType<typeof mountPage>, value: string) {
+  await wrapper.get('[data-testid="app-select-trigger"]').trigger('click')
+  const testId = value === '' ? 'app-select-option-empty' : `app-select-option-${value}`
+  await wrapper.get(`[data-testid="${testId}"]`).trigger('click')
 }
 
 describe('UnlinkedMentionsPage', () => {
@@ -54,13 +62,15 @@ describe('UnlinkedMentionsPage', () => {
 
   it('links mentions for editors and stores selected target in URL', async () => {
     auth.isEditor = true
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    confirm.mockResolvedValue(true)
     const wrapper = mountPage()
     await flushPromises()
     await wrapper.get('li button').trigger('click')
+    await flushPromises()
+    expect(confirm).toHaveBeenCalled()
     expect(linkUnlinkedMention).toHaveBeenCalled()
-    await wrapper.get('select').setValue('')
-    await wrapper.get('select').trigger('change')
+    await pickAppSelectOption(wrapper, '')
+    await flushPromises()
     expect(replace).toHaveBeenCalledWith({ query: {} })
   })
 })

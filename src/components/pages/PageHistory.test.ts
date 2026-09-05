@@ -32,7 +32,12 @@ const summaries: RevisionSummary[] = [3, 2, 1].map((revisionNo, index) => ({
 
 function mountPage() {
   return mount(PageHistory, {
-    global: { plugins: [i18n], stubs: { RouterLink: { template: '<a><slot /></a>' } } }
+    global: {
+      plugins: [i18n],
+      stubs: {
+        RouterLink: { template: '<a v-bind="$attrs"><slot /></a>' }
+      }
+    }
   })
 }
 
@@ -46,6 +51,14 @@ describe('PageHistory', () => {
     confirm.mockResolvedValue(true)
   })
 
+  it('renders back link as a secondary button', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const back = wrapper.get('a.btn-secondary.history-back')
+    expect(back.text()).toBe(i18n.global.t('history.back'))
+    expect(back.classes()).toContain('btn-secondary')
+  })
+
   it('canonicalizes latest comparison, loads two snapshots, and hides restore for reader', async () => {
     const wrapper = mountPage()
     await flushPromises()
@@ -53,14 +66,28 @@ describe('PageHistory', () => {
     expect(getRevision).toHaveBeenCalledWith('note', 2)
     expect(getRevision).toHaveBeenCalledWith('note', 3)
     expect(wrapper.find('.selectors').exists()).toBe(true)
-    expect(wrapper.find('.selectors > button').exists()).toBe(false)
+    expect(wrapper.find('.restore-action button').exists()).toBe(false)
   })
 
   it('renders localized delete and trash restore operations', async () => {
     const wrapper = mountPage()
     await flushPromises()
-    expect(wrapper.get('select').text()).toContain('Restored from trash')
-    expect(wrapper.get('select').text()).toContain('Deleted')
+    const beforeSelect = wrapper.findAll('.selectors .app-select')[0]!
+    await beforeSelect.get('[data-testid="app-select-trigger"]').trigger('click')
+    const list = beforeSelect.get('[data-testid="app-select-list"]')
+    expect(list.text()).toContain('Restored from trash')
+    expect(list.text()).toContain('Deleted')
+  })
+
+  it('labels restore with the From revision number and keeps hint behind HelpTip', async () => {
+    auth.isEditor = true
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.get('.restore-action button').text()).toContain('Restore revision #2')
+    expect(wrapper.find('.restore-hint').exists()).toBe(false)
+    expect(wrapper.find('.help-tip-trigger').exists()).toBe(true)
+    await wrapper.get('.help-tip-trigger').trigger('click')
+    expect(wrapper.text()).toContain('The button restores the “From” revision content')
   })
 
   it('keeps selection and offers reload on restore conflict', async () => {
@@ -69,10 +96,11 @@ describe('PageHistory', () => {
     restoreRevision.mockRejectedValue({ isAxiosError: true, response: { status: 409 } })
     const wrapper = mountPage()
     await flushPromises()
-    await wrapper.get('.selectors > button').trigger('click')
+    await wrapper.get('.restore-action button').trigger('click')
     await flushPromises()
+    expect(restoreRevision).toHaveBeenCalledWith('note', 2, 'now')
     expect(wrapper.text()).toContain('The page changed')
-    expect(wrapper.findAll('select')[0]!.element.value).toBe('2')
+    expect(wrapper.findAll('.selectors .app-select')[0]!.text()).toContain('#2')
   })
 
   it('ignores delayed responses from the previous slug', async () => {
@@ -90,7 +118,9 @@ describe('PageHistory', () => {
 
     expect(listRevisions).toHaveBeenCalledWith('fresh-b', { limit: 50 })
     expect(getRevision).toHaveBeenCalledWith('fresh-b', 2)
-    expect(wrapper.findAll('option')[0]!.text()).toContain('Restored from trash')
+    const beforeSelect = wrapper.findAll('.selectors .app-select')[0]!
+    await beforeSelect.get('[data-testid="app-select-trigger"]').trigger('click')
+    expect(beforeSelect.get('[data-testid="app-select-option-3"]').text()).toContain('Restored from trash')
     expect(getRevision).not.toHaveBeenCalledWith('note', expect.any(Number))
   })
 })

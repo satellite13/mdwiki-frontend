@@ -8,12 +8,17 @@ import { getPages, invalidatePageIndex } from '@/services/pageIndex'
 import * as api from '@/api/linkInsights'
 import type { PageListItem, UnlinkedMention } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { useDialogStore } from '@/stores/dialog'
 import DiscoveryNav from './DiscoveryNav.vue'
+import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import HelpTip from '@/components/ui/HelpTip.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const folders = useFolderStore()
+const dialog = useDialogStore()
 const { t } = useI18n()
 const pages = ref<PageListItem[]>([])
 const target = ref('')
@@ -55,7 +60,8 @@ async function load() {
 }
 
 async function link(item: UnlinkedMention) {
-  if (!auth.isEditor || !confirm(t('pkm.linkConfirm'))) return
+  if (!auth.isEditor) return
+  if (!await dialog.confirm(t('pkm.linkConfirm'), { confirmLabel: t('pkm.createLink') })) return
   const key = `${item.sourceSlug}:${item.startOffset}`
   linking.value = key
   try {
@@ -72,30 +78,93 @@ async function link(item: UnlinkedMention) {
 </script>
 
 <template>
-  <main class="pkm-list">
-    <DiscoveryNav />
-    <h1>{{ t('pkm.unlinked') }}</h1>
-    <label>{{ t('pkm.targetPage') }}
-      <select v-model="target" @change="select">
-        <option value="">{{ t('pkm.choosePage') }}</option>
-        <option v-for="page in pages" :key="page.id" :value="page.slug">{{ page.title }}</option>
-      </select>
-    </label>
-    <p v-if="loading">{{ t('common.loading') }}</p>
-    <p v-else-if="error" role="alert">{{ error }}</p>
-    <p v-else-if="target && !mentions.length">{{ t('pkm.noMentions') }}</p>
-    <ul>
-      <li v-for="item in mentions" :key="`${item.sourceSlug}:${item.startOffset}`">
-        <router-link :to="{ path: `/page/${item.sourceSlug}`, query: item.sectionKey ? { section: item.sectionKey } : {} }">
-          {{ item.sourceTitle }}
-        </router-link>
-        <p>{{ item.snippet }}</p>
-        <button v-if="auth.isEditor" :disabled="linking !== null" @click="link(item)">
-          {{ linking === `${item.sourceSlug}:${item.startOffset}` ? '…' : t('pkm.createLink') }}
-        </button>
-      </li>
-    </ul>
-  </main>
+  <div class="grouped-page">
+    <div class="page-header">
+      <div>
+        <h1>{{ t('pkm.discovery') }}</h1>
+        <p class="page-subtitle">{{ t('pkm.unlinkedSubtitle') }}</p>
+      </div>
+      <DiscoveryNav />
+    </div>
+
+    <section class="group-card discovery-toolbar">
+      <label class="toolbar-field">
+        <span class="field-label-row">
+          <span class="field-label">{{ t('pkm.targetPage') }}</span>
+          <HelpTip :label="t('pkm.targetPageHelpLabel')">
+            <p>{{ t('pkm.targetPageHelp') }}</p>
+          </HelpTip>
+        </span>
+        <AppSelect
+          v-model="target"
+          :options="[
+            { value: '', label: t('pkm.choosePage') },
+            ...pages.map((p) => ({ value: p.slug, label: p.title })),
+          ]"
+          searchable
+          :placeholder="t('pkm.choosePage')"
+          @change="select"
+        />
+      </label>
+    </section>
+
+    <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
+    <div v-else-if="error" class="empty-state" role="alert">{{ error }}</div>
+    <div v-else-if="!target" class="empty-state">{{ t('pkm.chooseTargetHint') }}</div>
+    <div v-else-if="!mentions.length" class="empty-state">{{ t('pkm.noMentions') }}</div>
+    <section v-else class="group-card">
+      <ul class="library-list">
+        <li v-for="item in mentions" :key="`${item.sourceSlug}:${item.startOffset}`">
+          <div class="library-item-body">
+            <router-link :to="{ path: `/page/${item.sourceSlug}`, query: item.sectionKey ? { section: item.sectionKey } : {} }">
+              {{ item.sourceTitle }}
+            </router-link>
+            <p>{{ item.snippet }}</p>
+          </div>
+          <button
+            v-if="auth.isEditor"
+            type="button"
+            class="btn-secondary"
+            :disabled="linking !== null"
+            @click="link(item)"
+          >
+            {{ linking === `${item.sourceSlug}:${item.startOffset}` ? '…' : t('pkm.createLink') }}
+          </button>
+        </li>
+      </ul>
+    </section>
+  </div>
 </template>
 
-<style scoped>.pkm-list{max-width:900px;width:100%;margin:auto;padding:24px}.pkm-list label{display:grid;gap:6px}.pkm-list select{min-height:44px}.pkm-list ul{list-style:none;padding:0}.pkm-list li{padding:16px 0;border-bottom:1px solid var(--color-border)}.pkm-list li p{color:var(--color-text-muted)}button{min-height:44px}</style>
+<style scoped>
+.discovery-toolbar {
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.toolbar-field {
+  display: grid;
+  gap: 0.35rem;
+  width: min(100%, 40rem);
+}
+
+.field-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.toolbar-field .field-label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+}
+
+.toolbar-field :deep(.app-select) {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+</style>
