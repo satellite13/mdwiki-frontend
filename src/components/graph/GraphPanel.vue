@@ -36,17 +36,26 @@ function currentMarkerKey(): string {
     : `${props.slug}-${depth.value}`
 }
 
+function svgEl(): SVGSVGElement | null {
+  return svgRef.value ?? canvasRef.value?.querySelector('svg.graph-svg') ?? null
+}
+
 function draw() {
-  if (!svgRef.value) return
-  renderHandle?.stop()
-  renderHandle = renderGraph({
-    svg: svgRef.value,
-    variant: props.variant,
-    nodes: lastNodes,
-    edges: lastEdges,
-    markerKey: currentMarkerKey(),
-    onNodeClick: (slug) => router.push(`/page/${slug}`)
-  })
+  const el = svgEl()
+  if (!el) return
+  try {
+    renderHandle?.stop()
+    renderHandle = renderGraph({
+      svg: el,
+      variant: props.variant,
+      nodes: lastNodes,
+      edges: lastEdges,
+      markerKey: currentMarkerKey(),
+      onNodeClick: (slug) => router.push(`/page/${slug}`)
+    })
+  } catch (e) {
+    console.error('Failed to render graph:', e)
+  }
 }
 
 async function loadGraph() {
@@ -62,10 +71,9 @@ async function loadGraph() {
     loading.value = false
     await nextTick()
     await nextTick()
+    draw()
     if (props.variant === 'wiki') {
       requestAnimationFrame(() => requestAnimationFrame(draw))
-    } else {
-      draw()
     }
   } catch (e) {
     console.error('Failed to load graph:', e)
@@ -137,7 +145,7 @@ onBeforeUnmount(() => {
     </div>
     <div ref="canvasRef" class="graph-canvas">
       <div v-if="loading" class="graph-loading"><SkeletonLoader width="100%" height="100%" variant="block" /></div>
-      <svg ref="svgRef" class="graph-svg" aria-hidden="true" />
+      <svg ref="svgRef" class="graph-svg" aria-hidden="true" v-once />
     </div>
   </div>
 </template>
@@ -261,9 +269,102 @@ onBeforeUnmount(() => {
   min-height: 200px;
 }
 
-.graph-svg :deep(.graph-node:hover .graph-node__dot) {
+.graph-svg :deep(.graph-node__label) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.graph-svg :deep(.graph-node:hover .graph-node__label),
+.graph-svg :deep(.graph-node.is-hovered .graph-node__label),
+.graph-svg :deep(.graph-node.is-neighbor .graph-node__label) {
+  opacity: 1;
+}
+
+.graph-svg :deep(.graph-node:hover .graph-node__dot),
+.graph-svg :deep(.graph-node.is-hovered .graph-node__dot),
+.graph-svg :deep(.graph-node.is-neighbor .graph-node__dot) {
   stroke: var(--color-primary);
   stroke-width: 2;
+}
+
+.graph-svg :deep(.graph-node.is-dimmed) {
+  opacity: 0.18;
+}
+
+.graph-svg :deep(.graph-links path.graph-link) {
+  transition: stroke 0.16s ease, stroke-opacity 0.16s ease, stroke-width 0.16s ease;
+}
+
+.graph-svg :deep(.graph-links path.graph-link.is-hot) {
+  stroke: color-mix(in srgb, var(--color-primary) 78%, var(--color-text-muted));
+  stroke-opacity: 0.55;
+  stroke-width: 1.75px;
+  vector-effect: non-scaling-stroke;
+}
+
+.graph-svg :deep(.graph-links path.graph-link.is-dimmed) {
+  stroke-opacity: 0.07;
+}
+
+.graph-svg :deep(.graph-link-flow) {
+  stroke: var(--color-primary);
+  stroke-linecap: round;
+  stroke-width: 3.15px;
+  vector-effect: non-scaling-stroke;
+  stroke-opacity: 0;
+}
+
+.graph-svg :deep(.graph-link-flow.is-hot) {
+  stroke: color-mix(in srgb, #e11d48 78%, #ffd6de);
+  stroke-opacity: 0.95;
+}
+
+.graph-svg :deep(.graph-halos) {
+  transition: opacity 0.16s ease;
+}
+
+.graph-svg.is-focusing :deep(.graph-halos) {
+  opacity: 0.35;
+}
+
+.graph-svg :deep(.graph-node) {
+  transition: opacity 0.16s ease;
+}
+
+.graph-svg :deep(.graph-node__pulse) {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: graph-node-breathe 3.8s ease-in-out infinite;
+}
+
+@keyframes graph-node-breathe {
+  0%,
+  100% {
+    opacity: 0.18;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.42;
+    transform: scale(1.16);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-svg :deep(.graph-node__label),
+  .graph-svg :deep(.graph-links path.graph-link),
+  .graph-svg :deep(.graph-halos),
+  .graph-svg :deep(.graph-node) {
+    transition: none;
+  }
+
+  .graph-svg :deep(.graph-node__pulse) {
+    animation: none;
+  }
+
+  .graph-svg :deep(.graph-link-flow.is-hot) {
+    stroke-opacity: 0;
+  }
 }
 
 @media (max-width: 767px) {
