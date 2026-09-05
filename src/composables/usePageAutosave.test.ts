@@ -207,4 +207,68 @@ describe('usePageAutosave', () => {
     expect(state.content.value).toBe('second edit')
     expect(state.lastSavedContentMd.value).toBe('first edit')
   })
+
+  it('adopts a canonical API response when the user did not edit during the request', async () => {
+    const { wrapper, state } = mountAutosave(page(), 'formatted content')
+    state.title.value = '  Typed title  '
+    mockUpdatePage
+      .mockResolvedValueOnce({
+        data: page({
+          title: 'Typed title',
+          contentMd: 'formatted content',
+          updatedAt: '2026-08-15T10:01:00Z'
+        })
+      })
+      .mockRejectedValueOnce(new Error('drain repeated without progress'))
+
+    const result = await wrapper.vm.flushPendingSave()
+
+    expect(result).toBe(true)
+    expect(state.title.value).toBe('Typed title')
+    expect(state.content.value).toBe('formatted content')
+    expect(wrapper.vm.isDirty()).toBe(false)
+    expect(mockUpdatePage).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves a concurrent title edit and drains it as the next snapshot', async () => {
+    let resolveFirst!: (value: unknown) => void
+    let resolveSecond!: (value: unknown) => void
+    mockUpdatePage
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve }))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveSecond = resolve }))
+    const { wrapper, state } = mountAutosave(page(), 'changed content')
+    state.title.value = 'First title'
+
+    void wrapper.vm.doSave()
+    await flushPromises()
+    wrapper.vm.onTitleInput({ target: { value: 'Second title' } } as unknown as Event)
+    const flush = wrapper.vm.flushPendingSave()
+    resolveFirst({
+      data: page({
+        title: 'Canonical first',
+        contentMd: 'changed content',
+        updatedAt: '2026-08-15T10:01:00Z'
+      })
+    })
+    await flushPromises()
+
+    expect(state.title.value).toBe('Second title')
+    expect(mockUpdatePage).toHaveBeenNthCalledWith(2, 'note', {
+      title: 'Second title',
+      contentMd: 'changed content',
+      clearFolder: false,
+      expectedUpdatedAt: '2026-08-15T10:01:00Z'
+    })
+    resolveSecond({
+      data: page({
+        title: 'Canonical second',
+        contentMd: 'changed content',
+        updatedAt: '2026-08-15T10:02:00Z'
+      })
+    })
+
+    expect(await flush).toBe(true)
+    expect(state.title.value).toBe('Canonical second')
+    expect(wrapper.vm.isDirty()).toBe(false)
+  })
 })
