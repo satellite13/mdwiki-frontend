@@ -6,7 +6,7 @@ import type { Tag } from '@/types'
 export const useTagStore = defineStore('tags', () => {
   const tags = ref<Tag[]>([])
   const selectedTags = ref<string[]>([])
-  const tagsCollapsed = ref(false)
+  const tagsCollapsed = ref(true)
 
   async function fetchTags(force = false) {
     if (!force && tags.value.length > 0) return

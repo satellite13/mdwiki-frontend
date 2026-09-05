@@ -1,6 +1,10 @@
 export const ru = {
   properties: {
     title: 'Свойства',
+    toggle: 'Показать или скрыть свойства',
+    expand: 'Развернуть свойства',
+    collapse: 'Свернуть свойства',
+    hint: 'Типизированные поля из frontmatter. Изменение значения сразу записывается в Markdown страницы.',
     empty: 'Не задано',
     emptyValue: '—',
     readOnly: '{key} (только чтение)',

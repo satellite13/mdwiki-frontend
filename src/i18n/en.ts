@@ -1,6 +1,10 @@
 export const en = {
   properties: {
     title: 'Properties',
+    toggle: 'Show or hide properties',
+    expand: 'Expand properties',
+    collapse: 'Collapse properties',
+    hint: 'Typed fields from frontmatter. Change a value to save it into the page Markdown.',
     empty: 'Not set',
     emptyValue: '—',
     readOnly: '{key} (read only)',

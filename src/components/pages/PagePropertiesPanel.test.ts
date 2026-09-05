@@ -31,6 +31,7 @@ describe('PagePropertiesPanel', () => {
       },
       global: { plugins: [i18n] }
     })
+    await wrapper.get('.properties-toggle').trigger('click')
     await wrapper.setProps({ page: { slug: 'b', updatedAt: '2026-01-01T00:00:00Z' } as never })
     resolveB({ data: { ...properties, values: { priority: 'B' } } })
     await flushPromises()
@@ -38,6 +39,26 @@ describe('PagePropertiesPanel', () => {
     await flushPromises()
 
     expect((wrapper.get('input').element as HTMLInputElement).value).toBe('B')
+  })
+
+  it('starts collapsed and expands on toggle', async () => {
+    getPageProperties.mockResolvedValue({ data: properties })
+    const wrapper = mount(PagePropertiesPanel, {
+      props: {
+        page: { slug: 'page', updatedAt: '2026-01-01T00:00:00Z' } as never,
+        editable: true,
+        flushPendingSave: vi.fn().mockResolvedValue(true)
+      },
+      global: { plugins: [i18n] }
+    })
+    await flushPromises()
+    expect(wrapper.get('.properties-toggle').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('#page-properties-body').attributes('style') || '').toContain('display: none')
+    await wrapper.get('.properties-toggle').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.properties-toggle').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('#page-properties-body').attributes('style') || '').not.toContain('display: none')
+    expect(wrapper.find('dl').exists()).toBe(true)
   })
 
   it('renders UTC datetime values and removes an invalid local datetime without throwing', async () => {
@@ -57,6 +78,7 @@ describe('PagePropertiesPanel', () => {
       },
       global: { plugins: [i18n] }
     })
+    await wrapper.get('.properties-toggle').trigger('click')
     await flushPromises()
 
     const input = wrapper.get('input')
