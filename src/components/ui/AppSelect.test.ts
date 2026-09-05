@@ -64,4 +64,16 @@ describe('AppSelect', () => {
     expect(wrapper.find('[data-testid="app-select-list"]').exists()).toBe(false)
     wrapper.unmount()
   })
+
+  it('exposes aria-activedescendant for the active option', async () => {
+    const wrapper = mountSelect({ modelValue: null })
+    const trigger = wrapper.get('[data-testid="app-select-trigger"]')
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    const list = wrapper.get('[data-testid="app-select-list"]')
+    const activeId = list.attributes('aria-activedescendant')
+    expect(activeId).toBeTruthy()
+    expect(trigger.attributes('aria-activedescendant')).toBe(activeId)
+    expect(document.getElementById(activeId!)).not.toBeNull()
+    wrapper.unmount()
+  })
 })

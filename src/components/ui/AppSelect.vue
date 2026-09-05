@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { i18n } from '@/i18n'
 
 export type AppSelectOption = {
@@ -35,9 +35,29 @@ const searchRef = ref<HTMLInputElement | null>(null)
 const open = ref(false)
 const searchQuery = ref('')
 const activeIndex = ref(-1)
-const listId = `app-select-list-${Math.random().toString(36).slice(2, 9)}`
+const uid = useId()
+const listId = `${uid}-list`
 /** Optimistic multi selection until parent syncs modelValue. */
 const localMulti = ref<string[]>([])
+
+function optionDomId(index: number) {
+  return `${uid}-option-${index}`
+}
+
+const activeOptionId = computed(() => (
+  open.value && activeIndex.value >= 0 ? optionDomId(activeIndex.value) : undefined
+))
+
+function scrollActiveIntoView() {
+  const index = activeIndex.value
+  if (index < 0) return
+  nextTick(() => {
+    const el = document.getElementById(optionDomId(index))
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest' })
+    }
+  })
+}
 
 const t = (key: string, values?: Record<string, unknown>) =>
   i18n.global.t(key, values as Record<string, unknown>)
@@ -124,6 +144,7 @@ function openList() {
   nextTick(() => {
     if (props.searchable) searchRef.value?.focus()
     else listRef.value?.focus()
+    scrollActiveIntoView()
   })
 }
 
@@ -170,6 +191,7 @@ function moveActive(delta: number) {
     next = (next + delta + opts.length) % opts.length
     if (!opts[next]?.disabled) {
       activeIndex.value = next
+      scrollActiveIntoView()
       return
     }
   }
@@ -182,6 +204,7 @@ function jumpActive(toEnd: boolean) {
     for (let i = opts.length - 1; i >= 0; i--) {
       if (!opts[i]?.disabled) {
         activeIndex.value = i
+        scrollActiveIntoView()
         return
       }
     }
@@ -189,6 +212,7 @@ function jumpActive(toEnd: boolean) {
     for (let i = 0; i < opts.length; i++) {
       if (!opts[i]?.disabled) {
         activeIndex.value = i
+        scrollActiveIntoView()
         return
       }
     }
@@ -317,6 +341,7 @@ onBeforeUnmount(() => {
       tabindex="0"
       :aria-expanded="open"
       :aria-controls="open ? listId : undefined"
+      :aria-activedescendant="activeOptionId"
       :aria-label="ariaLabel"
       :aria-disabled="disabled || undefined"
       @click="toggleOpen"
@@ -349,6 +374,7 @@ onBeforeUnmount(() => {
       data-testid="app-select-list"
       role="listbox"
       :aria-multiselectable="multiple || undefined"
+      :aria-activedescendant="activeOptionId"
       tabindex="-1"
       @keydown="onListKeydown"
     >
@@ -359,6 +385,8 @@ onBeforeUnmount(() => {
           class="app-select-search"
           data-testid="app-select-search"
           :placeholder="t('common.search')"
+          :aria-activedescendant="activeOptionId"
+          :aria-controls="listId"
           :value="searchQuery"
           @input="searchQuery = ($event.target as HTMLInputElement).value"
           @keydown="onSearchKeydown"
@@ -369,6 +397,7 @@ onBeforeUnmount(() => {
       <ul class="app-select-options" role="presentation">
         <li
           v-for="(option, index) in filteredOptions"
+          :id="optionDomId(index)"
           :key="`${option.value}::${index}`"
           role="option"
           class="app-select-option"
