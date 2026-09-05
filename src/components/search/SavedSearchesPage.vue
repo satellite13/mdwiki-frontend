@@ -5,6 +5,7 @@ import * as api from '@/api/savedSearches'
 import type { SavedSearch, SavedSearchMode, SavedSearchSort } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useDialogStore } from '@/stores/dialog'
+import AppSelect from '@/components/ui/AppSelect.vue'
 
 const { t } = useI18n()
 const dialog = useDialogStore()
@@ -21,6 +22,15 @@ const minScore = ref<number | null>(null)
 const sort = ref<SavedSearchSort>('RELEVANCE')
 const formOpen = ref(false)
 const formTitle = computed(() => editing.value ? t('savedSearches.editTitle') : t('savedSearches.createTitle'))
+const modeOptions = [
+  { value: 'HYBRID', label: 'Hybrid' },
+  { value: 'TEXT', label: 'Text' },
+  { value: 'SEMANTIC', label: 'Semantic' },
+]
+const sortOptions = computed(() => [
+  { value: 'RELEVANCE', label: t('savedSearches.relevance') },
+  { value: 'UPDATED', label: t('savedSearches.updated') },
+])
 let requestId = 0
 
 async function load() {
@@ -84,10 +94,10 @@ onMounted(load)
       <h2>{{ formTitle }}</h2>
       <label>{{ t('savedSearches.name') }}<input v-model="name" maxlength="120" required /></label>
       <label>{{ t('savedSearches.query') }}<input v-model="queryText" maxlength="1000" required /></label>
-      <label>{{ t('savedSearches.mode') }}<select v-model="mode"><option value="HYBRID">Hybrid</option><option value="TEXT">Text</option><option value="SEMANTIC">Semantic</option></select></label>
+      <label>{{ t('savedSearches.mode') }}<AppSelect v-model="mode" :options="modeOptions" :aria-label="t('savedSearches.mode')" /></label>
       <label>{{ t('savedSearches.tags') }}<input v-model="tagsText" /></label>
       <label>{{ t('savedSearches.minScore') }}<input v-model.number="minScore" type="number" min="0" max="1" step="0.01" /></label>
-      <label>{{ t('savedSearches.sort') }}<select v-model="sort"><option value="RELEVANCE">{{ t('savedSearches.relevance') }}</option><option value="UPDATED">{{ t('savedSearches.updated') }}</option></select></label>
+      <label>{{ t('savedSearches.sort') }}<AppSelect v-model="sort" :options="sortOptions" :aria-label="t('savedSearches.sort')" /></label>
       <div class="actions"><button type="button" @click="formOpen = false">{{ t('common.cancel') }}</button><button class="btn-primary" :disabled="saving" type="submit">{{ t('common.save') }}</button></div>
     </form>
   </main>

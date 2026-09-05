@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick, reactive } from 'vue'
 import SearchPage from './SearchPage.vue'
 import { i18n } from '@/i18n'
@@ -16,6 +16,11 @@ const deleteSavedSearch = vi.fn()
 const alert = vi.fn()
 const prompt = vi.fn()
 const confirm = vi.fn()
+
+async function pickSelectOption(field: VueWrapper, value: string) {
+  await field.get('[data-testid="app-select-trigger"]').trigger('click')
+  await field.get(`[data-testid="app-select-option-${value}"]`).trigger('click')
+}
 
 vi.mock('vue-router', () => ({
   useRoute: () => route,
@@ -219,6 +224,17 @@ describe('SearchPage', () => {
     expect(alert).not.toHaveBeenCalled()
   })
 
+  it('explains search modes behind HelpTip', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const tip = wrapper.get('.mode-row .help-tip-trigger')
+    expect(tip.attributes('aria-label')).toBe(i18n.global.t('search.modeHelpLabel'))
+    await tip.trigger('click')
+    expect(wrapper.text()).toContain(i18n.global.t('search.modeHybridHelp'))
+    expect(wrapper.text()).toContain(i18n.global.t('search.modeTextHelp'))
+    expect(wrapper.text()).toContain(i18n.global.t('search.modeSemanticHelp'))
+  })
+
   it('only applies score filtering in semantic mode', async () => {
     route.query = { q: 'knowledge', mode: 'semantic' }
     const wrapper = mountPage()
@@ -226,27 +242,28 @@ describe('SearchPage', () => {
 
     expect(searchPages).not.toHaveBeenCalled()
     expect(wrapper.find('.score-filter').exists()).toBe(true)
-    await wrapper.get('.score-select').setValue('0.9')
+    await pickSelectOption(wrapper.get('.score-select'), '0.9')
     expect(wrapper.findAll('.result-card')).toHaveLength(1)
   })
 
-  it('sanitizes grounded answer and renders citation route without hiding hits', async () => {
+  it('renders citation fragments without markdown dump and keeps search hits', async () => {
     answerQuestion.mockResolvedValue({ data: {
       answerMd: '**Safe** [1]<img src=x onerror=alert(1)>',
       grounded: true,
       model: 'extractive-rag',
       citations: [{ id: 1, pageSlug: 'alpha', pageTitle: 'Alpha', sectionKey: 'stable',
-        sectionHeading: 'H', quote: 'Safe', score: 0.9 }]
+        sectionHeading: 'H', quote: 'Safe quote with long/path/that/should/wrap', score: 0.9 }]
     } })
     const wrapper = mountPage()
     await flushPromises()
     await wrapper.get('.answer-panel button').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('.answer-text').html()).toContain('<strong>Safe</strong>')
-    expect(wrapper.get('.answer-text').html()).not.toContain('onerror')
+    expect(wrapper.find('.answer-text').exists()).toBe(false)
+    expect(wrapper.get('.answer-panel blockquote').text()).toContain('Safe quote')
     expect(wrapper.findAll('.result-card')).toHaveLength(1)
     expect(wrapper.get('.answer-panel ol a').text()).toContain('Alpha')
+    expect(wrapper.get('.citation-section').text()).toBe('H')
   })
 
   it('hydrates saved definition and keeps saved id in canonical URL', async () => {
@@ -283,8 +300,8 @@ describe('SearchPage', () => {
     await flushPromises()
 
     expect(wrapper.findAll('.tag-chip.active').map(node => node.text()).sort()).toEqual(['one', 'two'])
-    expect((wrapper.get('.score-select').element as HTMLSelectElement).value).toBe('0.75')
-    expect((wrapper.findAll('.score-select')[1]!.element as HTMLSelectElement).value).toBe('UPDATED')
+    expect(wrapper.get('.score-select').text()).toContain('75%+')
+    expect(wrapper.findAll('.score-select')[1]!.text()).toContain(i18n.global.t('savedSearches.updated'))
 
     await wrapper.findAll('[role="radio"]')[0]!.trigger('click')
     await flushPromises()
@@ -292,7 +309,7 @@ describe('SearchPage', () => {
     expect(searchPages).toHaveBeenCalledWith('saved query', ['one', 'two'])
     expect(searchPagesRag).toHaveBeenCalledWith('saved query', undefined, ['one', 'two'])
 
-    await wrapper.findAll('.score-select').at(-1)!.setValue('RELEVANCE')
+    await pickSelectOption(wrapper.findAll('.score-select').at(-1)!, 'RELEVANCE')
     await wrapper.get('.saved-actions button').trigger('click')
     await flushPromises()
     expect(updateSavedSearch).toHaveBeenCalledWith('s2', {

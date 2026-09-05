@@ -7,6 +7,8 @@ import { useI18n } from 'vue-i18n'
 import type { EmbeddingSettings, EmbeddingSettingsWarning } from '@/types'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import { postWikiReindex } from '@/api/sync'
+import AdminNav from '@/components/admin/AdminNav.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 
 const { t } = useI18n()
 const dialog = useDialogStore()
@@ -22,6 +24,11 @@ const expectedDimension = ref<number | null>(null)
 const warning = ref<EmbeddingSettingsWarning | null>(null)
 const reindexing = ref(false)
 const reindexStatus = ref('')
+const providerOptions = [
+  { value: 'openai', label: 'openai' },
+  { value: 'ollama', label: 'ollama' },
+  { value: 'lmstudio', label: 'lmstudio' },
+]
 
 function applySettings(data: EmbeddingSettings) {
   provider.value = data.provider
@@ -95,22 +102,18 @@ onMounted(loadSettings)
 
 <template>
   <div class="admin-embedding">
-    <div class="admin-nav" :aria-label="t('admin.sections')">
-      <router-link to="/admin/users" class="admin-nav-link">{{ t('admin.openUsersSettings') }}</router-link>
-      <router-link to="/admin/embedding" class="admin-nav-link">{{ t('admin.openEmbeddingSettings') }}</router-link>
-      <router-link to="/admin/trash" class="admin-nav-link">{{ t('admin.openTrash') }}</router-link>
-    </div>
+    <AdminNav />
     <h1>{{ t('admin.embeddingTitle') }}</h1>
 
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="form" /></div>
     <form v-else class="settings-form" @submit.prevent="saveSettings">
       <label class="field">
         <span>{{ t('admin.embeddingProviderLabel') }}</span>
-        <select v-model="provider">
-          <option value="openai">openai</option>
-          <option value="ollama">ollama</option>
-          <option value="lmstudio">lmstudio</option>
-        </select>
+        <AppSelect
+          v-model="provider"
+          :options="providerOptions"
+          :aria-label="t('admin.embeddingProviderLabel')"
+        />
       </label>
 
       <label class="field">
@@ -222,7 +225,7 @@ onMounted(loadSettings)
 }
 
 .field input,
-.field select {
+.field :deep(.app-select) {
   width: 100%;
 }
 

@@ -7,6 +7,8 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { escapeHtml } from '@/utils/htmlEscape'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import HelpTip from '@/components/ui/HelpTip.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import {
   normalizeSearchResults,
   type NormalizedSearchResult
@@ -15,7 +17,6 @@ import type { AnswerResponse } from '@/types'
 import type { SavedSearch, SavedSearchMode, SavedSearchSort } from '@/types'
 import * as savedSearchApi from '@/api/savedSearches'
 import { isSavedSearchModified, normalizeSearchDefinition, savedSearchQuery } from './savedSearchState'
-import { renderAnswerMarkdown } from './renderAnswerMarkdown'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -54,7 +55,6 @@ let answerAbort: AbortController | null = null
 const answer = ref<AnswerResponse | null>(null)
 const answerLoading = ref(false)
 const answerError = ref('')
-const answerHtml = computed(() => answer.value ? renderAnswerMarkdown(answer.value.answerMd) : '')
 const modes = computed(() => [
   { value: 'hybrid' as const, label: t('search.modeHybrid') },
   { value: 'text' as const, label: t('search.modeText') },
@@ -62,11 +62,24 @@ const modes = computed(() => [
 ])
 
 const scoreOptions = computed(() => [
-  { label: t('search.allScores'), value: 0 },
-  { label: '50%+', value: 0.5 },
-  { label: '75%+', value: 0.75 },
-  { label: '90%+', value: 0.9 },
+  { label: t('search.allScores'), value: '0' },
+  { label: '50%+', value: '0.5' },
+  { label: '75%+', value: '0.75' },
+  { label: '90%+', value: '0.9' },
 ])
+
+const sortOptions = computed(() => [
+  { value: 'RELEVANCE', label: t('savedSearches.relevance') },
+  { value: 'UPDATED', label: t('savedSearches.updated') },
+])
+
+function setMinScore(value: string | string[] | null) {
+  minScore.value = value == null || Array.isArray(value) ? 0 : Number(value)
+}
+
+function setSort(value: string | string[] | null) {
+  sort.value = value === 'UPDATED' ? 'UPDATED' : 'RELEVANCE'
+}
 
 const resultTags = computed(() => {
   const tagSet = new Set<string>()
@@ -334,112 +347,203 @@ watch(() => route.query.saved, (saved) => {
 </script>
 
 <template>
-  <div class="search-page">
-    <h1>{{ t('search.title') }}</h1>
-    <p v-if="query" class="query-info">{{ t('search.resultsFor', { query }) }}</p>
-    <nav class="saved-actions" :aria-label="t('savedSearches.actions')">
-      <span v-if="activeSaved">{{ activeSaved.name }}<span v-if="savedModified"> · {{ t('savedSearches.modified') }}</span></span>
-      <button v-if="activeSaved && savedModified" type="button" @click="updateSaved">{{ t('savedSearches.update') }}</button>
-      <button type="button" :disabled="savedLoading || !query.trim()" @click="saveAsNew">{{ activeSaved ? t('savedSearches.saveAsNew') : t('savedSearches.saveSearch') }}</button>
-      <button v-if="activeSaved" type="button" @click="deleteSaved">{{ t('common.delete') }}</button>
-      <router-link to="/saved-searches">{{ t('savedSearches.manage') }}</router-link>
-    </nav>
-
-    <div class="search-modes" role="radiogroup" :aria-label="t('search.modeLabel')">
-      <button
-        v-for="(item, index) in modes"
-        :key="item.value"
-        type="button"
-        role="radio"
-        :aria-checked="mode === item.value"
-        :tabindex="mode === item.value ? 0 : -1"
-        :class="{ active: mode === item.value }"
-        @click="setMode(item.value)"
-        @keydown="onModeKeydown($event, index)"
-      >{{ item.label }}</button>
+  <div class="grouped-page search-page">
+    <div class="page-header">
+      <div>
+        <h1>{{ t('search.title') }}</h1>
+        <p class="page-subtitle">
+          <template v-if="query">{{ t('search.resultsFor', { query }) }}</template>
+          <template v-else>{{ t('search.subtitle') }}</template>
+        </p>
+      </div>
+      <router-link class="btn-secondary" to="/favorites">
+        {{ t('pkm.favorites') }}
+      </router-link>
     </div>
-    <p v-if="warning" class="search-warning" role="status">{{ warning }}</p>
-    <section class="answer-panel">
-      <button type="button" :disabled="answerLoading || !query.trim()" @click="askAnswer">
-        {{ answerLoading ? t('search.answerLoading') : t('search.answerAction') }}
-      </button>
-      <p v-if="answerError" role="alert">{{ answerError }}</p>
-      <p v-if="answer && !answer.grounded" role="status">{{ t('search.answerUngrounded') }}</p>
-      <template v-else-if="answer">
-        <div class="answer-text markdown-body" v-html="answerHtml" />
-        <ol>
-          <li v-for="citation in answer.citations" :key="citation.id">
-            <router-link :to="{ path: `/page/${encodeURIComponent(citation.pageSlug)}`, query: citation.sectionKey ? { section: citation.sectionKey } : {} }">[{{ citation.id }}] {{ citation.pageTitle }}</router-link>
-            <blockquote>{{ citation.quote }}</blockquote>
-          </li>
-        </ol>
-      </template>
+
+    <section class="group-card search-controls">
+      <div class="controls-row">
+        <div class="mode-row">
+          <div class="search-modes" role="radiogroup" :aria-label="t('search.modeLabel')">
+            <button
+              v-for="(item, index) in modes"
+              :key="item.value"
+              type="button"
+              role="radio"
+              :aria-checked="mode === item.value"
+              :tabindex="mode === item.value ? 0 : -1"
+              :class="{ active: mode === item.value }"
+              @click="setMode(item.value)"
+              @keydown="onModeKeydown($event, index)"
+            >{{ item.label }}</button>
+          </div>
+          <HelpTip :label="t('search.modeHelpLabel')">
+            <p><strong>{{ t('search.modeHybrid') }}.</strong> {{ t('search.modeHybridHelp') }}</p>
+            <p><strong>{{ t('search.modeText') }}.</strong> {{ t('search.modeTextHelp') }}</p>
+            <p><strong>{{ t('search.modeSemantic') }}.</strong> {{ t('search.modeSemanticHelp') }}</p>
+            <p>{{ t('search.modeHelpTip') }}</p>
+          </HelpTip>
+        </div>
+        <nav class="saved-actions" :aria-label="t('savedSearches.actions')">
+          <span v-if="activeSaved" class="saved-name">
+            {{ activeSaved.name }}
+            <span v-if="savedModified"> · {{ t('savedSearches.modified') }}</span>
+          </span>
+          <button
+            v-if="activeSaved && savedModified"
+            type="button"
+            class="btn-secondary"
+            @click="updateSaved"
+          >{{ t('savedSearches.update') }}</button>
+          <button
+            type="button"
+            class="btn-secondary"
+            :disabled="savedLoading || !query.trim()"
+            @click="saveAsNew"
+          >{{ activeSaved ? t('savedSearches.saveAsNew') : t('savedSearches.saveSearch') }}</button>
+          <button
+            v-if="activeSaved"
+            type="button"
+            class="btn-danger"
+            @click="deleteSaved"
+          >{{ t('common.delete') }}</button>
+        </nav>
+      </div>
+      <p v-if="warning" class="search-warning" role="status">{{ warning }}</p>
     </section>
 
-    <div v-if="results.length > 0" class="filters">
+    <section class="group-card answer-panel">
+      <div class="answer-toolbar">
+        <div class="answer-intro">
+          <button
+            type="button"
+            class="btn-primary"
+            :disabled="answerLoading || !query.trim()"
+            @click="askAnswer"
+          >
+            {{ answerLoading ? t('search.answerLoading') : t('search.answerAction') }}
+          </button>
+          <p class="answer-hint">{{ t('search.answerHint') }}</p>
+        </div>
+      </div>
+      <p v-if="answerError" class="answer-error" role="alert">{{ answerError }}</p>
+      <p v-if="answer && !answer.grounded" class="answer-status" role="status">{{ t('search.answerUngrounded') }}</p>
+      <ol v-else-if="answer" class="answer-citations">
+        <li v-for="citation in answer.citations" :key="citation.id">
+          <div class="citation-head">
+            <router-link
+              :to="{
+                path: `/page/${encodeURIComponent(citation.pageSlug)}`,
+                query: citation.sectionKey ? { section: citation.sectionKey } : {}
+              }"
+            >[{{ citation.id }}] {{ citation.pageTitle }}</router-link>
+            <span v-if="citation.sectionHeading" class="citation-section">{{ citation.sectionHeading }}</span>
+          </div>
+          <blockquote>{{ citation.quote }}</blockquote>
+        </li>
+      </ol>
+    </section>
+
+    <section v-if="results.length > 0" class="group-card filters">
       <div v-if="resultTags.length > 0" class="tag-filter">
         <span class="filter-label">{{ t('search.tagsLabel') }}</span>
         <button
           v-for="tag in resultTags"
           :key="tag"
+          type="button"
           :class="['tag-chip', { active: selectedTags.includes(tag) }]"
           @click="toggleTag(tag)"
         >{{ tag }}</button>
-        <button v-if="selectedTags.length" class="tag-chip clear" @click="clearTags">{{ t('search.clearTag') }}</button>
+        <button
+          v-if="selectedTags.length"
+          type="button"
+          class="tag-chip clear"
+          @click="clearTags"
+        >{{ t('search.clearTag') }}</button>
       </div>
 
-      <div v-if="mode === 'semantic'" class="score-filter">
-        <span class="filter-label">{{ t('search.scoreLabel') }}</span>
-        <select v-model.number="minScore" class="score-select">
-          <option v-for="o in scoreOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-        </select>
+      <div class="filter-selects">
+        <label v-if="mode === 'semantic'" class="score-filter">
+          <span class="filter-label">{{ t('search.scoreLabel') }}</span>
+          <AppSelect
+            class="score-select"
+            :model-value="String(minScore)"
+            :options="scoreOptions"
+            :aria-label="t('search.scoreLabel')"
+            @update:model-value="setMinScore"
+          />
+        </label>
+        <label class="score-filter">
+          <span class="filter-label">{{ t('savedSearches.sort') }}</span>
+          <AppSelect
+            class="score-select"
+            :model-value="sort"
+            :options="sortOptions"
+            :aria-label="t('savedSearches.sort')"
+            @update:model-value="setSort"
+          />
+        </label>
       </div>
-      <div class="score-filter">
-        <span class="filter-label">{{ t('savedSearches.sort') }}</span>
-        <select v-model="sort" class="score-select">
-          <option value="RELEVANCE">{{ t('savedSearches.relevance') }}</option>
-          <option value="UPDATED">{{ t('savedSearches.updated') }}</option>
-        </select>
-      </div>
-    </div>
+    </section>
 
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="search" /></div>
-    <div v-else-if="filteredResults.length === 0 && results.length > 0" class="state-placeholder">{{ t('search.noFilteredResults') }}</div>
-    <div v-else-if="results.length === 0" class="state-placeholder">{{ t('search.noResults') }}</div>
-    <ul v-else class="results">
-      <li v-for="(r, index) in filteredResults" :key="r.slug + index" class="result-card" :style="{ animationDelay: `${Math.min(index, 15) * 0.05}s` }">
-        <router-link :to="resultLink(r)">
-          <div class="card-header">
-            <h3>{{ r.title }}</h3>
-            <span v-if="r.score !== null" class="score">{{ (r.score * 100).toFixed(0) }}%</span>
-          </div>
-          <p v-if="r.sectionHeading" class="section-heading">{{ r.sectionHeading }}</p>
-          <p class="snippet" v-html="highlightSnippet(r.snippet, query)" />
-          <div class="result-sources">
-            <span v-for="source in r.sources" :key="source" class="source-badge">
-              {{ source === 'text' ? t('search.sourceText') : t('search.sourceSemantic') }}
-            </span>
-          </div>
-          <div v-if="r.tags.length > 0" class="result-tags">
-            <span v-for="tag in r.tags" :key="tag" class="result-tag">{{ tag }}</span>
-          </div>
-        </router-link>
-      </li>
-    </ul>
+    <div v-else-if="filteredResults.length === 0 && results.length > 0" class="empty-state">
+      {{ t('search.noFilteredResults') }}
+    </div>
+    <div v-else-if="results.length === 0" class="empty-state">{{ t('search.noResults') }}</div>
+    <section v-else class="group-card">
+      <ul class="results">
+        <li
+          v-for="(r, index) in filteredResults"
+          :key="r.slug + index"
+          class="result-card"
+        >
+          <router-link :to="resultLink(r)">
+            <div class="card-header">
+              <h3>{{ r.title }}</h3>
+              <span v-if="r.score !== null" class="score">{{ (r.score * 100).toFixed(0) }}%</span>
+            </div>
+            <p v-if="r.sectionHeading" class="section-heading">{{ r.sectionHeading }}</p>
+            <p class="snippet" v-html="highlightSnippet(r.snippet, query)" />
+            <div class="result-meta">
+              <span v-for="source in r.sources" :key="source" class="source-badge">
+                {{ source === 'text' ? t('search.sourceText') : t('search.sourceSemantic') }}
+              </span>
+              <span v-for="tag in r.tags" :key="tag" class="result-tag">{{ tag }}</span>
+            </div>
+          </router-link>
+        </li>
+      </ul>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.search-page h1 {
-  font-family: var(--font-body);
-  margin-bottom: 8px;
+.search-controls,
+.answer-panel,
+.filters {
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
 }
-.saved-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+
+.controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mode-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
 
 .search-modes {
   display: inline-flex;
   padding: 3px;
-  margin-bottom: 16px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg-secondary);
@@ -448,9 +552,12 @@ watch(() => route.query.saved, (saved) => {
 .search-modes button {
   border: 0;
   border-radius: 6px;
+  min-height: 36px;
   padding: 6px 12px;
   background: transparent;
   color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
 }
 
 .search-modes button.active {
@@ -459,258 +566,285 @@ watch(() => route.query.saved, (saved) => {
   box-shadow: var(--shadow);
 }
 
-.search-warning {
-  margin: 0 0 16px;
-  padding: 9px 12px;
-  border-left: 3px solid var(--color-warning, #9a6700);
-  background: color-mix(in srgb, var(--color-warning, #9a6700) 10%, transparent);
+.saved-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.saved-name {
+  font-size: 0.9rem;
   color: var(--color-text-muted);
-  font-size: 13px;
+  margin-right: 0.25rem;
 }
-.answer-panel{display:grid;gap:10px;margin-bottom:16px;padding:12px;border:1px solid var(--color-border);border-radius:8px}.answer-text{white-space:pre-wrap;line-height:1.6}.answer-panel blockquote{margin:4px 0;color:var(--color-text-muted)}
 
-.query-info {
+.search-warning,
+.answer-error,
+.answer-status {
+  margin: 0.85rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.search-warning,
+.answer-status {
+  border-left: 3px solid var(--color-warning, #d97706);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 10%, transparent);
   color: var(--color-text-muted);
-  margin-bottom: 28px;
-  font-size: 15px;
 }
 
-.query-info strong {
-  color: var(--color-text);
+.answer-error {
+  border-left: 3px solid var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+  color: var(--color-danger);
 }
 
-/* ── Filters ── */
+.answer-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.answer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.answer-intro {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.answer-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.answer-citations {
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.answer-citations > li {
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-secondary);
+}
+
+.citation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  min-width: 0;
+}
+
+.citation-head a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.citation-section {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.answer-citations blockquote {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  border: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-  padding: 12px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-bg-subtle, color-mix(in srgb, var(--color-bg) 96%, var(--color-border)));
+  gap: 0.85rem 1.25rem;
 }
 
 .filter-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 650;
   color: var(--color-text-muted);
-  margin-right: 4px;
+  letter-spacing: 0.02em;
 }
 
-.tag-filter {
+.tag-filter,
+.filter-selects {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 0.45rem 0.65rem;
+}
+
+.filter-selects {
+  margin-left: auto;
+}
+
+.score-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .tag-chip {
-  font-size: 12px;
-  padding: 2px 10px;
+  font-size: 0.75rem;
+  min-height: 28px;
+  padding: 0.15rem 0.65rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.15s ease;
   font-family: var(--font-body);
 }
 
 .tag-chip:hover {
-  border-color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
   color: var(--color-primary);
 }
 
 .tag-chip.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #fff;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  color: var(--color-primary);
 }
 
 .tag-chip.clear {
   border-color: transparent;
-  color: var(--color-text-muted);
   font-style: italic;
 }
 
-.tag-chip.clear:hover {
-  color: var(--color-text);
-}
-
-.score-filter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-}
-
 .score-select {
-  font-size: 13px;
-  padding: 4px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-body);
-  cursor: pointer;
+  min-width: 9rem;
 }
 
-.score-select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-/* ── Search highlighting ── */
 :deep(.search-highlight) {
-  background: color-mix(in srgb, var(--color-primary) 25%, transparent);
-  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  color: var(--color-text);
   border-radius: 3px;
-  padding: 0 3px;
-}
-
-/* ── Result tags ── */
-.result-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.result-sources {
-  display: flex;
-  gap: 5px;
-  margin-top: 8px;
-}
-
-.source-badge {
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--color-bg-secondary);
-  color: var(--color-text-faint);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.result-tag {
-  font-size: 11px;
-  padding: 1px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  color: var(--color-text-muted);
+  padding: 0 2px;
 }
 
 .results {
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  margin: 0;
+  padding: 0;
 }
 
 .result-card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 18px 20px;
-  transition: all 0.15s ease;
-  background: var(--color-bg);
-  animation: fadeInUpStagger 0.4s ease both;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.result-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow);
+.result-card:last-child {
+  border-bottom: 0;
 }
 
 .result-card a {
+  display: block;
+  min-height: 44px;
+  padding: 0.95rem 1.1rem;
   text-decoration: none;
   color: inherit;
+}
+
+.result-card a:hover {
+  background: var(--color-bg-hover);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .card-header h3 {
+  margin: 0;
   font-family: var(--font-body);
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 6px;
-  color: var(--color-text);
+  color: var(--color-wikilink);
 }
 
 .score {
-  font-size: 13px;
-  color: var(--color-text-muted);
   flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .section-heading {
-  font-size: 13px;
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
   color: var(--color-text-muted);
-  margin-bottom: 4px;
 }
 
 .snippet {
-  font-size: 14px;
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
   color: var(--color-text-muted);
-  line-height: 1.6;
+  line-height: 1.55;
+}
+
+.result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.source-badge,
+.result-tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  color: var(--color-text-faint);
+  background: var(--color-bg-secondary);
+}
+
+.result-tag {
+  border: 1px solid var(--color-border);
+  background: transparent;
 }
 
 @media (max-width: 767px) {
-  .search-page h1 {
-    font-size: 1.35rem;
-    margin-bottom: 4px;
-  }
-
-  .query-info {
-    font-size: 14px;
-    margin-bottom: 20px;
-  }
-
+  .controls-row,
   .filters {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    align-items: stretch;
   }
 
-  .score-filter {
+  .filter-selects {
     margin-left: 0;
   }
 
-  .results {
-    gap: 10px;
+  .search-modes {
+    width: 100%;
   }
 
-  .result-card {
-    padding: 14px 16px;
+  .search-modes button {
+    flex: 1;
   }
-
-  .card-header h3 {
-    font-size: 1rem;
-  }
-
-  .score {
-    font-size: 12px;
-  }
-
-  .section-heading {
-    font-size: 12px;
-  }
-
-  .snippet {
-    font-size: 13px;
-    line-height: 1.5;
-  }
-}
-
-/* touch-friendly tap targets */
-.result-card a {
-  display: block;
-  min-height: 44px;
 }
 </style>

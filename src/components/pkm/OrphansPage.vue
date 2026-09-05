@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import * as api from '@/api/linkInsights'
 import type { OrphanDefinition, OrphanPage } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import DiscoveryNav from './DiscoveryNav.vue'
+import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const definitions: OrphanDefinition[] = ['NO_INCOMING', 'NO_LINKS', 'NO_OUTGOING']
 const definition = ref<OrphanDefinition>('NO_INCOMING')
+const definitionOptions = computed(() =>
+  definitions.map((value) => ({ value, label: t(`pkm.${value}`) }))
+)
 const items = ref<OrphanPage[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -32,30 +37,73 @@ watch(() => route.query.definition, async (raw) => {
   }
 }, { immediate: true })
 
-function change() {
-  void router.replace({ query: { definition: definition.value } })
+function changeDefinition(value: string | string[] | null) {
+  const next = typeof value === 'string' && definitions.includes(value as OrphanDefinition)
+    ? value as OrphanDefinition
+    : 'NO_INCOMING'
+  definition.value = next
+  void router.replace({ query: { definition: next } })
 }
 </script>
 
 <template>
-  <main class="pkm-list">
-    <DiscoveryNav />
-    <h1>{{ t('pkm.orphans') }}</h1>
-    <label>{{ t('pkm.definition') }}
-      <select v-model="definition" @change="change">
-        <option v-for="value in definitions" :key="value" :value="value">{{ t(`pkm.${value}`) }}</option>
-      </select>
-    </label>
-    <p v-if="loading">{{ t('common.loading') }}</p>
-    <p v-else-if="error" role="alert">{{ error }}</p>
-    <p v-else-if="!items.length">{{ t('pkm.noOrphans') }}</p>
-    <ul v-else>
-      <li v-for="item in items" :key="item.page.id">
-        <router-link :to="`/page/${item.page.slug}`">{{ item.page.title }}</router-link>
-        <small>{{ t('pkm.linkCounts', { incoming: item.incomingCount, outgoing: item.outgoingCount }) }}</small>
-      </li>
-    </ul>
-  </main>
+  <div class="grouped-page">
+    <div class="page-header">
+      <div>
+        <h1>{{ t('pkm.discovery') }}</h1>
+        <p class="page-subtitle">{{ t('pkm.orphansSubtitle') }}</p>
+      </div>
+      <DiscoveryNav />
+    </div>
+
+    <section class="group-card discovery-toolbar">
+      <label class="toolbar-field">
+        <span class="field-label">{{ t('pkm.definition') }}</span>
+        <AppSelect
+          :model-value="definition"
+          :options="definitionOptions"
+          :aria-label="t('pkm.definition')"
+          @update:model-value="changeDefinition"
+        />
+      </label>
+    </section>
+
+    <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
+    <div v-else-if="error" class="empty-state" role="alert">{{ error }}</div>
+    <div v-else-if="!items.length" class="empty-state">{{ t('pkm.noOrphans') }}</div>
+    <section v-else class="group-card">
+      <ul class="library-list">
+        <li v-for="item in items" :key="item.page.id">
+          <router-link :to="`/page/${item.page.slug}`">{{ item.page.title }}</router-link>
+          <small>{{ t('pkm.linkCounts', { incoming: item.incomingCount, outgoing: item.outgoingCount }) }}</small>
+        </li>
+      </ul>
+    </section>
+  </div>
 </template>
 
-<style scoped>.pkm-list{max-width:800px;width:100%;margin:auto;padding:24px}.pkm-list label{display:grid;gap:6px}.pkm-list select{min-height:44px}.pkm-list ul{list-style:none;padding:0}.pkm-list li{display:flex;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--color-border)}small{color:var(--color-text-muted)}</style>
+<style scoped>
+.discovery-toolbar {
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.toolbar-field {
+  display: grid;
+  gap: 0.35rem;
+  width: min(100%, 40rem);
+}
+
+.toolbar-field .field-label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+}
+
+.toolbar-field :deep(.app-select) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+</style>

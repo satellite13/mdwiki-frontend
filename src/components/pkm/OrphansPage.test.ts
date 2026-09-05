@@ -16,8 +16,8 @@ describe('OrphansPage navigation', () => {
       global: { plugins: [i18n], stubs: { DiscoveryNav: true, RouterLink: true } }
     })
     await flushPromises()
-    await wrapper.get('select').setValue('NO_LINKS')
-    await wrapper.get('select').trigger('change')
+    await wrapper.get('[data-testid="app-select-trigger"]').trigger('click')
+    await wrapper.get('[data-testid="app-select-option-NO_LINKS"]').trigger('click')
     expect(replace).toHaveBeenCalledWith({ query: { definition: 'NO_LINKS' } })
   })
 })
