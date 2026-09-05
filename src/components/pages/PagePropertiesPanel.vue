@@ -2,12 +2,16 @@
 import { computed, ref, watch } from 'vue'
 import * as propertiesApi from '@/api/properties'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import type { Page, PageListItem, PageProperties, PropertyDefinition } from '@/types'
 import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import HelpTip from '@/components/ui/HelpTip.vue'
 
 const props = defineProps<{ page: Page, editable: boolean, flushPendingSave: () => Promise<boolean> }>()
 const emit = defineEmits<{ updated: [page: Page] }>()
 const { t } = useI18n()
+const auth = useAuthStore()
 const data = ref<PageProperties | null>(null)
 const pageReferences = ref<PageListItem[]>([])
 const busy = ref(false)
@@ -34,7 +38,9 @@ async function load() {
 }
 watch(() => `${props.page.slug}:${props.page.updatedAt}`, load, { immediate: true })
 const known = computed(() => data.value?.definitions ?? [])
-const fieldCount = computed(() => known.value.length + Object.keys(data.value?.unknown ?? {}).length)
+const knownWithValue = computed(() => known.value.filter((definition) => data.value?.values[definition.key] !== undefined))
+const unknownEntries = computed(() => Object.entries(data.value?.unknown ?? {}))
+const fieldCount = computed(() => knownWithValue.value.length + unknownEntries.value.length)
 function textValue(key: string) {
   const value = data.value?.values[key]
   if (value == null) return ''
@@ -51,10 +57,9 @@ function datetimeLocalValue(key: string) {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`
 }
 function valueFor(definition: PropertyDefinition, event: Event): unknown {
-  const element = event.target as HTMLInputElement | HTMLSelectElement
-  if (definition.type === 'BOOLEAN') return (element as HTMLInputElement).checked
+  const element = event.target as HTMLInputElement
+  if (definition.type === 'BOOLEAN') return element.checked
   if (definition.type === 'NUMBER') return Number(element.value)
-  if (definition.type === 'MULTI_SELECT') return Array.from((element as HTMLSelectElement).selectedOptions).map(option => option.value)
   if (definition.type === 'DATETIME') {
     if (!element.value) return ''
     const date = new Date(`${element.value}Z`)
@@ -67,10 +72,22 @@ function valid(definition: PropertyDefinition, value: unknown) {
   if (definition.type === 'URL') return typeof value === 'string' && (value === '' || (() => { try { new URL(value); return true } catch { return false } })())
   return true
 }
-async function save(definition: PropertyDefinition, event: Event) {
+function applyLocalValue(definition: PropertyDefinition, value: unknown) {
+  if (!data.value) return
+  const remove = value === '' || (Array.isArray(value) && !value.length)
+  if (remove) {
+    const next = { ...data.value.values }
+    delete next[definition.key]
+    data.value = { ...data.value, values: next }
+    return
+  }
+  data.value = { ...data.value, values: { ...data.value.values, [definition.key]: value } }
+}
+async function saveValue(definition: PropertyDefinition, value: unknown) {
   if (!props.editable || busy.value) return
-  const value = valueFor(definition, event)
   if (!valid(definition, value)) { error.value = t('properties.invalidValue'); return }
+  const previous = data.value?.values[definition.key]
+  applyLocalValue(definition, value)
   busy.value = true; error.value = ''
   try {
     if (!await props.flushPendingSave()) throw new Error('page is stale')
@@ -79,31 +96,57 @@ async function save(definition: PropertyDefinition, event: Event) {
     emit('updated', page as Page)
     await load()
   } catch (cause) {
+    if (data.value) {
+      if (previous === undefined) {
+        const next = { ...data.value.values }
+        delete next[definition.key]
+        data.value = { ...data.value, values: next }
+      } else {
+        data.value = { ...data.value, values: { ...data.value.values, [definition.key]: previous } }
+      }
+    }
     if (isApiErrorWithStatus(cause, 409)) error.value = t('properties.conflict')
     else if (isApiErrorWithStatus(cause, 422)) error.value = getApiErrorMessage(cause, t('properties.invalidValue'))
     else error.value = getApiErrorMessage(cause, t('properties.saveFailed'))
   }
   finally { busy.value = false }
 }
+async function save(definition: PropertyDefinition, event: Event) {
+  await saveValue(definition, valueFor(definition, event))
+}
+async function saveSelect(definition: PropertyDefinition, value: string) {
+  await saveValue(definition, value)
+}
+async function saveMulti(definition: PropertyDefinition, value: string[]) {
+  await saveValue(definition, value)
+}
 </script>
 
 <template>
   <aside class="page-properties" :aria-label="t('properties.title')">
-    <button
-      type="button"
-      class="properties-toggle"
-      :aria-expanded="!collapsed"
-      :aria-controls="'page-properties-body'"
-      :aria-label="t('properties.toggle')"
-      :title="collapsed ? t('properties.expand') : t('properties.collapse')"
-      @click="collapsed = !collapsed"
-    >
-      <span class="properties-title">{{ t('properties.title') }}</span>
-      <span v-if="fieldCount" class="properties-count">{{ fieldCount }}</span>
-      <span :class="['properties-chevron', { collapsed }]">▾</span>
-    </button>
+    <div class="properties-header">
+      <button
+        type="button"
+        class="properties-toggle"
+        :aria-expanded="!collapsed"
+        :aria-controls="'page-properties-body'"
+        :aria-label="t('properties.toggle')"
+        :title="collapsed ? t('properties.expand') : t('properties.collapse')"
+        @click="collapsed = !collapsed"
+      >
+        <span class="properties-title">{{ t('properties.title') }}</span>
+        <span v-if="fieldCount" class="properties-count">{{ fieldCount }}</span>
+        <span :class="['properties-chevron', { collapsed }]">▾</span>
+      </button>
+      <HelpTip :label="t('properties.helpLabel')" align="right">
+        <p>{{ t('properties.hint') }}</p>
+        <p v-if="data && !known.length">{{ t('properties.noDefinitions') }}</p>
+        <p v-if="auth.isAdmin">
+          <router-link to="/admin/properties">{{ t('properties.manageDefinitions') }}</router-link>
+        </p>
+      </HelpTip>
+    </div>
     <div v-show="!collapsed" id="page-properties-body" class="properties-body">
-      <p class="properties-hint">{{ t('properties.hint') }}</p>
       <p v-if="error" role="alert">{{ error }}</p>
       <button v-if="error === t('properties.conflict')" type="button" @click="load">{{ t('properties.reload') }}</button>
       <dl v-if="data">
@@ -114,15 +157,47 @@ async function save(definition: PropertyDefinition, event: Event) {
               <input v-if="['TEXT', 'URL', 'DATE', 'DATETIME'].includes(definition.type)" :type="definition.type === 'DATETIME' ? 'datetime-local' : definition.type.toLowerCase()" :value="definition.type === 'DATETIME' ? datetimeLocalValue(definition.key) : textValue(definition.key)" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)">
               <input v-else-if="definition.type === 'NUMBER'" type="number" :value="textValue(definition.key)" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)">
               <input v-else-if="definition.type === 'BOOLEAN'" type="checkbox" :checked="data.values[definition.key] === true" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)">
-              <select v-else-if="definition.type === 'SELECT'" :value="textValue(definition.key)" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)"><option value="">{{ t('properties.empty') }}</option><option v-for="option in (definition.config.options as string[] || [])" :key="option" :value="option">{{ option }}</option></select>
-              <select v-else-if="definition.type === 'MULTI_SELECT'" multiple :value="data.values[definition.key] as string[]" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)"><option v-for="option in (definition.config.options as string[] || [])" :key="option" :value="option">{{ option }}</option></select>
+              <AppSelect
+                v-else-if="definition.type === 'SELECT'"
+                :model-value="textValue(definition.key)"
+                :options="[
+                  { value: '', label: t('properties.empty') },
+                  ...(definition.config.options as string[] || []).map((o) => ({ value: o, label: o })),
+                ]"
+                :disabled="busy"
+                :aria-label="definition.displayName"
+                @update:modelValue="(v) => saveSelect(definition, String(v ?? ''))"
+              />
+              <AppSelect
+                v-else-if="definition.type === 'MULTI_SELECT'"
+                multiple
+                :model-value="(data.values[definition.key] as string[]) ?? []"
+                :options="(definition.config.options as string[] || []).map((o) => ({ value: o, label: o }))"
+                :disabled="busy"
+                :aria-label="definition.displayName"
+                @update:modelValue="(v) => saveMulti(definition, Array.isArray(v) ? v : [])"
+              />
               <input v-else list="page-references" :value="textValue(definition.key)" :disabled="busy" :aria-label="definition.displayName" @change="save(definition, $event)">
             </template>
             <span v-else>{{ textValue(definition.key) || t('properties.emptyValue') }}</span>
           </dd>
         </template>
-        <template v-for="(value, key) in data.unknown" :key="key">
-          <dt>{{ key }}</dt><dd><span :aria-label="t('properties.readOnly', { key })">{{ typeof value === 'object' ? JSON.stringify(value) : value }}</span></dd>
+        <template v-if="unknownEntries.length">
+          <dt class="properties-unknown-heading">
+            <span>{{ t('properties.unknownTitle') }}</span>
+            <HelpTip :label="t('properties.unknownHelpLabel')">
+              <p>{{ t('properties.unknownHint') }}</p>
+            </HelpTip>
+          </dt>
+          <dd class="properties-unknown-heading" />
+          <template v-for="[key, value] in unknownEntries" :key="key">
+            <dt>{{ key }}</dt>
+            <dd>
+              <span class="properties-readonly" :aria-label="t('properties.readOnly', { key })">
+                {{ typeof value === 'object' ? JSON.stringify(value) : value }}
+              </span>
+            </dd>
+          </template>
         </template>
       </dl>
       <datalist id="page-references"><option v-for="item in pageReferences" :key="item.id" :value="item.slug">{{ item.title }}</option></datalist>
@@ -131,12 +206,29 @@ async function save(definition: PropertyDefinition, event: Event) {
 </template>
 
 <style scoped>
-.page-properties { margin: .75rem 0; padding: .5rem .75rem; border: 1px solid var(--color-border, #ddd); border-radius: .5rem; }
+.page-properties {
+  flex-shrink: 0;
+  margin: 0 0 .75rem;
+  padding: .5rem .75rem;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: .5rem;
+}
+.properties-body {
+  max-height: min(40vh, 20rem);
+  overflow: auto;
+  padding: 0 0 .35rem;
+}
+.properties-header {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
 .properties-toggle {
   display: flex;
   align-items: center;
   gap: .5rem;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   min-height: 44px;
   margin: 0;
   padding: .25rem 0;
@@ -157,9 +249,28 @@ async function save(definition: PropertyDefinition, event: Event) {
 }
 .properties-chevron { margin-left: auto; transition: transform .15s ease; }
 .properties-chevron.collapsed { transform: rotate(-90deg); }
-.properties-body { padding: 0 0 .35rem; }
-.properties-hint { margin: 0 0 .65rem; color: var(--color-text-muted, #666); font-size: .85rem; line-height: 1.4; }
+.properties-unknown-heading {
+  margin-top: .5rem;
+  color: var(--color-text-muted, #666);
+  font-size: .8rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+.properties-readonly {
+  color: var(--color-text-muted, #666);
+}
 dl { display: grid; grid-template-columns: minmax(7rem, 1fr) 2fr; gap: .4rem .75rem; margin: 0; }
-dt { font-weight: 600; } input { width: 100%; }
+dt { font-weight: 600; }
+dd input:not([type='checkbox']),
+dd :deep(.app-select) {
+  box-sizing: border-box;
+  width: 100%;
+}
+dd input:not([type='checkbox']) {
+  min-height: 38px;
+  height: 38px;
+}
 @media (max-width: 600px) { dl { grid-template-columns: 1fr; gap: .15rem; } dd { margin: 0 0 .5rem; } }
 </style>
