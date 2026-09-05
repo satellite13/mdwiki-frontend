@@ -13,6 +13,7 @@ const name = ref('')
 const sortKey = ref('')
 const groupKey = ref('')
 const type = ref<SavedView['type']>('TABLE')
+const activeType = ref<SavedView['type']>('TABLE')
 const error = ref('')
 const loading = ref(false)
 async function load() { try { [views.value, definitions.value] = await Promise.all([viewsApi.listViews().then(r => r.data), propertiesApi.listPropertyDefinitions().then(r => r.data)]) } catch { error.value = t('views.loadFailed') } }
@@ -23,6 +24,7 @@ async function create() {
 }
 async function run(view: SavedView) {
   loading.value = true
+  activeType.value = view.type
   try { items.value = (await viewsApi.runView(view.id)).data.items ?? [] } catch { error.value = t('views.runFailed') }
   finally { loading.value = false }
 }
@@ -38,8 +40,10 @@ onMounted(load)
       <button :aria-label="t('views.deleteNamed', { name: view.name })" @click="remove(view)">{{ t('views.delete') }}</button>
     </li></ul>
     <p v-if="loading">{{ t('views.loading') }}</p><p v-else-if="!items.length">{{ t('views.empty') }}</p>
-    <div v-else class="table-scroll"><table><caption>{{ t('views.results') }}</caption><thead><tr><th aria-sort="none">{{ t('views.titleColumn') }}</th><th>{{ t('views.group') }}</th></tr></thead>
+    <div v-else-if="activeType === 'TABLE'" class="table-scroll"><table><caption>{{ t('views.results') }}</caption><thead><tr><th aria-sort="none">{{ t('views.titleColumn') }}</th><th>{{ t('views.group') }}</th></tr></thead>
       <tbody><tr v-for="item in items" :key="item.page.id"><td><router-link :to="`/page/${item.page.slug}`">{{ item.page.title }}</router-link></td><td>{{ item.groupKey ?? '—' }}</td></tr></tbody></table></div>
+    <ul v-else-if="activeType === 'LIST'" :aria-label="t('views.results')"><li v-for="item in items" :key="item.page.id"><router-link :to="`/page/${item.page.slug}`">{{ item.page.title }}</router-link><span v-if="item.groupKey"> {{ item.groupKey }}</span></li></ul>
+    <section v-else :aria-label="t('views.results')" class="cards"><article v-for="item in items" :key="item.page.id"><h2><router-link :to="`/page/${item.page.slug}`">{{ item.page.title }}</router-link></h2><p v-if="item.groupKey">{{ item.groupKey }}</p></article></section>
   </main>
 </template>
 <style scoped>.views-page { max-width: 60rem; padding: 1rem; } form, li { display:flex; gap:.5rem; align-items:center; margin:.5rem 0; flex-wrap:wrap } label { display:grid; gap:.2rem } .table-scroll { overflow-x:auto } table { width:100%; border-collapse:collapse; } th { position:sticky; top:0; background:var(--color-bg,#fff) } th,td { text-align:left; padding:.5rem; border-bottom:1px solid #ddd; } @media(max-width:600px){.views-page{padding:.75rem} form{align-items:flex-start; flex-direction:column}}</style>
