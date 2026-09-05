@@ -16,6 +16,8 @@ const router = createRouter({
         { path: 'page/:slug/history', name: 'page-history', component: () => import('@/components/pages/PageHistory.vue') },
         { path: 'search', name: 'search', component: () => import('@/components/search/SearchPage.vue') },
         { path: 'saved-searches', name: 'saved-searches', component: () => import('@/components/search/SavedSearchesPage.vue') },
+        { path: 'views', name: 'views', component: () => import('@/components/pages/ViewsPage.vue') },
+        { path: 'views/:id', name: 'view', component: () => import('@/components/pages/ViewsPage.vue'), props: true },
         { path: 'graph', name: 'wiki-graph', component: () => import('@/components/graph/WikiGraphPage.vue') },
         { path: 'broken-links', name: 'broken-links', component: () => import('@/components/links/BrokenLinksPage.vue') },
         { path: 'inbox', name: 'inbox', component: () => import('@/components/pkm/InboxPage.vue') },
@@ -30,6 +32,7 @@ const router = createRouter({
         { path: 'admin/users', name: 'admin-users', component: () => import('@/components/admin/AdminUsersPage.vue'), meta: { requiresAdmin: true } },
         { path: 'admin/embedding', name: 'admin-embedding', component: () => import('@/components/admin/AdminEmbeddingSettingsPage.vue'), meta: { requiresAdmin: true } },
         { path: 'admin/trash', name: 'admin-trash', component: () => import('@/components/admin/AdminTrashPage.vue'), meta: { requiresAdmin: true } },
+        { path: 'admin/properties', name: 'admin-properties', component: () => import('@/components/admin/AdminPropertiesPage.vue'), meta: { requiresAdmin: true } },
         { path: ':pathMatch(.*)*', name: 'not-found', component: () => import('@/components/pages/NotFoundPage.vue') }
       ]
     }

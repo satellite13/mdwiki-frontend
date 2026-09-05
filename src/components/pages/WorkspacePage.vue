@@ -20,6 +20,7 @@ import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import * as libraryApi from '@/api/library'
 import { copyTextToClipboard } from '@/utils/clipboard'
+import PagePropertiesPanel from './PagePropertiesPanel.vue'
 
 type MarkdownEditorHandle = {
   exportToPdf: () => Promise<void>
@@ -46,7 +47,8 @@ const {
   doSave,
   flushPendingSave,
   clearSaveError,
-  toggleGraph
+  toggleGraph,
+  acceptExternalPageUpdate
 } = useWorkspacePage()
 
 const route = useRoute()
@@ -92,6 +94,11 @@ function exportMarkdown() {
 
 function onEditorModeChange(mode: EditorMode) {
   editorUi.setReadingMode(mode === 'reading')
+}
+
+function onPropertiesUpdated(updated: typeof page.value) {
+  if (!updated) return
+  acceptExternalPageUpdate(updated)
 }
 
 onBeforeUnmount(() => {
@@ -353,6 +360,12 @@ async function copySectionLink(sectionKey: string, stableId?: string): Promise<b
     </div>
 
     <div class="editor-area">
+      <PagePropertiesPanel
+        :page="page"
+        :editable="auth.isEditor && !isLocked"
+        :flush-pending-save="flushPendingSave"
+        @updated="onPropertiesUpdated"
+      />
       <MarkdownEditor
         ref="editorRef"
         :modelValue="content"

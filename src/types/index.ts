@@ -162,6 +162,38 @@ export interface SavedSearch {
   updatedAt: string
 }
 
+export type PropertyType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'DATE' | 'DATETIME' | 'URL' | 'SELECT' | 'MULTI_SELECT' | 'PAGE_REF'
+export interface PropertyDefinition {
+  id: string
+  key: string
+  displayName: string
+  type: PropertyType
+  config: Record<string, unknown>
+  required: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+export interface PageProperties {
+  definitions: PropertyDefinition[]
+  values: Record<string, unknown>
+  unknown: Record<string, unknown>
+  warnings: string[]
+}
+export type SavedViewType = 'TABLE' | 'LIST' | 'CARDS'
+export interface SavedView {
+  id: string
+  name: string
+  type: SavedViewType
+  filters: unknown[]
+  sort: unknown[]
+  grouping: unknown | null
+  layout: Record<string, unknown>
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AnswerCitation {
   id: number
   pageSlug: string

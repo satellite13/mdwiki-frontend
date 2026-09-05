@@ -58,6 +58,14 @@ export function useWorkspacePage() {
     showGraph.value = !showGraph.value
   }
 
+  function acceptExternalPageUpdate(updated: Page) {
+    page.value = updated
+    title.value = updated.title
+    content.value = updated.contentMd || ''
+    lastSavedTitle.value = updated.title
+    lastSavedContentMd.value = updated.contentMd || ''
+  }
+
   onMounted(() => {
     const slug = route.params.slug as string
     if (slug) {
@@ -99,6 +107,7 @@ export function useWorkspacePage() {
     doSave: autosave.doSave,
     flushPendingSave: autosave.flushPendingSave,
     clearSaveError,
-    toggleGraph
+    toggleGraph,
+    acceptExternalPageUpdate
   }
 }
