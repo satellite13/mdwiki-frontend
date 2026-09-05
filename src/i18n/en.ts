@@ -5,7 +5,23 @@ export const en = {
     emptyValue: '—',
     readOnly: '{key} (read only)',
     invalidValue: 'Enter a valid value.',
-    saveFailed: 'Property was not saved; refresh and retry.'
+    saveFailed: 'Property was not saved; refresh and retry.',
+    loadFailed: 'Could not load properties.',
+    conflict: 'This page changed elsewhere. Your property draft is still available; reload before retrying.',
+    reload: 'Reload properties'
+  },
+  adminProperties: {
+    title: 'Properties',
+    key: 'Key',
+    name: 'Name',
+    type: 'Type',
+    create: 'Create',
+    definitions: 'Property definitions',
+    action: 'Action',
+    delete: 'Delete',
+    deleteNamed: 'Delete {name}',
+    loadFailed: 'Could not load property definitions.',
+    saveFailed: 'Could not save property definition.'
   },
   views: {
     title: 'Views',

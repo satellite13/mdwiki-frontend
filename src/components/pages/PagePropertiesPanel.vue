@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import * as propertiesApi from '@/api/properties'
 import { useI18n } from 'vue-i18n'
 import type { Page, PageListItem, PageProperties, PropertyDefinition } from '@/types'
+import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
 
 const props = defineProps<{ page: Page, editable: boolean, flushPendingSave: () => Promise<boolean> }>()
 const emit = defineEmits<{ updated: [page: Page] }>()
@@ -11,12 +12,24 @@ const data = ref<PageProperties | null>(null)
 const pageReferences = ref<PageListItem[]>([])
 const busy = ref(false)
 const error = ref('')
+let requestGeneration = 0
+let loadController: AbortController | null = null
 
 async function load() {
+  const generation = ++requestGeneration
+  const slug = props.page.slug
+  loadController?.abort()
+  const controller = new AbortController()
+  loadController = controller
   data.value = null
   error.value = ''
-  try { data.value = (await propertiesApi.getPageProperties(props.page.slug)).data }
-  catch { error.value = 'Could not load properties' }
+  try {
+    const result = await propertiesApi.getPageProperties(slug, controller.signal)
+    if (generation === requestGeneration && props.page.slug === slug) data.value = result.data
+  } catch (cause) {
+    if (controller.signal.aborted || generation !== requestGeneration || props.page.slug !== slug) return
+    error.value = getApiErrorMessage(cause, t('properties.loadFailed'))
+  }
 }
 watch(() => `${props.page.slug}:${props.page.updatedAt}`, load, { immediate: true })
 const known = computed(() => data.value?.definitions ?? [])
@@ -44,7 +57,11 @@ async function save(definition: PropertyDefinition, event: Event) {
     const { data: page } = await propertiesApi.patchPageProperties(props.page.slug, props.page.updatedAt, remove ? [{ op: 'REMOVE', key: definition.key }] : [{ op: 'SET', key: definition.key, value }])
     emit('updated', page as Page)
     await load()
-  } catch { error.value = t('properties.saveFailed') }
+  } catch (cause) {
+    if (isApiErrorWithStatus(cause, 409)) error.value = t('properties.conflict')
+    else if (isApiErrorWithStatus(cause, 422)) error.value = getApiErrorMessage(cause, t('properties.invalidValue'))
+    else error.value = getApiErrorMessage(cause, t('properties.saveFailed'))
+  }
   finally { busy.value = false }
 }
 </script>
@@ -53,6 +70,7 @@ async function save(definition: PropertyDefinition, event: Event) {
   <aside class="page-properties" :aria-label="t('properties.title')">
     <h2>{{ t('properties.title') }}</h2>
     <p v-if="error" role="alert">{{ error }}</p>
+    <button v-if="error === t('properties.conflict')" type="button" @click="load">{{ t('properties.reload') }}</button>
     <dl v-if="data">
       <template v-for="definition in known" :key="definition.id">
         <dt>{{ definition.displayName }}</dt>
