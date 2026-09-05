@@ -28,6 +28,10 @@ const rows = computed(() => before.value && after.value
   ? diffRows(before.value.contentMd, after.value.contentMd).rows
   : [])
 
+function operationLabel(operation: RevisionSummary['operation']): string {
+  return t(`history.operations.${operation}`)
+}
+
 async function loadList() {
   const id = ++listRequestId
   loading.value = true
@@ -89,8 +93,8 @@ watch(() => [route.query.from, route.query.to], () => {
     <div v-else-if="error" role="alert"><p>{{ error }}</p><button @click="loadList">{{ t('common.retry') }}</button></div>
     <template v-else>
       <div class="selectors">
-        <label>{{ t('history.before') }}<select :value="before?.revisionNo" @change="select(Number(($event.target as HTMLSelectElement).value), after?.revisionNo ?? 1, true)"><option v-for="r in revisions" :key="r.revisionNo" :value="r.revisionNo">#{{ r.revisionNo }} · {{ r.operation }}</option></select></label>
-        <label>{{ t('history.after') }}<select :value="after?.revisionNo" @change="select(before?.revisionNo ?? 1, Number(($event.target as HTMLSelectElement).value), true)"><option v-for="r in revisions" :key="r.revisionNo" :value="r.revisionNo">#{{ r.revisionNo }} · {{ r.operation }}</option></select></label>
+        <label>{{ t('history.before') }}<select :value="before?.revisionNo" @change="select(Number(($event.target as HTMLSelectElement).value), after?.revisionNo ?? 1, true)"><option v-for="r in revisions" :key="r.revisionNo" :value="r.revisionNo">#{{ r.revisionNo }} · {{ operationLabel(r.operation) }}</option></select></label>
+        <label>{{ t('history.after') }}<select :value="after?.revisionNo" @change="select(before?.revisionNo ?? 1, Number(($event.target as HTMLSelectElement).value), true)"><option v-for="r in revisions" :key="r.revisionNo" :value="r.revisionNo">#{{ r.revisionNo }} · {{ operationLabel(r.operation) }}</option></select></label>
         <button v-if="auth.isEditor" @click="restore">{{ t('history.restore') }}</button>
       </div>
       <p v-if="conflict" role="alert">{{ t('history.conflict') }} <button @click="loadList">{{ t('common.retry') }}</button></p>

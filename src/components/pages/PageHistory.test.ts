@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import PageHistory from './PageHistory.vue'
 import { i18n } from '@/i18n'
+import type { RevisionSummary } from '@/types'
 
 const route = reactive({ params: { slug: 'note' }, query: {} as Record<string, string> })
 const replace = vi.fn()
@@ -23,9 +24,10 @@ vi.mock('@/api/pages', () => ({
   restoreRevision: (...args: unknown[]) => restoreRevision(...args),
 }))
 
-const summaries = [3, 2, 1].map(revisionNo => ({
+const operations = ['RESTORE_TRASH', 'DELETE', 'CREATE'] as const
+const summaries: RevisionSummary[] = [3, 2, 1].map((revisionNo, index) => ({
   revisionNo, contentHash: 'x', title: 'Note', slug: 'note', folderId: null,
-  operation: 'EDIT', createdByName: 'u', createdAt: '', restoredFromRevisionNo: null,
+  operation: operations[index]!, createdByName: 'u', createdAt: '', restoredFromRevisionNo: null,
 }))
 
 function mountPage() {
@@ -52,6 +54,13 @@ describe('PageHistory', () => {
     expect(getRevision).toHaveBeenCalledWith('note', 3)
     expect(wrapper.find('.selectors').exists()).toBe(true)
     expect(wrapper.find('.selectors > button').exists()).toBe(false)
+  })
+
+  it('renders localized delete and trash restore operations', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.get('select').text()).toContain('Restored from trash')
+    expect(wrapper.get('select').text()).toContain('Deleted')
   })
 
   it('keeps selection and offers reload on restore conflict', async () => {

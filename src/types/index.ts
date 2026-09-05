@@ -126,7 +126,9 @@ export interface PageSectionMapItem {
   includesChildren: boolean
 }
 
-export type RevisionOperation = 'CREATE' | 'EDIT' | 'PATCH' | 'RESTORE' | 'IMPORT' | 'FILESYSTEM' | 'RENAME'
+export type RevisionOperation =
+  | 'CREATE' | 'EDIT' | 'PATCH' | 'RESTORE' | 'IMPORT' | 'FILESYSTEM' | 'RENAME'
+  | 'DELETE' | 'RESTORE_TRASH'
 export interface RevisionSummary {
   revisionNo: number
   contentHash: string

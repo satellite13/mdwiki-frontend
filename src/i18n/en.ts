@@ -361,6 +361,11 @@ export const en = {
     added: 'Added line', removed: 'Removed line', restore: 'Restore this revision',
     restoreConfirm: 'Restore this revision content?', conflict: 'The page changed. Reload history and retry.',
     loadFailed: 'Could not load page history', restoreFailed: 'Could not restore revision',
+    operations: {
+      CREATE: 'Created', EDIT: 'Edited', PATCH: 'Patched', RESTORE: 'Restored revision',
+      IMPORT: 'Imported', FILESYSTEM: 'Filesystem sync', RENAME: 'Renamed',
+      DELETE: 'Deleted', RESTORE_TRASH: 'Restored from trash',
+    },
   },
   savedSearches: {
     title: 'Saved searches', empty: 'No saved searches.',
