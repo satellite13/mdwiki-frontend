@@ -58,7 +58,12 @@ describe('InboxPage', () => {
     expect(textTab.attributes('aria-controls')).toBe('capture-panel-text')
     expect(textTab.attributes('aria-selected')).toBe('true')
     expect(wrapper.get('#capture-panel-text').attributes('aria-labelledby')).toBe('capture-tab-text')
+    expect(wrapper.get('#capture-panel-url').attributes('hidden')).toBeDefined()
+    expect(wrapper.get('#capture-panel-image').attributes('hidden')).toBeDefined()
 
+    await textTab.trigger('keydown', { key: 'ArrowRight' })
+    expect(wrapper.get('#capture-tab-url').attributes('aria-selected')).toBe('true')
+    expect(wrapper.get('#capture-panel-url').attributes('hidden')).toBeUndefined()
     await wrapper.get('#capture-tab-image').trigger('click')
     expect(wrapper.get('#capture-panel-image').attributes('role')).toBe('tabpanel')
     expect(wrapper.get('input[type=file]').attributes('accept'))

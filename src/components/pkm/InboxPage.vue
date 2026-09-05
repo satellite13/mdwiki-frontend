@@ -77,22 +77,23 @@ async function submit() {
           {{ t(`pkm.${kind}`) }}
         </button>
       </div>
-      <form :id="`capture-panel-${tab}`" role="tabpanel" :aria-labelledby="`capture-tab-${tab}`"
-        @submit.prevent="submit">
+      <form v-for="kind in (['text', 'url', 'image'] as const)" :key="`panel-${kind}`"
+        :id="`capture-panel-${kind}`" role="tabpanel" :aria-labelledby="`capture-tab-${kind}`"
+        :hidden="tab !== kind" @submit.prevent="submit">
         <label>{{ t('pkm.titleOptional') }}<input v-model="title" maxlength="500" /></label>
-        <label v-if="tab === 'text'">{{ t('pkm.text') }}<textarea v-model="text" required rows="10" /></label>
-        <template v-if="tab === 'url'">
+        <label v-if="kind === 'text'">{{ t('pkm.text') }}<textarea v-model="text" required rows="10" /></label>
+        <template v-if="kind === 'url'">
           <label>{{ t('pkm.url') }}<input v-model="url" type="url" required /></label>
           <label>{{ t('pkm.noteOptional') }}<textarea v-model="note" rows="5" /></label>
         </template>
-        <template v-if="tab === 'image'">
+        <template v-if="kind === 'image'">
           <label>{{ t('pkm.image') }}<input type="file"
             accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp"
             required @change="onFile" /></label>
           <p v-if="file">{{ file.name }} · {{ Math.ceil(file.size / 1024) }} KB</p>
           <label>{{ t('pkm.captionOptional') }}<input v-model="caption" /></label>
         </template>
-        <button class="btn-primary" type="submit" :disabled="busy || (tab === 'image' && !file)">
+        <button class="btn-primary" type="submit" :disabled="busy || (kind === 'image' && !file)">
           {{ busy ? t('common.saving') : t('pkm.capture') }}
         </button>
       </form>
