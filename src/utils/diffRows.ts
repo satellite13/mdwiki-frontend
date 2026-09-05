@@ -35,6 +35,7 @@ export function diffRows(before: string, after: string): { rows: DiffRow[]; trun
     }
     if (leftChangeEnd - prefix > changeBudget || rightChangeEnd - prefix > changeBudget) marker()
     const suffixCount = Math.min(suffix, context)
+    if (suffix > context) marker()
     for (let offset = suffixCount; offset > 0; offset--) {
       rows.push({
         kind: 'context',
@@ -42,7 +43,6 @@ export function diffRows(before: string, after: string): { rows: DiffRow[]; trun
         after: right[right.length - offset]!,
       })
     }
-    if (suffix > context) marker()
     return {
       truncated: true,
       rows,
