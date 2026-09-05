@@ -22,8 +22,9 @@ vi.mock('@/stores/dialog', () => ({
   useDialogStore: () => ({ alert })
 }))
 
-function mountPage() {
+function mountPage(attachToDocument = false) {
   return mount(SearchPage, {
+    attachTo: attachToDocument ? document.body : undefined,
     global: {
       plugins: [i18n],
       stubs: {
@@ -40,6 +41,7 @@ function mountPage() {
 describe('SearchPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    document.body.innerHTML = ''
     route.query = { q: 'knowledge' }
     searchPages.mockResolvedValue({
       data: [{ pageId: '1', slug: 'alpha', title: 'Alpha', snippet: 'text result' }]
@@ -68,6 +70,62 @@ describe('SearchPage', () => {
       .toBe('/page/alpha?section=details-key')
     expect(wrapper.findAll('.source-badge').map((node) => node.text()))
       .toEqual(['Text', 'Semantic'])
+    expect(replace).toHaveBeenCalledWith({
+      query: { q: 'knowledge', mode: 'hybrid' }
+    })
+  })
+
+  it('canonicalizes an invalid mode to hybrid while preserving query', async () => {
+    route.query = { q: 'knowledge', mode: 'unknown' }
+    mountPage()
+    await flushPromises()
+    expect(replace).toHaveBeenCalledWith({
+      query: { q: 'knowledge', mode: 'hybrid' }
+    })
+  })
+
+  it('canonicalizes invalid mode introduced by in-place navigation', async () => {
+    route.query = { q: 'knowledge', mode: 'semantic' }
+    mountPage()
+    await flushPromises()
+    vi.clearAllMocks()
+
+    route.query = { q: 'knowledge', mode: 'invalid' }
+    await flushPromises()
+
+    expect(replace).toHaveBeenCalledWith({
+      query: { q: 'knowledge', mode: 'hybrid' }
+    })
+  })
+
+  it('uses one tab stop and supports keyboard selection in the radiogroup', async () => {
+    const wrapper = mountPage(true)
+    await flushPromises()
+    const radios = wrapper.findAll<HTMLButtonElement>('[role="radio"]')
+    expect(radios.map((radio) => radio.attributes('tabindex'))).toEqual(['0', '-1', '-1'])
+
+    radios[0]!.element.focus()
+    await radios[0]!.trigger('keydown', { key: 'ArrowRight' })
+    await flushPromises()
+    expect(replace).toHaveBeenLastCalledWith({
+      query: { q: 'knowledge', mode: 'text' }
+    })
+    expect(document.activeElement).toBe(radios[1]!.element)
+
+    await radios[1]!.trigger('keydown', { key: 'End' })
+    await flushPromises()
+    expect(document.activeElement).toBe(radios[2]!.element)
+    expect(radios[2]!.attributes('aria-checked')).toBe('true')
+
+    await radios[2]!.trigger('keydown', { key: 'Home' })
+    await flushPromises()
+    expect(document.activeElement).toBe(radios[0]!.element)
+
+    await radios[0]!.trigger('keydown', { key: 'ArrowLeft' })
+    await flushPromises()
+    expect(document.activeElement).toBe(radios[2]!.element)
+    expect(radios[2]!.attributes('aria-checked')).toBe('true')
+    wrapper.unmount()
   })
 
   it('keeps FTS results and shows a non-blocking warning when semantic search fails', async () => {

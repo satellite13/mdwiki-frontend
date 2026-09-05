@@ -104,7 +104,9 @@ const markdownValue = ref(props.modelValue)
 
 const history = useEditorHistory(props.modelValue)
 
-const lastNonReadingMode = ref<EditorMode>('split')
+const lastNonReadingMode = ref<EditorMode>(
+  editorMode.value === 'reading' ? 'preview' : editorMode.value
+)
 const readingFontSize = ref(readReadingFontSizePref())
 const readingTheme = ref<ReadingTheme>(readReadingThemePref())
 const readingTocVisible = ref(true)

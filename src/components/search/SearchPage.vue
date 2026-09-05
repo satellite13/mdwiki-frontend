@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as searchApi from '@/api/search'
 import { useDialogStore } from '@/stores/dialog'
@@ -18,8 +18,9 @@ const router = useRouter()
 const dialog = useDialogStore()
 type SearchMode = 'hybrid' | 'text' | 'semantic'
 const validModes: SearchMode[] = ['hybrid', 'text', 'semantic']
+const hasValidRouteMode = () => validModes.includes(route.query.mode as SearchMode)
 const routeMode = (): SearchMode =>
-  validModes.includes(route.query.mode as SearchMode) ? route.query.mode as SearchMode : 'hybrid'
+  hasValidRouteMode() ? route.query.mode as SearchMode : 'hybrid'
 const mode = ref<SearchMode>(routeMode())
 const results = ref<NormalizedSearchResult[]>([])
 const loading = ref(false)
@@ -122,6 +123,20 @@ async function setMode(nextMode: SearchMode) {
   await doSearch()
 }
 
+async function onModeKeydown(event: KeyboardEvent, index: number) {
+  let nextIndex: number | null = null
+  if (event.key === 'ArrowRight') nextIndex = (index + 1) % modes.value.length
+  if (event.key === 'ArrowLeft') nextIndex = (index - 1 + modes.value.length) % modes.value.length
+  if (event.key === 'Home') nextIndex = 0
+  if (event.key === 'End') nextIndex = modes.value.length - 1
+  if (nextIndex === null) return
+  event.preventDefault()
+  const group = (event.currentTarget as HTMLElement).closest('[role="radiogroup"]')
+  await setMode(modes.value[nextIndex]!.value)
+  await nextTick()
+  group?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[nextIndex]?.focus()
+}
+
 function resultLink(result: NormalizedSearchResult): string {
   const path = `/page/${encodeURIComponent(result.slug)}`
   return result.sectionKey
@@ -129,15 +144,23 @@ function resultLink(result: NormalizedSearchResult): string {
     : path
 }
 
-onMounted(() => {
-  doSearch()
+async function canonicalizeMode() {
+  if (!hasValidRouteMode()) {
+    await router.replace({ query: { ...route.query, mode: 'hybrid' } })
+  }
+}
+
+onMounted(async () => {
+  await canonicalizeMode()
+  await doSearch()
 })
 watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch() })
-watch(() => route.query.mode, () => {
+watch(() => route.query.mode, async () => {
   const nextMode = routeMode()
-  if (nextMode === mode.value) return
-  mode.value = nextMode
-  void doSearch()
+  const changed = nextMode !== mode.value
+  if (changed) mode.value = nextMode
+  await canonicalizeMode()
+  if (changed) void doSearch()
 })
 </script>
 
@@ -148,13 +171,15 @@ watch(() => route.query.mode, () => {
 
     <div class="search-modes" role="radiogroup" :aria-label="t('search.modeLabel')">
       <button
-        v-for="item in modes"
+        v-for="(item, index) in modes"
         :key="item.value"
         type="button"
         role="radio"
         :aria-checked="mode === item.value"
+        :tabindex="mode === item.value ? 0 : -1"
         :class="{ active: mode === item.value }"
         @click="setMode(item.value)"
+        @keydown="onModeKeydown($event, index)"
       >{{ item.label }}</button>
     </div>
     <p v-if="warning" class="search-warning" role="status">{{ warning }}</p>

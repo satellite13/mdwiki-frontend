@@ -22,6 +22,7 @@ type LoaderDependencies = {
   router: Router
   stopPendingSave: () => void
   onLoadStart?: () => void
+  canCreate?: boolean
 }
 
 /**
@@ -77,6 +78,10 @@ export function usePageLoader(
     }
 
     if (!loaded) {
+      if (deps.canCreate === false) {
+        state.loading.value = false
+        return
+      }
       const routeSlug = decodeRouteSlug(slugParam).trim()
       const normalizedSlug = normalizePageSlug(routeSlug)
 

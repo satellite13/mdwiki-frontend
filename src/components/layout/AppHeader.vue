@@ -74,7 +74,7 @@ function toggleTheme() {
 function onSearch() {
   if (searchQuery.value.trim()) {
     editorUi.closeMobileOverlays()
-    router.push({ name: 'search', query: { q: searchQuery.value } })
+    router.push({ name: 'search', query: { q: searchQuery.value, mode: 'hybrid' } })
   }
 }
 
