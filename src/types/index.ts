@@ -193,6 +193,16 @@ export interface SavedView {
   createdAt: string
   updatedAt: string
 }
+export interface ViewRunItem {
+  page: PageListItem
+  groupKey: string | null
+}
+export interface ViewRunResult {
+  items: ViewRunItem[]
+  nextCursor: string | null
+  nullOrdering: 'NULLS_LAST'
+  view: SavedView
+}
 
 export interface AnswerCitation {
   id: number

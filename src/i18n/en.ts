@@ -1,4 +1,33 @@
 export const en = {
+  properties: {
+    title: 'Properties',
+    empty: 'Not set',
+    emptyValue: '—',
+    readOnly: '{key} (read only)',
+    invalidValue: 'Enter a valid value.',
+    saveFailed: 'Property was not saved; refresh and retry.'
+  },
+  views: {
+    title: 'Views',
+    name: 'View name',
+    layout: 'Layout',
+    table: 'Table',
+    list: 'List',
+    cards: 'Cards',
+    sort: 'Sort',
+    group: 'Group',
+    none: 'None',
+    create: 'Create view',
+    delete: 'Delete',
+    deleteNamed: 'Delete {name}',
+    loading: 'Loading results…',
+    empty: 'No results yet.',
+    results: 'View results',
+    titleColumn: 'Title',
+    loadFailed: 'Could not load views.',
+    createFailed: 'Could not create view.',
+    runFailed: 'Could not run view.'
+  },
   tree: {
     newPage: 'New page',
     newFolder: 'New folder',
