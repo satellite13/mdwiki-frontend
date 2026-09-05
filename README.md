@@ -259,3 +259,21 @@ second docker tag).
 ```
 
 Chart details: `deploy/helm/mdwiki-frontend/README.md`.
+
+## PKM Wave 1 / Персональная база знаний
+
+Authenticated users now have compact navigation for:
+
+- `/inbox` — accessible text, URL and image quick capture (Editor/Admin), also opened with `Cmd/Ctrl+Shift+N` outside editable fields;
+- `/daily/:date?` — opens the local-date daily note and creates it for Editor/Admin when absent;
+- `/recent` and `/favorites` — personal page lists; the workspace star updates favorites optimistically;
+- `/links/unlinked` and `/links/orphans` — unlinked mention and orphan discovery. Readers can inspect results; Editors/Admins can convert a mention to a wiki-link.
+
+Для авторизованных пользователей доступны:
+
+- `/inbox` — быстрый захват текста, ссылок и изображений; черновик сохраняется после ошибки;
+- `/daily/:date?` — ежедневная заметка по локальной дате;
+- `/recent` и `/favorites` — персональные списки недавних и избранных страниц;
+- `/links/unlinked` и `/links/orphans` — поиск несвязанных упоминаний и страниц-сирот с учётом прав доступа.
+
+All interface strings are available in English and Russian. Reader-only states, keyboard navigation, mutation status announcements, mobile-width forms and 44px primary controls are included.

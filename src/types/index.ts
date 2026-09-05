@@ -267,3 +267,43 @@ export interface BundleImportResponse {
   attachments: number
   errors: string[]
 }
+
+export interface CaptureResponse {
+  kind: 'text' | 'url' | 'image'
+  page: Page
+  attachment?: Attachment | null
+}
+
+export interface DailyNoteResponse {
+  date: string
+  page: Page
+  created: boolean
+}
+
+export interface RecentPage {
+  page: PageListItem
+  lastOpenedAt: string
+  openCount: number
+}
+
+export interface FavoritePage {
+  page: PageListItem
+  favoritedAt: string
+}
+
+export interface UnlinkedMention {
+  sourceSlug: string
+  sourceTitle: string
+  snippet: string
+  sectionKey?: string | null
+  startOffset: number
+  endOffset: number
+  expectedUpdatedAt: string
+}
+
+export type OrphanDefinition = 'NO_INCOMING' | 'NO_LINKS' | 'NO_OUTGOING'
+export interface OrphanPage {
+  page: PageListItem
+  incomingCount: number
+  outgoingCount: number
+}

@@ -123,6 +123,8 @@ export const en = {
     untitled: 'Untitled',
     home: 'Home',
     openDocuments: 'Open documents',
+    loading: 'Loading…',
+    retry: 'Retry',
   },
   export: {
     pdfButton: 'Export PDF',
@@ -425,5 +427,24 @@ export const en = {
   layout: {
     closeSidebar: 'Close sidebar',
     resizeSidebar: 'Resize documents sidebar',
+  },
+  pkm: {
+    inbox: 'Inbox', today: 'Today', recent: 'Recent', favorites: 'Favorites', discovery: 'Discovery',
+    quickCapture: 'Quick capture', quickCaptureShortcut: 'Quick capture (Cmd/Ctrl+Shift+N)',
+    readerCapture: 'Quick capture requires Editor or Admin permission.',
+    captureType: 'Capture type', text: 'Text', url: 'URL', image: 'Image',
+    titleOptional: 'Title (optional)', noteOptional: 'Note (optional)', captionOptional: 'Caption (optional)',
+    capture: 'Capture', captureFailed: 'Capture failed', captured: 'Captured: {title}',
+    invalidDate: 'Invalid date. Use YYYY-MM-DD.', dailyFailed: 'Could not open daily note.',
+    dailyMissingReader: 'This daily note does not exist. Reader access cannot create it.',
+    libraryFailed: 'Could not load pages.', emptyList: 'No pages yet.',
+    favoriteFailed: 'Could not update favorite.', addFavorite: 'Add to favorites', removeFavorite: 'Remove from favorites',
+    unlinked: 'Unlinked mentions', targetPage: 'Target page', choosePage: 'Choose a page',
+    noMentions: 'No unlinked mentions.', mentionsFailed: 'Could not load mentions.',
+    createLink: 'Create link', linkConfirm: 'Replace this mention with a wiki link?',
+    linkFailed: 'Could not create link.', orphans: 'Orphan pages', definition: 'Definition',
+    NO_INCOMING: 'No incoming links', NO_LINKS: 'No links', NO_OUTGOING: 'No outgoing links',
+    noOrphans: 'No orphan pages.', orphansFailed: 'Could not load orphan pages.',
+    linkCounts: 'Incoming: {incoming}, outgoing: {outgoing}',
   },
 }

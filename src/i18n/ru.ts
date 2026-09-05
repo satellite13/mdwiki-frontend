@@ -123,6 +123,8 @@ export const ru = {
     untitled: 'Без названия',
     home: 'Главная',
     openDocuments: 'Открыть документы',
+    loading: 'Загрузка…',
+    retry: 'Повторить',
   },
   export: {
     pdfButton: 'Экспорт PDF',
@@ -425,5 +427,24 @@ export const ru = {
   layout: {
     closeSidebar: 'Закрыть боковую панель',
     resizeSidebar: 'Изменить ширину панели документов',
+  },
+  pkm: {
+    inbox: 'Входящие', today: 'Сегодня', recent: 'Недавние', favorites: 'Избранное', discovery: 'Обнаружение',
+    quickCapture: 'Быстрый захват', quickCaptureShortcut: 'Быстрый захват (Cmd/Ctrl+Shift+N)',
+    readerCapture: 'Для быстрого захвата нужна роль редактора или администратора.',
+    captureType: 'Тип захвата', text: 'Текст', url: 'URL', image: 'Изображение',
+    titleOptional: 'Заголовок (необязательно)', noteOptional: 'Заметка (необязательно)', captionOptional: 'Подпись (необязательно)',
+    capture: 'Сохранить', captureFailed: 'Не удалось сохранить', captured: 'Сохранено: {title}',
+    invalidDate: 'Некорректная дата. Используйте ГГГГ-ММ-ДД.', dailyFailed: 'Не удалось открыть ежедневную заметку.',
+    dailyMissingReader: 'Ежедневной заметки ещё нет. Читатель не может её создать.',
+    libraryFailed: 'Не удалось загрузить страницы.', emptyList: 'Здесь пока нет страниц.',
+    favoriteFailed: 'Не удалось изменить избранное.', addFavorite: 'Добавить в избранное', removeFavorite: 'Удалить из избранного',
+    unlinked: 'Несвязанные упоминания', targetPage: 'Целевая страница', choosePage: 'Выберите страницу',
+    noMentions: 'Несвязанных упоминаний нет.', mentionsFailed: 'Не удалось загрузить упоминания.',
+    createLink: 'Создать ссылку', linkConfirm: 'Заменить упоминание на вики-ссылку?',
+    linkFailed: 'Не удалось создать ссылку.', orphans: 'Страницы-сироты', definition: 'Определение',
+    NO_INCOMING: 'Нет входящих ссылок', NO_LINKS: 'Нет ссылок', NO_OUTGOING: 'Нет исходящих ссылок',
+    noOrphans: 'Страниц-сирот нет.', orphansFailed: 'Не удалось загрузить страницы-сироты.',
+    linkCounts: 'Входящих: {incoming}, исходящих: {outgoing}',
   },
 }

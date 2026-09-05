@@ -18,6 +18,7 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import AppModal from '@/components/ui/AppModal.vue'
+import * as libraryApi from '@/api/library'
 
 type MarkdownEditorHandle = {
   exportToPdf: () => Promise<void>
@@ -57,6 +58,8 @@ const { isMobile } = useBreakpoint()
 const editorRef = ref<MarkdownEditorHandle | null>(null)
 const exportingPdf = ref(false)
 const lockBusy = ref(false)
+const favorite = ref(false)
+const favoriteBusy = ref(false)
 const sectionMap = ref<PageSectionMapResponse | null>(null)
 const renameOpen = ref(false)
 const renameValue = ref('')
@@ -100,6 +103,10 @@ watch(page, (nextPage) => {
     editorUi.setReadingMode(false)
     return
   }
+  favorite.value = false
+  void libraryApi.getFavorites()
+    .then(({ data }) => { if (page.value?.id === nextPage.id) favorite.value = data.some((item) => item.page.id === nextPage.id) })
+    .catch(() => undefined)
   const pageVersion = `${nextPage.slug}:${nextPage.updatedAt}`
   void pagesApi.getPageSections(nextPage.slug)
     .then(({ data }) => {
@@ -116,6 +123,22 @@ watch(page, (nextPage) => {
       if (requestId === sectionMapRequestId) sectionMap.value = null
     })
 }, { immediate: true })
+
+async function toggleFavorite() {
+  if (!page.value || favoriteBusy.value) return
+  const previous = favorite.value
+  favorite.value = !previous
+  favoriteBusy.value = true
+  try {
+    if (favorite.value) await libraryApi.addFavorite(page.value.id)
+    else await libraryApi.removeFavorite(page.value.id)
+  } catch (error) {
+    favorite.value = previous
+    await dialog.alert(getApiErrorMessage(error, t('pkm.favoriteFailed')))
+  } finally {
+    favoriteBusy.value = false
+  }
+}
 
 const isLocked = computed(() => {
   if (isFrontmatterLocked(content.value)) return true
@@ -212,6 +235,12 @@ async function renameSlug() {
         :disabled="isLocked"
       />
       <div class="header-actions">
+        <button type="button" class="favorite-btn" :class="{ active: favorite }"
+          :aria-label="favorite ? t('pkm.removeFavorite') : t('pkm.addFavorite')"
+          :aria-pressed="favorite" :aria-busy="favoriteBusy" :disabled="favoriteBusy"
+          @click="toggleFavorite">
+          <span class="material-symbols-outlined notranslate" translate="no">{{ favorite ? 'star' : 'star_outline' }}</span>
+        </button>
         <div v-if="auth.isEditor" class="save-slot" aria-live="polite">
           <span v-if="isDirty()" class="unsaved-dot" :title="t('workspace.unsavedChanges')"></span>
           <span v-if="saveError" class="save-error" @click="clearSaveError">{{ saveError }}</span>
@@ -425,6 +454,10 @@ async function renameSlug() {
   transition: all 0.15s;
   flex-shrink: 0;
 }
+
+.favorite-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid var(--color-border);border-radius:6px;background:transparent;color:var(--color-text-muted);cursor:pointer}
+.favorite-btn.active{color:var(--color-primary);border-color:var(--color-primary)}
+.favorite-btn:disabled{opacity:.6}
 
 .lock-btn:hover {
   color: var(--color-text);

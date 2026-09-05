@@ -7,6 +7,7 @@ import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
 import type { Backlink, Page } from '@/types'
+import { touchRecent } from '@/api/library'
 
 type LoaderState = {
   page: Ref<Page | null>
@@ -119,6 +120,8 @@ export function usePageLoader(
     }
 
     state.page.value = loaded
+    // Best-effort activity signal: page rendering and navigation never depend on it.
+    void touchRecent(loaded.id).catch(() => undefined)
     try {
       state.backlinks.value = (await pagesApi.getBacklinks(resolvedSlug)).data
     } catch {

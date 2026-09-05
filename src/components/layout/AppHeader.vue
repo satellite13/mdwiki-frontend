@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n'
 import { getLocale, toggleLocale } from '@/i18n'
 import ThemeModeIcon from './ThemeModeIcon.vue'
 import MdwikiMark from './MdwikiMark.vue'
+import { isCaptureShortcut } from '@/utils/pkm'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -53,6 +54,11 @@ const graphLinkTo = computed(() => {
 
 // Общие ссылки desktop- и mobile-навигации (Admin/sync/logout добавляются отдельно).
 const navLinks = computed<{ to: RouteLocationRaw; label: string; title?: string }[]>(() => [
+  { to: '/inbox', label: t('pkm.inbox') },
+  { to: '/daily', label: t('pkm.today') },
+  { to: '/recent', label: t('pkm.recent') },
+  { to: '/favorites', label: t('pkm.favorites') },
+  { to: '/links/unlinked', label: t('pkm.discovery') },
   { to: graphLinkTo.value, label: t('header.graph'), title: t('header.graphTitle') },
   { to: '/broken-links', label: t('header.brokenLinks') },
   { to: '/tasks', label: t('header.tasks') },
@@ -87,6 +93,16 @@ function logout() {
 function onNavClick() {
   editorUi.closeMobileOverlays()
 }
+
+function onGlobalKeydown(event: KeyboardEvent) {
+  if (auth.isEditor && isCaptureShortcut(event)) {
+    event.preventDefault()
+    void router.push('/inbox')
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
 </script>
 
 <template>
@@ -103,6 +119,11 @@ function onNavClick() {
     <router-link to="/" class="logo" @click="onNavClick">
       <MdwikiMark class="logo-mark" />
       <span>MDWiki</span>
+    </router-link>
+
+    <router-link v-if="auth.isEditor" to="/inbox" class="quick-capture" :aria-label="t('pkm.quickCapture')"
+      :title="t('pkm.quickCaptureShortcut')">
+      <span class="material-symbols-outlined notranslate" translate="no">add</span>
     </router-link>
 
     <form class="search-form" @submit.prevent="onSearch">
@@ -256,6 +277,12 @@ function onNavClick() {
 .logo:hover .logo-mark {
   color: var(--color-primary-hover);
 }
+
+.quick-capture {
+  display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;
+  color:var(--color-primary);border:1px solid var(--color-primary);text-decoration:none;flex-shrink:0
+}
+.quick-capture:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
 
 .search-form {
   flex: 1;
