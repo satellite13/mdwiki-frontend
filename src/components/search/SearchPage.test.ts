@@ -156,6 +156,44 @@ describe('SearchPage', () => {
     wrapper.unmount()
   })
 
+  it('clears loading state when the query is emptied during a pending search', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const pending = new Promise<never>(() => {})
+    searchPages.mockReturnValue(pending)
+    searchPagesRag.mockReturnValue(pending)
+
+    route.query = { q: 'pending', mode: 'hybrid' }
+    await nextTick()
+    expect(wrapper.findComponent({ name: 'SkeletonPage' }).exists()).toBe(true)
+
+    route.query = { q: '', mode: 'hybrid' }
+    await nextTick()
+    expect(wrapper.findComponent({ name: 'SkeletonPage' }).exists()).toBe(false)
+    expect(wrapper.find('.search-warning').exists()).toBe(false)
+    expect(wrapper.findAll('.result-card')).toHaveLength(0)
+  })
+
+  it('clears pending state while canonicalizing an invalid mode for an empty query', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const pending = new Promise<never>(() => {})
+    searchPages.mockReturnValue(pending)
+    searchPagesRag.mockReturnValue(pending)
+
+    route.query = { q: 'pending', mode: 'hybrid' }
+    await nextTick()
+    expect(wrapper.findComponent({ name: 'SkeletonPage' }).exists()).toBe(true)
+    replace.mockClear()
+
+    route.query = { q: '', mode: 'invalid' }
+    await nextTick()
+    expect(wrapper.findComponent({ name: 'SkeletonPage' }).exists()).toBe(false)
+    expect(wrapper.find('.search-warning').exists()).toBe(false)
+    expect(wrapper.findAll('.result-card')).toHaveLength(0)
+    expect(replace).toHaveBeenCalledWith({ query: { q: '', mode: 'hybrid' } })
+  })
+
   it('keeps FTS results and shows a non-blocking warning when semantic search fails', async () => {
     searchPagesRag.mockRejectedValue(new Error('semantic unavailable'))
     const wrapper = mountPage()

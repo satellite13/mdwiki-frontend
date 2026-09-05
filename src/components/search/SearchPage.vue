@@ -24,7 +24,7 @@ const routeMode = (): SearchMode =>
 const mode = ref<SearchMode>(routeMode())
 const results = ref<NormalizedSearchResult[]>([])
 const loading = ref(false)
-const warning = ref('')
+const warning = ref<string | null>(null)
 const query = ref((route.query.q as string) || '')
 const selectedTag = ref<string | null>(null)
 const minScore = ref<number>(0)
@@ -83,11 +83,15 @@ async function doSearch(searchMode: SearchMode = mode.value) {
   const requestId = ++searchRequestId
   const isCurrent = () => requestId === searchRequestId && mode.value === searchMode
   if (!query.value.trim()) {
-    if (isCurrent()) results.value = []
+    results.value = []
+    loading.value = false
+    warning.value = null
+    selectedTag.value = null
+    minScore.value = 0
     return
   }
   loading.value = true
-  warning.value = ''
+  warning.value = null
   try {
     if (searchMode === 'text') {
       const { data } = await searchApi.searchPages(query.value)
