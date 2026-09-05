@@ -51,4 +51,17 @@ describe('InboxPage', () => {
     expect(wrapper.find('form').exists()).toBe(false)
     expect(wrapper.text()).toContain('Editor')
   })
+
+  it('exposes connected roving tabs and exact raster accept list', async () => {
+    const wrapper = mountPage()
+    const textTab = wrapper.get('#capture-tab-text')
+    expect(textTab.attributes('aria-controls')).toBe('capture-panel-text')
+    expect(textTab.attributes('aria-selected')).toBe('true')
+    expect(wrapper.get('#capture-panel-text').attributes('aria-labelledby')).toBe('capture-tab-text')
+
+    await wrapper.get('#capture-tab-image').trigger('click')
+    expect(wrapper.get('#capture-panel-image').attributes('role')).toBe('tabpanel')
+    expect(wrapper.get('input[type=file]').attributes('accept'))
+      .toBe('.png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp')
+  })
 })

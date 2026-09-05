@@ -83,4 +83,17 @@ describe('DailyNotePage stale requests', () => {
     expect(replace).toHaveBeenCalledWith('/page/daily-new')
     expect(putDailyNote).not.toHaveBeenCalledWith('2026-09-01', expect.anything())
   })
+
+  it('does not redirect after unmount while request is pending', async () => {
+    const pending = deferred<{ data: { page: { slug: string } } }>()
+    getDailyNote.mockReturnValue(pending.promise)
+    const wrapper = mount(DailyNotePage, { global: { plugins: [i18n] } })
+    await nextTick()
+
+    wrapper.unmount()
+    pending.resolve({ data: { page: { slug: 'too-late' } } })
+    await flushPromises()
+
+    expect(replace).not.toHaveBeenCalled()
+  })
 })

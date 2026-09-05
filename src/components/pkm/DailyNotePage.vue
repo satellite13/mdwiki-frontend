@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -16,6 +16,12 @@ const error = ref('')
 const missing = ref(false)
 let controller: AbortController | null = null
 let generation = 0
+
+onBeforeUnmount(() => {
+  generation++
+  controller?.abort()
+  controller = null
+})
 
 watch(() => route.params.date, async (raw) => {
   controller?.abort()
