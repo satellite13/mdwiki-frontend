@@ -178,6 +178,10 @@ export const ru = {
     loading: 'Загрузка…',
     retry: 'Повторить',
     delete: 'Удалить',
+    noMatchingOptions: 'Нет подходящих вариантов',
+    clearSelection: 'Сбросить выбор',
+    selectedCount: 'Выбрано: {n}',
+    search: 'Поиск',
   },
   export: {
     pdfButton: 'Экспорт PDF',
