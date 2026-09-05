@@ -30,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const rootRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<HTMLElement | null>(null)
 const listRef = ref<HTMLElement | null>(null)
 const searchRef = ref<HTMLInputElement | null>(null)
 const open = ref(false)
@@ -39,6 +40,8 @@ const uid = useId()
 const listId = `${uid}-list`
 /** Optimistic multi selection until parent syncs modelValue. */
 const localMulti = ref<string[]>([])
+const popoverStyle = ref<Record<string, string>>({})
+let positionListenersBound = false
 
 function optionDomId(index: number) {
   return `${uid}-option-${index}`
@@ -131,17 +134,46 @@ function emitValue(value: string | string[] | null) {
   emit('change', value)
 }
 
+function updatePopoverPosition() {
+  const trigger = triggerRef.value
+  if (!trigger) return
+  const rect = trigger.getBoundingClientRect()
+  popoverStyle.value = {
+    top: `${rect.bottom + 4}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+  }
+}
+
+function bindPositionListeners() {
+  if (positionListenersBound) return
+  window.addEventListener('scroll', updatePopoverPosition, true)
+  window.addEventListener('resize', updatePopoverPosition)
+  positionListenersBound = true
+}
+
+function unbindPositionListeners() {
+  if (!positionListenersBound) return
+  window.removeEventListener('scroll', updatePopoverPosition, true)
+  window.removeEventListener('resize', updatePopoverPosition)
+  positionListenersBound = false
+}
+
 function close() {
   open.value = false
   searchQuery.value = ''
   activeIndex.value = -1
+  unbindPositionListeners()
 }
 
 function openList() {
   if (props.disabled || open.value) return
   open.value = true
   activeIndex.value = filteredOptions.value.findIndex((o) => !o.disabled)
+  updatePopoverPosition()
+  bindPositionListeners()
   nextTick(() => {
+    updatePopoverPosition()
     if (props.searchable) searchRef.value?.focus()
     else listRef.value?.focus()
     scrollActiveIntoView()
@@ -299,8 +331,10 @@ function onSearchKeydown(event: KeyboardEvent) {
 function onDocumentClick(event: MouseEvent) {
   if (!open.value) return
   const target = event.target as Node | null
-  if (!target || !rootRef.value) return
-  if (!rootRef.value.contains(target)) close()
+  if (!target) return
+  if (rootRef.value?.contains(target)) return
+  if (listRef.value?.contains(target)) return
+  close()
 }
 
 function onDocumentKeydown(event: KeyboardEvent) {
@@ -329,16 +363,18 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('keydown', onDocumentKeydown)
+  unbindPositionListeners()
 })
 </script>
 
 <template>
   <div ref="rootRef" class="app-select" :class="{ open, disabled }">
     <div
+      ref="triggerRef"
       class="app-select-trigger"
       data-testid="app-select-trigger"
       role="combobox"
-      tabindex="0"
+      :tabindex="disabled ? -1 : 0"
       :aria-expanded="open"
       :aria-controls="open ? listId : undefined"
       :aria-activedescendant="activeOptionId"
@@ -366,63 +402,66 @@ onBeforeUnmount(() => {
       </span>
     </div>
 
-    <div
-      v-if="open"
-      :id="listId"
-      ref="listRef"
-      class="app-select-popover"
-      data-testid="app-select-list"
-      role="listbox"
-      :aria-multiselectable="multiple || undefined"
-      :aria-activedescendant="activeOptionId"
-      tabindex="-1"
-      @keydown="onListKeydown"
-    >
-      <div v-if="searchable" class="app-select-search-wrap">
-        <input
-          ref="searchRef"
-          type="text"
-          class="app-select-search"
-          data-testid="app-select-search"
-          :placeholder="t('common.search')"
-          :aria-activedescendant="activeOptionId"
-          :aria-controls="listId"
-          :value="searchQuery"
-          @input="searchQuery = ($event.target as HTMLInputElement).value"
-          @keydown="onSearchKeydown"
-          @click.stop
-        >
-      </div>
+    <Teleport to="body">
+      <div
+        v-if="open"
+        :id="listId"
+        ref="listRef"
+        class="app-select-popover"
+        data-testid="app-select-list"
+        role="listbox"
+        :style="popoverStyle"
+        :aria-multiselectable="multiple || undefined"
+        :aria-activedescendant="activeOptionId"
+        tabindex="-1"
+        @keydown="onListKeydown"
+      >
+        <div v-if="searchable" class="app-select-search-wrap">
+          <input
+            ref="searchRef"
+            type="text"
+            class="app-select-search"
+            data-testid="app-select-search"
+            :placeholder="t('common.search')"
+            :aria-activedescendant="activeOptionId"
+            :aria-controls="listId"
+            :value="searchQuery"
+            @input="searchQuery = ($event.target as HTMLInputElement).value"
+            @keydown="onSearchKeydown"
+            @click.stop
+          >
+        </div>
 
-      <ul class="app-select-options" role="presentation">
-        <li
-          v-for="(option, index) in filteredOptions"
-          :id="optionDomId(index)"
-          :key="`${option.value}::${index}`"
-          role="option"
-          class="app-select-option"
-          :class="{
-            active: index === activeIndex,
-            selected: isSelected(option.value),
-            disabled: option.disabled,
-          }"
-          :data-testid="optionTestId(option.value)"
-          :aria-selected="isSelected(option.value)"
-          :aria-disabled="option.disabled || undefined"
-          @click.stop="selectOption(option)"
-          @mouseenter="!option.disabled && (activeIndex = index)"
-        >
-          <span v-if="multiple" class="app-select-check" aria-hidden="true">
-            {{ isSelected(option.value) ? '✓' : '' }}
-          </span>
-          {{ option.label }}
-        </li>
-      </ul>
+        <ul class="app-select-options" role="presentation">
+          <li
+            v-for="(option, index) in filteredOptions"
+            :id="optionDomId(index)"
+            :key="`${option.value}::${index}`"
+            role="option"
+            class="app-select-option"
+            :class="{
+              active: index === activeIndex,
+              selected: isSelected(option.value),
+              disabled: option.disabled,
+            }"
+            :data-testid="optionTestId(option.value)"
+            :aria-selected="isSelected(option.value)"
+            :aria-disabled="option.disabled || undefined"
+            @click.stop="selectOption(option)"
+            @mouseenter="!option.disabled && (activeIndex = index)"
+          >
+            <span v-if="multiple" class="app-select-check" aria-hidden="true">
+              {{ isSelected(option.value) ? '✓' : '' }}
+            </span>
+            {{ option.label }}
+          </li>
+        </ul>
 
-      <div v-if="filteredOptions.length === 0" class="app-select-empty">
-        {{ t('common.noMatchingOptions') }}
+        <div v-if="filteredOptions.length === 0" class="app-select-empty">
+          {{ t('common.noMatchingOptions') }}
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -516,11 +555,9 @@ onBeforeUnmount(() => {
 }
 
 .app-select-popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 40;
+  position: fixed;
+  z-index: 200;
+  box-sizing: border-box;
   max-height: 280px;
   overflow: auto;
   border: 1px solid var(--color-border);
