@@ -28,6 +28,7 @@ const warning = ref('')
 const query = ref((route.query.q as string) || '')
 const selectedTag = ref<string | null>(null)
 const minScore = ref<number>(0)
+let searchRequestId = 0
 const modes = computed(() => [
   { value: 'hybrid' as const, label: t('search.modeHybrid') },
   { value: 'text' as const, label: t('search.modeText') },
@@ -78,25 +79,30 @@ function highlightSnippet(snippet: string, q: string): string {
   return safeSnippet.replace(pattern, '<mark class="search-highlight">$1</mark>')
 }
 
-async function doSearch() {
+async function doSearch(searchMode: SearchMode = mode.value) {
+  const requestId = ++searchRequestId
+  const isCurrent = () => requestId === searchRequestId && mode.value === searchMode
   if (!query.value.trim()) {
-    results.value = []
+    if (isCurrent()) results.value = []
     return
   }
   loading.value = true
   warning.value = ''
   try {
-    if (mode.value === 'text') {
+    if (searchMode === 'text') {
       const { data } = await searchApi.searchPages(query.value)
+      if (!isCurrent()) return
       results.value = normalizeSearchResults(data, [])
-    } else if (mode.value === 'semantic') {
+    } else if (searchMode === 'semantic') {
       const { data } = await searchApi.searchPagesRag(query.value)
+      if (!isCurrent()) return
       results.value = normalizeSearchResults([], data)
     } else {
       const [text, semantic] = await Promise.allSettled([
         searchApi.searchPages(query.value),
         searchApi.searchPagesRag(query.value)
       ])
+      if (!isCurrent()) return
       if (text.status === 'rejected' && semantic.status === 'rejected') {
         throw text.reason
       }
@@ -109,18 +115,33 @@ async function doSearch() {
     selectedTag.value = null
     minScore.value = 0
   } catch (e) {
+    if (!isCurrent()) return
     results.value = []
     await dialog.alert(getApiErrorMessage(e, t('errors.searchFailed')))
   } finally {
-    loading.value = false
+    if (isCurrent()) loading.value = false
   }
 }
 
-async function setMode(nextMode: SearchMode) {
+function setMode(nextMode: SearchMode) {
   if (mode.value === nextMode) return
   mode.value = nextMode
-  await router.replace({ query: { ...route.query, mode: nextMode } })
-  await doSearch()
+  searchRequestId++
+  loading.value = false
+  void navigateAndSearch(nextMode)
+}
+
+async function navigateAndSearch(nextMode: SearchMode) {
+  try {
+    await router.replace({ query: { ...route.query, mode: nextMode } })
+    if (mode.value !== nextMode) return
+    await doSearch(nextMode)
+  } catch (error) {
+    if (mode.value === nextMode) {
+      loading.value = false
+      await dialog.alert(getApiErrorMessage(error, t('errors.searchFailed')))
+    }
+  }
 }
 
 async function onModeKeydown(event: KeyboardEvent, index: number) {
@@ -132,7 +153,7 @@ async function onModeKeydown(event: KeyboardEvent, index: number) {
   if (nextIndex === null) return
   event.preventDefault()
   const group = (event.currentTarget as HTMLElement).closest('[role="radiogroup"]')
-  await setMode(modes.value[nextIndex]!.value)
+  setMode(modes.value[nextIndex]!.value)
   await nextTick()
   group?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[nextIndex]?.focus()
 }

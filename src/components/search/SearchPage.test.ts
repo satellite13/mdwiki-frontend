@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { reactive } from 'vue'
+import { nextTick, reactive } from 'vue'
 import SearchPage from './SearchPage.vue'
 import { i18n } from '@/i18n'
 
@@ -125,6 +125,34 @@ describe('SearchPage', () => {
     await flushPromises()
     expect(document.activeElement).toBe(radios[2]!.element)
     expect(radios[2]!.attributes('aria-checked')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('moves selection and focus before pending search requests resolve', async () => {
+    const wrapper = mountPage(true)
+    await flushPromises()
+    const pending = new Promise<never>(() => {})
+    searchPages.mockReturnValue(pending)
+    searchPagesRag.mockReturnValue(pending)
+    replace.mockClear()
+    const radios = wrapper.findAll<HTMLButtonElement>('[role="radio"]')
+
+    radios[0]!.element.focus()
+    await radios[0]!.trigger('keydown', { key: 'ArrowRight' })
+    await nextTick()
+    expect(radios[1]!.attributes('aria-checked')).toBe('true')
+    expect(document.activeElement).toBe(radios[1]!.element)
+
+    await radios[1]!.trigger('keydown', { key: 'ArrowRight' })
+    await nextTick()
+    expect(radios[2]!.attributes('aria-checked')).toBe('true')
+    expect(document.activeElement).toBe(radios[2]!.element)
+    expect(replace).toHaveBeenNthCalledWith(1, {
+      query: { q: 'knowledge', mode: 'text' }
+    })
+    expect(replace).toHaveBeenNthCalledWith(2, {
+      query: { q: 'knowledge', mode: 'semantic' }
+    })
     wrapper.unmount()
   })
 
