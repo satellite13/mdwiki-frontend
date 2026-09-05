@@ -6,6 +6,7 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import type { EmbeddingSettings, EmbeddingSettingsWarning } from '@/types'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import { postWikiReindex } from '@/api/sync'
 
 const { t } = useI18n()
 const dialog = useDialogStore()
@@ -19,6 +20,8 @@ const apiKey = ref('')
 const apiKeyConfigured = ref(false)
 const expectedDimension = ref<number | null>(null)
 const warning = ref<EmbeddingSettingsWarning | null>(null)
+const reindexing = ref(false)
+const reindexStatus = ref('')
 
 function applySettings(data: EmbeddingSettings) {
   provider.value = data.provider
@@ -65,6 +68,25 @@ async function saveSettings() {
     await dialog.alert(getApiErrorMessage(e, t('errors.updateEmbeddingSettingsFailed')))
   } finally {
     saving.value = false
+  }
+}
+
+async function reindex() {
+  if (reindexing.value) return
+  reindexing.value = true
+  reindexStatus.value = t('admin.embeddingReindexRunning')
+  try {
+    const { data } = await postWikiReindex()
+    reindexStatus.value = t('admin.embeddingReindexDone', {
+      total: data.total,
+      reindexed: data.reindexed,
+      failed: data.failed
+    })
+  } catch (error) {
+    reindexStatus.value = ''
+    await dialog.alert(getApiErrorMessage(error, t('admin.embeddingReindexFailed')))
+  } finally {
+    reindexing.value = false
   }
 }
 
@@ -121,9 +143,21 @@ onMounted(loadSettings)
         {{ t('admin.embeddingMismatchDetails', { actual: warning.actualDimension, expected: warning.expectedDimension }) }}
       </p>
 
-      <button class="btn-primary" type="submit" :disabled="saving">
-        {{ saving ? t('common.saving') : t('common.save') }}
-      </button>
+      <div class="settings-actions">
+        <button class="btn-primary" type="submit" :disabled="saving || reindexing">
+          {{ saving ? t('common.saving') : t('common.save') }}
+        </button>
+        <button
+          class="btn-secondary reindex-button"
+          type="button"
+          :disabled="saving || reindexing"
+          :aria-busy="reindexing"
+          @click="reindex"
+        >
+          {{ reindexing ? t('admin.embeddingReindexRunning') : t('admin.embeddingReindexButton') }}
+        </button>
+      </div>
+      <p v-if="reindexStatus" class="hint reindex-status" aria-live="polite">{{ reindexStatus }}</p>
     </form>
   </div>
 </template>
@@ -202,5 +236,11 @@ onMounted(loadSettings)
   margin: 0;
   font-size: 13px;
   color: var(--color-warning, #9a6700);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 </style>

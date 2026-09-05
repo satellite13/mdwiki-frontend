@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { defineAsyncComponent, onBeforeUnmount, ref, watch, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useWorkspacePage } from '@/composables/useWorkspacePage'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useEditorUiStore } from '@/stores/editorUi'
+import { useAuthStore } from '@/stores/auth'
+import { useFolderStore } from '@/stores/folders'
+import { useDialogStore } from '@/stores/dialog'
+import * as pagesApi from '@/api/pages'
+import type { PageSectionMapResponse } from '@/types'
 import type { EditorMode } from '@/components/editor/editorPreferences'
 import { useI18n } from 'vue-i18n'
 import { setFrontmatterField, isFrontmatterLocked } from '@/utils/frontmatter'
 import { downloadPageMarkdown } from '@/utils/exportPageMarkdown'
+import { normalizePageSlug } from '@/utils/pageSlug'
+import { getApiErrorMessage } from '@/utils/apiError'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import AppModal from '@/components/ui/AppModal.vue'
 
 type MarkdownEditorHandle = {
   exportToPdf: () => Promise<void>
@@ -29,19 +38,33 @@ const {
   saveStatus,
   saveError,
   isDirty,
-  onContentChange,
+  loadPage,
+  onContentChange: updateContent,
   onTitleInput,
-  onEditorSave,
+  onEditorSave: saveFromEditor,
   doSave,
   clearSaveError,
   toggleGraph
 } = useWorkspacePage()
 
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const folderStore = useFolderStore()
+const dialog = useDialogStore()
 const editorUi = useEditorUiStore()
 const { isMobile } = useBreakpoint()
 const editorRef = ref<MarkdownEditorHandle | null>(null)
 const exportingPdf = ref(false)
 const lockBusy = ref(false)
+const sectionMap = ref<PageSectionMapResponse | null>(null)
+const renameOpen = ref(false)
+const renameValue = ref('')
+const renameBusy = ref(false)
+const renameError = ref('')
+const routeSectionKey = computed(() =>
+  typeof route.query.section === 'string' ? route.query.section : undefined
+)
 
 async function exportPdf() {
   if (!editorRef.value?.exportToPdf || exportingPdf.value) return
@@ -72,8 +95,13 @@ onBeforeUnmount(() => {
 watch(page, (nextPage) => {
   if (!nextPage) {
     editorUi.setReadingMode(false)
+    sectionMap.value = null
+    return
   }
-})
+  void pagesApi.getPageSections(nextPage.slug)
+    .then(({ data }) => { sectionMap.value = data })
+    .catch(() => { sectionMap.value = null })
+}, { immediate: true })
 
 const isLocked = computed(() => {
   if (isFrontmatterLocked(content.value)) return true
@@ -81,7 +109,7 @@ const isLocked = computed(() => {
 })
 
 async function toggleLock() {
-  if (!page.value || lockBusy.value) return
+  if (!auth.isEditor || !page.value || lockBusy.value) return
   const prevContent = content.value
   const currentlyLocked = isLocked.value
   const newLocked = !currentlyLocked
@@ -97,6 +125,49 @@ async function toggleLock() {
     }
   } finally {
     lockBusy.value = false
+  }
+}
+
+function onContentChange(value: string) {
+  if (auth.isEditor && !isLocked.value) updateContent(value)
+}
+
+function onEditorSave() {
+  if (auth.isEditor && !isLocked.value) saveFromEditor()
+}
+
+function openRename() {
+  if (!auth.isEditor || isLocked.value || !page.value) return
+  renameValue.value = page.value.slug
+  renameError.value = ''
+  renameOpen.value = true
+}
+
+async function renameSlug() {
+  if (!page.value || renameBusy.value) return
+  const nextSlug = normalizePageSlug(renameValue.value)
+  if (!nextSlug) {
+    renameError.value = t('workspace.slugRequired')
+    return
+  }
+  const currentSlug = page.value.slug
+  renameBusy.value = true
+  renameError.value = ''
+  try {
+    const { data } = await pagesApi.updatePage(currentSlug, {
+      slug: nextSlug,
+      expectedUpdatedAt: page.value.updatedAt
+    })
+    page.value = data
+    renameOpen.value = false
+    await router.replace(`/page/${encodeURIComponent(data.slug)}`)
+    await folderStore.fetchTree(true)
+    await loadPage(data.slug)
+  } catch (error) {
+    renameError.value = getApiErrorMessage(error, t('workspace.renameSlugFailed'))
+    await dialog.alert(renameError.value)
+  } finally {
+    renameBusy.value = false
   }
 }
 </script>
@@ -117,6 +188,7 @@ async function toggleLock() {
     <div v-if="loading" class="workspace-loading"><SkeletonLoader width="80px" height="12px" /></div>
     <div v-if="!editorUi.isReadingMode" class="workspace-header">
       <input
+        v-if="auth.isEditor"
         class="title-input"
         :class="{ 'title-input-locked': isLocked }"
         :value="title"
@@ -125,7 +197,7 @@ async function toggleLock() {
         :disabled="isLocked"
       />
       <div class="header-actions">
-        <div class="save-slot" aria-live="polite">
+        <div v-if="auth.isEditor" class="save-slot" aria-live="polite">
           <span v-if="isDirty()" class="unsaved-dot" :title="t('workspace.unsavedChanges')"></span>
           <span v-if="saveError" class="save-error" @click="clearSaveError">{{ saveError }}</span>
           <span v-else :class="['save-status', saveStatus]">
@@ -134,6 +206,7 @@ async function toggleLock() {
           </span>
         </div>
         <button
+          v-if="auth.isEditor"
           type="button"
           class="lock-btn"
           :class="{ locked: isLocked }"
@@ -143,6 +216,16 @@ async function toggleLock() {
           @click="toggleLock"
         >
           <span class="material-symbols-outlined notranslate" translate="no">{{ isLocked ? 'lock' : 'lock_open' }}</span>
+        </button>
+        <button
+          v-if="auth.isEditor && !isLocked"
+          type="button"
+          class="slug-rename-btn"
+          :title="t('workspace.renameSlug')"
+          :aria-label="t('workspace.renameSlug')"
+          @click="openRename"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no">drive_file_rename_outline</span>
         </button>
         <button
           type="button"
@@ -181,12 +264,41 @@ async function toggleLock() {
         ref="editorRef"
         :modelValue="content"
         :readingTitle="title || page.title"
+        :readonly="!auth.isEditor || isLocked"
+        :section-map="sectionMap"
+        :section-key="routeSectionKey"
         @update:modelValue="onContentChange"
         @save="onEditorSave"
         @mode-change="onEditorModeChange"
         @export-markdown="exportMarkdown"
       />
     </div>
+    <AppModal
+      v-if="renameOpen"
+      :label="t('workspace.renameSlug')"
+      :close-disabled="renameBusy"
+      @close="renameOpen = false"
+    >
+      <form class="slug-rename-form" @submit.prevent="renameSlug">
+        <h2>{{ t('workspace.renameSlug') }}</h2>
+        <p>{{ t('workspace.currentSlug', { slug: page.slug }) }}</p>
+        <input
+          v-model="renameValue"
+          class="slug-rename-input"
+          :aria-label="t('workspace.newSlug')"
+          autocomplete="off"
+        />
+        <p v-if="renameError" class="save-error" role="alert">{{ renameError }}</p>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" :disabled="renameBusy" @click="renameOpen = false">
+            {{ t('common.cancel') }}
+          </button>
+          <button type="submit" class="btn-primary" :disabled="renameBusy">
+            {{ renameBusy ? t('common.saving') : t('common.confirm') }}
+          </button>
+        </div>
+      </form>
+    </AppModal>
 
     <div v-if="!editorUi.isReadingMode && showGraph && page" class="graph-area">
       <GraphPanel :slug="page.slug" />
@@ -361,6 +473,7 @@ async function toggleLock() {
   white-space: nowrap;
 }
 
+.slug-rename-btn,
 .md-export-btn,
 .pdf-export-btn,
 .graph-toggle {
@@ -379,6 +492,7 @@ async function toggleLock() {
   flex-shrink: 0;
 }
 
+.slug-rename-btn:hover,
 .md-export-btn:hover,
 .pdf-export-btn:hover:not(:disabled),
 .graph-toggle:hover {
@@ -391,6 +505,7 @@ async function toggleLock() {
   cursor: not-allowed;
 }
 
+.slug-rename-btn .material-symbols-outlined,
 .md-export-btn .material-symbols-outlined,
 .pdf-export-btn .material-symbols-outlined {
   font-size: 18px;
@@ -432,6 +547,22 @@ async function toggleLock() {
 .backlinks-panel li {
   padding: 2px 0;
   font-size: 13px;
+}
+
+.slug-rename-form {
+  display: grid;
+  gap: 12px;
+}
+
+.slug-rename-form h2,
+.slug-rename-form p {
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .empty-workspace {

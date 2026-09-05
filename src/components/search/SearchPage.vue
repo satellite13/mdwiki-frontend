@@ -1,22 +1,37 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import * as searchApi from '@/api/search'
-import type { RagSearchResult } from '@/types'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { escapeHtml } from '@/utils/htmlEscape'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import {
+  normalizeSearchResults,
+  type NormalizedSearchResult
+} from './normalizeSearchResults'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const dialog = useDialogStore()
-const results = ref<RagSearchResult[]>([])
+type SearchMode = 'hybrid' | 'text' | 'semantic'
+const validModes: SearchMode[] = ['hybrid', 'text', 'semantic']
+const routeMode = (): SearchMode =>
+  validModes.includes(route.query.mode as SearchMode) ? route.query.mode as SearchMode : 'hybrid'
+const mode = ref<SearchMode>(routeMode())
+const results = ref<NormalizedSearchResult[]>([])
 const loading = ref(false)
+const warning = ref('')
 const query = ref((route.query.q as string) || '')
 const selectedTag = ref<string | null>(null)
 const minScore = ref<number>(0)
+const modes = computed(() => [
+  { value: 'hybrid' as const, label: t('search.modeHybrid') },
+  { value: 'text' as const, label: t('search.modeText') },
+  { value: 'semantic' as const, label: t('search.modeSemantic') }
+])
 
 const scoreOptions = computed(() => [
   { label: t('search.allScores'), value: 0 },
@@ -37,7 +52,7 @@ const resultTags = computed(() => {
 
 const filteredResults = computed(() => {
   return results.value.filter(r => {
-    if (r.score < minScore.value) return false
+    if (mode.value === 'semantic' && r.score !== null && r.score < minScore.value) return false
     if (selectedTag.value && !r.tags.includes(selectedTag.value)) return false
     return true
   })
@@ -63,11 +78,33 @@ function highlightSnippet(snippet: string, q: string): string {
 }
 
 async function doSearch() {
-  if (!query.value.trim()) return
+  if (!query.value.trim()) {
+    results.value = []
+    return
+  }
   loading.value = true
+  warning.value = ''
   try {
-    const { data } = await searchApi.searchPagesRag(query.value)
-    results.value = data
+    if (mode.value === 'text') {
+      const { data } = await searchApi.searchPages(query.value)
+      results.value = normalizeSearchResults(data, [])
+    } else if (mode.value === 'semantic') {
+      const { data } = await searchApi.searchPagesRag(query.value)
+      results.value = normalizeSearchResults([], data)
+    } else {
+      const [text, semantic] = await Promise.allSettled([
+        searchApi.searchPages(query.value),
+        searchApi.searchPagesRag(query.value)
+      ])
+      if (text.status === 'rejected' && semantic.status === 'rejected') {
+        throw text.reason
+      }
+      const textResults = text.status === 'fulfilled' ? text.value.data : []
+      const semanticResults = semantic.status === 'fulfilled' ? semantic.value.data : []
+      results.value = normalizeSearchResults(textResults, semanticResults)
+      if (semantic.status === 'rejected') warning.value = t('search.semanticUnavailable')
+      if (text.status === 'rejected') warning.value = t('search.textUnavailable')
+    }
     selectedTag.value = null
     minScore.value = 0
   } catch (e) {
@@ -78,16 +115,49 @@ async function doSearch() {
   }
 }
 
+async function setMode(nextMode: SearchMode) {
+  if (mode.value === nextMode) return
+  mode.value = nextMode
+  await router.replace({ query: { ...route.query, mode: nextMode } })
+  await doSearch()
+}
+
+function resultLink(result: NormalizedSearchResult): string {
+  const path = `/page/${encodeURIComponent(result.slug)}`
+  return result.sectionKey
+    ? `${path}?section=${encodeURIComponent(result.sectionKey)}`
+    : path
+}
+
 onMounted(() => {
   doSearch()
 })
 watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch() })
+watch(() => route.query.mode, () => {
+  const nextMode = routeMode()
+  if (nextMode === mode.value) return
+  mode.value = nextMode
+  void doSearch()
+})
 </script>
 
 <template>
   <div class="search-page">
     <h1>{{ t('search.title') }}</h1>
     <p v-if="query" class="query-info">{{ t('search.resultsFor', { query }) }}</p>
+
+    <div class="search-modes" role="radiogroup" :aria-label="t('search.modeLabel')">
+      <button
+        v-for="item in modes"
+        :key="item.value"
+        type="button"
+        role="radio"
+        :aria-checked="mode === item.value"
+        :class="{ active: mode === item.value }"
+        @click="setMode(item.value)"
+      >{{ item.label }}</button>
+    </div>
+    <p v-if="warning" class="search-warning" role="status">{{ warning }}</p>
 
     <div v-if="results.length > 0" class="filters">
       <div v-if="resultTags.length > 0" class="tag-filter">
@@ -101,7 +171,7 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
         <button v-if="selectedTag" class="tag-chip clear" @click="selectedTag = null">{{ t('search.clearTag') }}</button>
       </div>
 
-      <div class="score-filter">
+      <div v-if="mode === 'semantic'" class="score-filter">
         <span class="filter-label">{{ t('search.scoreLabel') }}</span>
         <select v-model.number="minScore" class="score-select">
           <option v-for="o in scoreOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
@@ -113,14 +183,19 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
     <div v-else-if="filteredResults.length === 0 && results.length > 0" class="state-placeholder">{{ t('search.noFilteredResults') }}</div>
     <div v-else-if="results.length === 0" class="state-placeholder">{{ t('search.noResults') }}</div>
     <ul v-else class="results">
-      <li v-for="(r, index) in filteredResults" :key="r.pageSlug + index" class="result-card" :style="{ animationDelay: `${Math.min(index, 15) * 0.05}s` }">
-        <router-link :to="`/page/${r.pageSlug}`">
+      <li v-for="(r, index) in filteredResults" :key="r.slug + index" class="result-card" :style="{ animationDelay: `${Math.min(index, 15) * 0.05}s` }">
+        <router-link :to="resultLink(r)">
           <div class="card-header">
-            <h3>{{ r.pageTitle }}</h3>
-            <span class="score">{{ (r.score * 100).toFixed(0) }}%</span>
+            <h3>{{ r.title }}</h3>
+            <span v-if="r.score !== null" class="score">{{ (r.score * 100).toFixed(0) }}%</span>
           </div>
           <p v-if="r.sectionHeading" class="section-heading">{{ r.sectionHeading }}</p>
           <p class="snippet" v-html="highlightSnippet(r.snippet, query)" />
+          <div class="result-sources">
+            <span v-for="source in r.sources" :key="source" class="source-badge">
+              {{ source === 'text' ? t('search.sourceText') : t('search.sourceSemantic') }}
+            </span>
+          </div>
           <div v-if="r.tags.length > 0" class="result-tags">
             <span v-for="tag in r.tags" :key="tag" class="result-tag">{{ tag }}</span>
           </div>
@@ -134,6 +209,38 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
 .search-page h1 {
   font-family: var(--font-body);
   margin-bottom: 8px;
+}
+
+.search-modes {
+  display: inline-flex;
+  padding: 3px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-secondary);
+}
+
+.search-modes button {
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.search-modes button.active {
+  background: var(--color-bg);
+  color: var(--color-primary);
+  box-shadow: var(--shadow);
+}
+
+.search-warning {
+  margin: 0 0 16px;
+  padding: 9px 12px;
+  border-left: 3px solid var(--color-warning, #9a6700);
+  background: color-mix(in srgb, var(--color-warning, #9a6700) 10%, transparent);
+  color: var(--color-text-muted);
+  font-size: 13px;
 }
 
 .query-info {
@@ -243,6 +350,22 @@ watch(() => route.query.q, (q) => { query.value = (q as string) || ''; doSearch(
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 8px;
+}
+
+.result-sources {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.source-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .result-tag {

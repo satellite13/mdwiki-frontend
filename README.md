@@ -38,13 +38,14 @@ npm run test       # Vitest (unit + component)
 | Route | Purpose |
 |-------|---------|
 | `/page/:slug` | Page editor and reader |
-| `/search` | Semantic search (RAG) |
+| `/search` | Hybrid, text, and semantic search |
 | `/graph` | Graph of all pages and links |
 | `/broken-links` | Broken `[[wikilink]]` and `/page/…` links |
 | `/tasks` | Open Markdown tasks (`- [ ]`) |
 | `/attachments` | Attachments |
 | `/profile` | Profile, password change, API keys, frontend/backend **versions** |
 | `/admin/users`, `/admin/embedding` | Admin panel |
+| `/admin/trash` | Restore or permanently delete soft-deleted pages |
 
 UI language is toggled with the **EN/RU** button in the header (persisted in
 `localPreferences['locale']`).
@@ -84,7 +85,30 @@ selection — that is invisible without focus).
 - Wikilinks to missing pages get the `wikilink-missing` class
   (yellow highlight, same as “ghost” nodes in the graph)
 - Internal markdown links `/page/…` — `mdlink-internal-missing`
-- Export the current page to PDF (button in Reading mode)
+- Stable section deep links from semantic/hybrid search scroll to the mapped
+  heading, including duplicate headings with distinct section keys
+- Export the current page to Markdown or PDF
+- Reading mode supports comments/highlight annotations; EDITOR/ADMIN can
+  create, edit, and delete them, while READER is read-only
+
+### Search and page actions
+
+- Search defaults to **Hybrid** and also supports explicit **Text** and
+  **Semantic** modes. Hybrid search keeps text results if semantic search is
+  unavailable and merges duplicate slugs without inventing text scores.
+- EDITOR/ADMIN can explicitly rename a page slug. The backend rewrites links,
+  and the frontend refreshes navigation and backlinks.
+- READER opens pages in read-only preview/reading modes with find, graph,
+  backlinks, annotations, and Markdown/PDF export available.
+- The document tree supports ZIP bundle import/export with referenced
+  attachments.
+
+### Administration
+
+- Trash supports restore and permanent deletion.
+- Embedding settings include synchronous search reindex with final total,
+  success, and failure counters.
+- Disk sync remains available to administrators.
 
 ## Versions in the UI
 

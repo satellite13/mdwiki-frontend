@@ -113,6 +113,22 @@ export interface RagSearchResult {
   tags: string[]
 }
 
+export interface PageSectionMapItem {
+  key: string
+  heading: string | null
+  headingPath: string
+  level: number
+  length: number
+  hash: string
+  includesChildren: boolean
+}
+
+export interface PageSectionMapResponse {
+  slug: string
+  updatedAt: string
+  sections: PageSectionMapItem[]
+}
+
 export interface ApiKey {
   id: string
   name: string

@@ -19,6 +19,7 @@ const props = defineProps<{
   onApplyHeading: (level: number) => void
   onApplyTableSize: (cols: number, rows: number) => void
   onApplyEmoji: (emoji: string) => void
+  readonly?: boolean
 }>()
 
 const headingMenuOpen = ref(false)
@@ -85,16 +86,18 @@ function onEmojiClick(emoji: string) {
 </script>
 
 <template>
-  <IconActionButton
-    v-for="action in inlineFormatActions"
-    :key="action.key"
-    :title="action.title"
-    :ariaLabel="action.ariaLabel"
-    :icon="action.icon"
-    @click="action.onClick"
-  />
-  <span class="sep" />
-  <ToolbarDropdown v-model="headingMenuOpen" class="heading-menu">
+  <template v-if="!props.readonly">
+    <IconActionButton
+      v-for="action in inlineFormatActions"
+      :key="action.key"
+      :title="action.title"
+      :ariaLabel="action.ariaLabel"
+      :icon="action.icon"
+      @click="action.onClick"
+    />
+    <span class="sep" />
+  </template>
+  <ToolbarDropdown v-if="!props.readonly" v-model="headingMenuOpen" class="heading-menu">
     <template #trigger>
       <IconActionButton
         :title="t('toolbar.headingLevels')"
@@ -115,24 +118,28 @@ function onEmojiClick(emoji: string) {
       </button>
     </div>
   </ToolbarDropdown>
-  <IconActionButton
-    v-for="action in listAndBlockActions"
-    :key="action.key"
-    :title="action.title"
-    :ariaLabel="action.ariaLabel"
-    :icon="action.icon"
-    @click="action.onClick"
-  />
-  <span class="sep" />
-  <IconActionButton
-    v-for="action in quickInsertActions"
-    :key="action.key"
-    :title="action.title"
-    :ariaLabel="action.ariaLabel"
-    :icon="action.icon"
-    @click="action.onClick"
-  />
-  <ToolbarDropdown v-model="tableMenuOpen" class="table-menu">
+  <template v-if="!props.readonly">
+    <IconActionButton
+      v-for="action in listAndBlockActions"
+      :key="action.key"
+      :title="action.title"
+      :ariaLabel="action.ariaLabel"
+      :icon="action.icon"
+      @click="action.onClick"
+    />
+  </template>
+  <span v-if="!props.readonly" class="sep" />
+  <template v-if="!props.readonly">
+    <IconActionButton
+      v-for="action in quickInsertActions"
+      :key="action.key"
+      :title="action.title"
+      :ariaLabel="action.ariaLabel"
+      :icon="action.icon"
+      @click="action.onClick"
+    />
+  </template>
+  <ToolbarDropdown v-if="!props.readonly" v-model="tableMenuOpen" class="table-menu">
     <template #trigger>
       <IconActionButton
         :title="t('toolbar.insertTable')"
@@ -160,7 +167,7 @@ function onEmojiClick(emoji: string) {
       <div class="table-grid-label">{{ tableHoverCols }} × {{ tableHoverRows }}</div>
     </div>
   </ToolbarDropdown>
-  <ToolbarDropdown v-model="emojiMenuOpen" class="emoji-menu">
+  <ToolbarDropdown v-if="!props.readonly" v-model="emojiMenuOpen" class="emoji-menu">
     <template #trigger>
       <IconActionButton
         :title="t('toolbar.insertEmoji')"

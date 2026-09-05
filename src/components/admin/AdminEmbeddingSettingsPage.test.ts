@@ -5,6 +5,7 @@ import { i18n } from '@/i18n'
 
 const mockGetEmbeddingSettings = vi.fn()
 const mockUpdateEmbeddingSettings = vi.fn()
+const mockPostWikiReindex = vi.fn()
 const mockAlert = vi.fn()
 
 vi.mock('@/api/embeddingSettings', () => ({
@@ -16,6 +17,10 @@ vi.mock('@/stores/dialog', () => ({
   useDialogStore: () => ({
     alert: mockAlert
   })
+}))
+
+vi.mock('@/api/sync', () => ({
+  postWikiReindex: (...args: unknown[]) => mockPostWikiReindex(...args)
 }))
 
 describe('AdminEmbeddingSettingsPage', () => {
@@ -44,6 +49,9 @@ describe('AdminEmbeddingSettingsPage', () => {
           actualDimension: 768
         }
       }
+    })
+    mockPostWikiReindex.mockResolvedValue({
+      data: { total: 10, reindexed: 9, failed: 1 }
     })
   })
 
@@ -84,5 +92,27 @@ describe('AdminEmbeddingSettingsPage', () => {
     const alertMessage = mockAlert.mock.calls[0]?.[0] as string
     expect(alertMessage).toContain('Provider returned 768 dimensions')
     expect(alertMessage).toContain('reindex')
+  })
+
+  it('runs reindex with busy state and announces final counters', async () => {
+    let resolveReindex!: (value: unknown) => void
+    mockPostWikiReindex.mockReturnValue(new Promise((resolve) => { resolveReindex = resolve }))
+    const wrapper = mount(AdminEmbeddingSettingsPage, {
+      global: {
+        plugins: [i18n],
+        stubs: { RouterLink: { template: '<a><slot /></a>' } }
+      }
+    })
+    await flushPromises()
+
+    const button = wrapper.get('.reindex-button')
+    await button.trigger('click')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.reindex-status').attributes('aria-live')).toBe('polite')
+
+    resolveReindex({ data: { total: 10, reindexed: 9, failed: 1 } })
+    await flushPromises()
+    expect(wrapper.get('.reindex-status').text()).toContain('9')
+    expect(wrapper.get('.reindex-status').text()).toContain('1')
   })
 })

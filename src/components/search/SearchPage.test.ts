@@ -1,0 +1,93 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { reactive } from 'vue'
+import SearchPage from './SearchPage.vue'
+import { i18n } from '@/i18n'
+
+const route = reactive({ query: { q: 'knowledge' } as Record<string, string> })
+const replace = vi.fn()
+const searchPages = vi.fn()
+const searchPagesRag = vi.fn()
+const alert = vi.fn()
+
+vi.mock('vue-router', () => ({
+  useRoute: () => route,
+  useRouter: () => ({ replace })
+}))
+vi.mock('@/api/search', () => ({
+  searchPages: (...args: unknown[]) => searchPages(...args),
+  searchPagesRag: (...args: unknown[]) => searchPagesRag(...args)
+}))
+vi.mock('@/stores/dialog', () => ({
+  useDialogStore: () => ({ alert })
+}))
+
+function mountPage() {
+  return mount(SearchPage, {
+    global: {
+      plugins: [i18n],
+      stubs: {
+        RouterLink: {
+          props: ['to'],
+          template: '<a :href="typeof to === \'string\' ? to : to.path"><slot /></a>'
+        },
+        SkeletonPage: true
+      }
+    }
+  })
+}
+
+describe('SearchPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    route.query = { q: 'knowledge' }
+    searchPages.mockResolvedValue({
+      data: [{ pageId: '1', slug: 'alpha', title: 'Alpha', snippet: 'text result' }]
+    })
+    searchPagesRag.mockResolvedValue({
+      data: [{
+        pageSlug: 'alpha',
+        pageTitle: 'Alpha',
+        sectionHeading: 'Details',
+        sectionKey: 'details-key',
+        snippet: 'semantic result',
+        score: 0.9,
+        tags: ['pkm']
+      }]
+    })
+  })
+
+  it('defaults to hybrid search and builds section deep links', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(searchPages).toHaveBeenCalledWith('knowledge')
+    expect(searchPagesRag).toHaveBeenCalledWith('knowledge')
+    expect(wrapper.get('[role="radiogroup"]').text()).toContain('Hybrid')
+    expect(wrapper.get('.result-card a').attributes('href'))
+      .toBe('/page/alpha?section=details-key')
+    expect(wrapper.findAll('.source-badge').map((node) => node.text()))
+      .toEqual(['Text', 'Semantic'])
+  })
+
+  it('keeps FTS results and shows a non-blocking warning when semantic search fails', async () => {
+    searchPagesRag.mockRejectedValue(new Error('semantic unavailable'))
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Semantic search is unavailable')
+    expect(wrapper.text()).toContain('text result')
+    expect(alert).not.toHaveBeenCalled()
+  })
+
+  it('only applies score filtering in semantic mode', async () => {
+    route.query = { q: 'knowledge', mode: 'semantic' }
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(searchPages).not.toHaveBeenCalled()
+    expect(wrapper.find('.score-filter').exists()).toBe(true)
+    await wrapper.get('.score-select').setValue('0.9')
+    expect(wrapper.findAll('.result-card')).toHaveLength(1)
+  })
+})

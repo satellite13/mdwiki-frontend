@@ -1,5 +1,5 @@
 import client from './client'
-import type { Page, PageListItem, Backlink, ImportMdPagesResponse } from '@/types'
+import type { Page, PageListItem, Backlink, ImportMdPagesResponse, PageSectionMapResponse } from '@/types'
 import { stripFolderPrefix } from '@/utils/folderId'
 import { isApiErrorWithStatus } from '@/utils/apiError'
 import { invalidatePageIndex } from '@/services/pageIndex'
@@ -14,6 +14,10 @@ export function getPage(slug: string) {
 
 export function getBacklinks(slug: string) {
   return client.get<Backlink[]>(`/pages/${slug}/backlinks`)
+}
+
+export function getPageSections(slug: string) {
+  return client.get<PageSectionMapResponse>(`/pages/${slug}/sections`)
 }
 
 export async function createPage(slug: string, title: string, contentMd: string, folderId?: string) {
@@ -54,6 +58,7 @@ export async function importPages(
 export async function updatePage(
   slug: string,
   data: {
+    slug?: string
     title?: string
     contentMd?: string
     folderId?: string | null

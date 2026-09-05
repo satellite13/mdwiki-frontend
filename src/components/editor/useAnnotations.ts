@@ -8,6 +8,7 @@ import type { EditorMode } from './editorPreferences'
 export interface AnnotationsOptions {
   getPreviewContentElement: () => HTMLElement | null
   getEditorMode: () => EditorMode
+  canMutate?: () => boolean
 }
 
 /** Аннотации в режиме чтения: загрузка, подсветка в preview, floating-кнопка, popup и tooltip. */
@@ -145,6 +146,7 @@ export function useAnnotations(options: AnnotationsOptions) {
   }
 
   function onReadingMouseUp() {
+    if (options.canMutate && !options.canMutate()) return
     if (options.getEditorMode() !== 'reading') return
     showFloatingButtonForSelection(true)
   }
@@ -156,12 +158,14 @@ export function useAnnotations(options: AnnotationsOptions) {
 
   function onReadingTouchEnd() {
     touchEndTimer = setTimeout(() => {
+      if (options.canMutate && !options.canMutate()) return
       if (options.getEditorMode() !== 'reading') return
       showFloatingButtonForSelection(false)
     }, 10)
   }
 
   function startAnnotation() {
+    if (options.canMutate && !options.canMutate()) return
     const sel = window.getSelection()
     let selectedText: string
     let anchorContext: string
@@ -198,6 +202,13 @@ export function useAnnotations(options: AnnotationsOptions) {
     void nextTick().then(() => applyAnnotationHighlights())
   }
 
+  function onAnnotationUpdated(annotation: Annotation) {
+    annotations.value = annotations.value.map((existing) =>
+      existing.id === annotation.id ? annotation : existing
+    )
+    void nextTick().then(() => applyAnnotationHighlights())
+  }
+
   /** Реакция на смену режима редактора: в reading — подгрузить и подсветить, иначе — сбросить. */
   function handleModeChange(mode: EditorMode) {
     if (mode === 'reading') {
@@ -230,6 +241,7 @@ export function useAnnotations(options: AnnotationsOptions) {
     startAnnotation,
     onAnnotationCreated,
     onAnnotationDeleted,
+    onAnnotationUpdated,
     handleModeChange,
     dispose
   }
