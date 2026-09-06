@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import AdminEmbeddingSettingsPage from './AdminEmbeddingSettingsPage.vue'
 import { i18n } from '@/i18n'
+import { getDocumentByTestId } from '@/test/dom'
 
 const mockGetEmbeddingSettings = vi.fn()
 const mockUpdateEmbeddingSettings = vi.fn()
+const mockPostWikiReindex = vi.fn()
 const mockAlert = vi.fn()
 
 vi.mock('@/api/embeddingSettings', () => ({
@@ -16,6 +18,10 @@ vi.mock('@/stores/dialog', () => ({
   useDialogStore: () => ({
     alert: mockAlert
   })
+}))
+
+vi.mock('@/api/sync', () => ({
+  postWikiReindex: (...args: unknown[]) => mockPostWikiReindex(...args)
 }))
 
 describe('AdminEmbeddingSettingsPage', () => {
@@ -45,6 +51,9 @@ describe('AdminEmbeddingSettingsPage', () => {
         }
       }
     })
+    mockPostWikiReindex.mockResolvedValue({
+      data: { total: 10, reindexed: 9, failed: 1 }
+    })
   })
 
   it('loads settings and saves with mismatch warning', async () => {
@@ -60,16 +69,17 @@ describe('AdminEmbeddingSettingsPage', () => {
     })
     await flushPromises()
 
-    const providerSelect = wrapper.find('select')
+    const providerSelect = wrapper.get('.field .app-select')
     const modelInput = wrapper.find('input[required]')
     const baseUrlInput = wrapper.find('input[type="url"]')
     const apiKeyInput = wrapper.find('input[type="password"]')
-    expect((providerSelect.element as HTMLSelectElement).value).toBe('openai')
+    expect(providerSelect.text()).toContain('openai')
     expect((modelInput.element as HTMLInputElement).value).toBe('text-embedding-3-small')
     expect((baseUrlInput.element as HTMLInputElement).value).toBe('https://api.openai.com/v1')
     expect((apiKeyInput.element as HTMLInputElement).value).toBe('')
 
-    await providerSelect.setValue('ollama')
+    await providerSelect.get('[data-testid="app-select-trigger"]').trigger('click')
+    await getDocumentByTestId('app-select-option-ollama').trigger('click')
     await modelInput.setValue('nomic-embed-text')
     await baseUrlInput.setValue('http://localhost:11434')
     await wrapper.find('form').trigger('submit.prevent')
@@ -84,5 +94,27 @@ describe('AdminEmbeddingSettingsPage', () => {
     const alertMessage = mockAlert.mock.calls[0]?.[0] as string
     expect(alertMessage).toContain('Provider returned 768 dimensions')
     expect(alertMessage).toContain('reindex')
+  })
+
+  it('runs reindex with busy state and announces final counters', async () => {
+    let resolveReindex!: (value: unknown) => void
+    mockPostWikiReindex.mockReturnValue(new Promise((resolve) => { resolveReindex = resolve }))
+    const wrapper = mount(AdminEmbeddingSettingsPage, {
+      global: {
+        plugins: [i18n],
+        stubs: { RouterLink: { template: '<a><slot /></a>' } }
+      }
+    })
+    await flushPromises()
+
+    const button = wrapper.get('.reindex-button')
+    await button.trigger('click')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.reindex-status').attributes('aria-live')).toBe('polite')
+
+    resolveReindex({ data: { total: 10, reindexed: 9, failed: 1 } })
+    await flushPromises()
+    expect(wrapper.get('.reindex-status').text()).toContain('9')
+    expect(wrapper.get('.reindex-status').text()).toContain('1')
   })
 })

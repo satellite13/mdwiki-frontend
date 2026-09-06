@@ -32,6 +32,10 @@ export function usePageAutosave(
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   let statusResetTimer: ReturnType<typeof setTimeout> | null = null
   let saveChain: Promise<unknown> = Promise.resolve()
+  let pendingSave: Promise<boolean> | null = null
+  let pendingFlush: Promise<boolean> | null = null
+  let titleGeneration = 0
+  let contentGeneration = 0
 
   function isDirty() {
     return state.title.value !== state.lastSavedTitle.value || state.content.value !== state.lastSavedContentMd.value
@@ -79,16 +83,26 @@ export function usePageAutosave(
       saveError.value = null
       const prevTitle = state.lastSavedTitle.value
       const prevSlug = state.page.value.slug
+      const titleSnapshot = state.title.value
+      const contentSnapshot = state.content.value
+      const titleSnapshotGeneration = titleGeneration
+      const contentSnapshotGeneration = contentGeneration
       try {
         const { data: updatedPage } = await pagesApi.updatePage(state.page.value.slug, {
-          title: state.title.value,
-          contentMd: state.content.value,
+          title: titleSnapshot,
+          contentMd: contentSnapshot,
           clearFolder: false,
           expectedUpdatedAt: state.page.value.updatedAt
         })
         state.page.value = updatedPage
         state.lastSavedTitle.value = updatedPage.title
         state.lastSavedContentMd.value = updatedPage.contentMd || ''
+        if (titleGeneration === titleSnapshotGeneration && state.title.value === titleSnapshot) {
+          state.title.value = updatedPage.title
+        }
+        if (contentGeneration === contentSnapshotGeneration && state.content.value === contentSnapshot) {
+          state.content.value = updatedPage.contentMd || ''
+        }
         if (updatedPage.slug !== prevSlug) {
           await deps.router.replace(`/page/${encodeURIComponent(updatedPage.slug)}`)
         }
@@ -115,25 +129,59 @@ export function usePageAutosave(
     }
 
     const result = saveChain.then(run, run)
+    pendingSave = result
     saveChain = result.then(
       () => undefined,
       () => undefined
     )
+    void result.finally(() => {
+      if (pendingSave === result) pendingSave = null
+    })
     return result
   }
 
-  async function flushPendingSave() {
-    if (!saveTimer) return
-    clearSaveTimer()
-    await doSave()
+  function flushPendingSave(): Promise<boolean> {
+    if (pendingFlush) return pendingFlush
+    const drain = async (): Promise<boolean> => {
+      const attemptedDirtyStates = new Set<string>()
+      while (true) {
+        clearSaveTimer()
+        const currentSave = pendingSave
+        if (currentSave) {
+          if (!await currentSave) return false
+          continue
+        }
+        if (!isDirty()) return true
+        const dirtyState = JSON.stringify([
+          titleGeneration,
+          contentGeneration,
+          state.title.value,
+          state.content.value,
+          state.lastSavedTitle.value,
+          state.lastSavedContentMd.value,
+          state.page.value?.updatedAt
+        ])
+        if (attemptedDirtyStates.has(dirtyState)) return false
+        attemptedDirtyStates.add(dirtyState)
+        if (!await doSave()) return false
+      }
+    }
+    const result = drain()
+    pendingFlush = result
+    void result.finally(() => {
+      if (pendingFlush === result) pendingFlush = null
+    })
+    return result
   }
 
   function onContentChange(value: string) {
+    contentGeneration++
     state.content.value = value
     scheduleSaveIfDirty()
   }
 
   function onTitleInput(e: Event) {
+    titleGeneration++
     state.title.value = (e.target as HTMLInputElement).value
     scheduleSaveIfDirty()
   }

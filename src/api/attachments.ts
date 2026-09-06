@@ -1,8 +1,34 @@
 import client from './client'
 import type { Attachment } from '@/types'
 
-export function listAttachments(page = 0, size = 50) {
-  return client.get<Attachment[]>('/attachments', { params: { page, size } })
+export type AttachmentListResult = {
+  items: Attachment[]
+  total: number
+}
+
+export async function listAttachments(options: {
+  page?: number
+  size?: number
+  q?: string
+  pageId?: string
+  signal?: AbortSignal
+} = {}): Promise<AttachmentListResult> {
+  const { page = 0, size = 20, q, pageId, signal } = options
+  const res = await client.get<Attachment[]>('/attachments', {
+    params: {
+      page,
+      size,
+      ...(q && q.trim() ? { q: q.trim() } : {}),
+      ...(pageId ? { pageId } : {}),
+    },
+    signal,
+  })
+  const header = res.headers['x-total-count']
+  const total =
+    header != null && header !== ''
+      ? Number(header)
+      : res.data.length
+  return { items: res.data, total: Number.isFinite(total) ? total : res.data.length }
 }
 
 export function uploadAttachment(file: File) {

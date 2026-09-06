@@ -111,6 +111,59 @@ export function setFrontmatterField(markdown: string, key: string, value: boolea
   return src
 }
 
+/** Есть ли ключ в YAML frontmatter (простая строка `key:`). */
+export function hasFrontmatterKey(markdown: string, key: string): boolean {
+  const range = findFrontmatterRange(markdown)
+  if (!range) return false
+  const keyPattern = new RegExp(`^\\s*${escapeRegExp(key)}\\s*:`, 'm')
+  return keyPattern.test(range.inner.join('\n'))
+}
+
+/**
+ * Ставит или обновляет простое поле frontmatter.
+ * `yamlValue` — уже сериализованное YAML-значение (`true`, `10`, `""`, `[]`, …).
+ */
+export function upsertFrontmatterField(markdown: string, key: string, yamlValue: string): string {
+  const src = markdown ?? ''
+  const range = findFrontmatterRange(src)
+  const line = `${key}: ${yamlValue}`
+  if (!range) {
+    return `---\n${line}\n---\n\n${src}`
+  }
+  const keyPattern = new RegExp(`^\\s*${escapeRegExp(key)}\\s*:`)
+  const idx = range.inner.findIndex((ln) => keyPattern.test(ln))
+  const inner = [...range.inner]
+  if (idx >= 0) {
+    inner[idx] = line
+  } else {
+    const titleIdx = inner.findIndex((ln) => /^\s*title\s*:/.test(ln))
+    if (titleIdx >= 0) inner.splice(titleIdx + 1, 0, line)
+    else inner.push(line)
+  }
+  return [...range.before, ...inner, ...range.after].join('\n')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+type FrontmatterRange = { before: string[]; inner: string[]; after: string[] }
+
+function findFrontmatterRange(markdown: string): FrontmatterRange | null {
+  const src = markdown ?? ''
+  const lines = src.split(/\r?\n/)
+  const firstLine = (lines[0] ?? '').replace(/^\uFEFF/, '')
+  if (!isFenceLine(firstLine)) return null
+  const scanEnd = Math.min(lines.length, 1 + MAX_FRONTMATTER_LINES)
+  for (let i = 1; i < scanEnd; i++) {
+    if (!isFenceLine(lines[i] ?? '')) continue
+    const inner = lines.slice(1, i)
+    if (!innerLooksLikeYamlBlock(inner)) continue
+    return { before: [firstLine], inner, after: lines.slice(i) }
+  }
+  return null
+}
+
 /** Есть ли в YAML frontmatter поле `locked: true`. */
 export function isFrontmatterLocked(markdown: string): boolean {
   const src = markdown ?? ''

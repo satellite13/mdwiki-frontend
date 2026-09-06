@@ -1,14 +1,26 @@
 <script setup lang="ts">
 import { defineAsyncComponent, onBeforeUnmount, ref, watch, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useWorkspacePage } from '@/composables/useWorkspacePage'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useEditorUiStore } from '@/stores/editorUi'
+import { useAuthStore } from '@/stores/auth'
+import { useFolderStore } from '@/stores/folders'
+import { useDialogStore } from '@/stores/dialog'
+import * as pagesApi from '@/api/pages'
+import type { PageSectionMapResponse } from '@/types'
 import type { EditorMode } from '@/components/editor/editorPreferences'
 import { useI18n } from 'vue-i18n'
 import { setFrontmatterField, isFrontmatterLocked } from '@/utils/frontmatter'
 import { downloadPageMarkdown } from '@/utils/exportPageMarkdown'
+import { normalizePageSlug } from '@/utils/pageSlug'
+import { getApiErrorMessage } from '@/utils/apiError'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import AppModal from '@/components/ui/AppModal.vue'
+import * as libraryApi from '@/api/library'
+import { copyTextToClipboard } from '@/utils/clipboard'
+import PagePropertiesPanel from './PagePropertiesPanel.vue'
 
 type MarkdownEditorHandle = {
   exportToPdf: () => Promise<void>
@@ -29,19 +41,38 @@ const {
   saveStatus,
   saveError,
   isDirty,
-  onContentChange,
+  onContentChange: updateContent,
   onTitleInput,
-  onEditorSave,
+  onEditorSave: saveFromEditor,
   doSave,
+  flushPendingSave,
   clearSaveError,
-  toggleGraph
+  toggleGraph,
+  acceptExternalPageUpdate
 } = useWorkspacePage()
 
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const folderStore = useFolderStore()
+const dialog = useDialogStore()
 const editorUi = useEditorUiStore()
 const { isMobile } = useBreakpoint()
 const editorRef = ref<MarkdownEditorHandle | null>(null)
 const exportingPdf = ref(false)
 const lockBusy = ref(false)
+const favorite = ref(false)
+const favoriteBusy = ref(false)
+const sectionMap = ref<PageSectionMapResponse | null>(null)
+const renameOpen = ref(false)
+const renameValue = ref('')
+const renameBusy = ref(false)
+const renameError = ref('')
+const routeSectionKey = computed(() =>
+  typeof route.query.section === 'string' ? route.query.section : undefined
+)
+let sectionMapRequestId = 0
+let favoriteRequestId = 0
 
 async function exportPdf() {
   if (!editorRef.value?.exportToPdf || exportingPdf.value) return
@@ -65,15 +96,68 @@ function onEditorModeChange(mode: EditorMode) {
   editorUi.setReadingMode(mode === 'reading')
 }
 
+function onPropertiesUpdated(updated: typeof page.value) {
+  if (!updated) return
+  acceptExternalPageUpdate(updated)
+}
+
 onBeforeUnmount(() => {
   editorUi.setReadingMode(false)
 })
 
 watch(page, (nextPage) => {
+  const favoriteId = ++favoriteRequestId
+  favoriteBusy.value = false
+  const requestId = ++sectionMapRequestId
+  sectionMap.value = null
   if (!nextPage) {
     editorUi.setReadingMode(false)
+    return
   }
-})
+  favorite.value = false
+  void libraryApi.getFavorites()
+    .then(({ data }) => {
+      if (favoriteId === favoriteRequestId && page.value?.id === nextPage.id) {
+        favorite.value = data.some((item) => item.page.id === nextPage.id)
+      }
+    })
+    .catch(() => undefined)
+  const pageVersion = `${nextPage.slug}:${nextPage.updatedAt}`
+  void pagesApi.getPageSections(nextPage.slug)
+    .then(({ data }) => {
+      const current = page.value
+      if (
+        requestId === sectionMapRequestId &&
+        current &&
+        `${current.slug}:${current.updatedAt}` === pageVersion
+      ) {
+        sectionMap.value = data
+      }
+    })
+    .catch(() => {
+      if (requestId === sectionMapRequestId) sectionMap.value = null
+    })
+}, { immediate: true })
+
+async function toggleFavorite() {
+  if (!page.value || favoriteBusy.value) return
+  const pageId = page.value.id
+  const requestId = favoriteRequestId
+  const previous = favorite.value
+  favorite.value = !previous
+  favoriteBusy.value = true
+  try {
+    if (favorite.value) await libraryApi.addFavorite(pageId)
+    else await libraryApi.removeFavorite(pageId)
+  } catch (error) {
+    if (requestId === favoriteRequestId && page.value?.id === pageId) {
+      favorite.value = previous
+      await dialog.alert(getApiErrorMessage(error, t('pkm.favoriteFailed')))
+    }
+  } finally {
+    if (requestId === favoriteRequestId && page.value?.id === pageId) favoriteBusy.value = false
+  }
+}
 
 const isLocked = computed(() => {
   if (isFrontmatterLocked(content.value)) return true
@@ -81,7 +165,7 @@ const isLocked = computed(() => {
 })
 
 async function toggleLock() {
-  if (!page.value || lockBusy.value) return
+  if (!auth.isEditor || !page.value || lockBusy.value) return
   const prevContent = content.value
   const currentlyLocked = isLocked.value
   const newLocked = !currentlyLocked
@@ -99,24 +183,89 @@ async function toggleLock() {
     lockBusy.value = false
   }
 }
+
+function onContentChange(value: string) {
+  if (auth.isEditor && !isLocked.value) updateContent(value)
+}
+
+function onEditorSave() {
+  if (auth.isEditor && !isLocked.value) saveFromEditor()
+}
+
+function openRename() {
+  if (!auth.isEditor || isLocked.value || !page.value) return
+  renameValue.value = page.value.slug
+  renameError.value = ''
+  renameOpen.value = true
+}
+
+async function renameSlug() {
+  if (!page.value || renameBusy.value) return
+  const nextSlug = normalizePageSlug(renameValue.value)
+  if (!nextSlug) {
+    renameError.value = t('workspace.slugRequired')
+    return
+  }
+  renameBusy.value = true
+  renameError.value = ''
+  try {
+    const saved = await flushPendingSave()
+    if (!saved || !page.value) return
+    const currentSlug = page.value.slug
+    const { data } = await pagesApi.updatePage(currentSlug, {
+      slug: nextSlug,
+      expectedUpdatedAt: page.value.updatedAt
+    })
+    page.value = data
+    renameOpen.value = false
+    await router.replace(`/page/${encodeURIComponent(data.slug)}`)
+    await folderStore.fetchTree(true)
+  } catch (error) {
+    renameError.value = getApiErrorMessage(error, t('workspace.renameSlugFailed'))
+    await dialog.alert(renameError.value)
+  } finally {
+    renameBusy.value = false
+  }
+}
+
+async function copySectionLink(sectionKey: string, stableId?: string): Promise<boolean> {
+  if (!page.value) return false
+  try {
+    let linkPath = `/page/${encodeURIComponent(page.value.slug)}?section=${encodeURIComponent(stableId || sectionKey)}`
+    if (auth.isEditor && !stableId) {
+      const saved = await flushPendingSave()
+      if (!saved || !page.value) return false
+      const { data } = await pagesApi.materializeStableLink(
+        page.value.slug,
+        sectionKey,
+        page.value.updatedAt
+      )
+      linkPath = data.url
+      if (data.page) {
+        page.value = data.page
+        title.value = data.page.title
+        content.value = data.page.contentMd ?? ''
+      } else {
+        const refreshed = await pagesApi.getPage(data.pageSlug)
+        page.value = refreshed.data
+        title.value = refreshed.data.title
+        content.value = refreshed.data.contentMd ?? ''
+      }
+    }
+    return copyTextToClipboard(new URL(linkPath, window.location.origin).toString())
+  } catch (error) {
+    await dialog.alert(getApiErrorMessage(error, t('editor.copyFailed')))
+    return false
+  }
+}
 </script>
 
 <template>
   <div class="workspace" :class="{ 'reading-mode': editorUi.isReadingMode }" v-if="page">
-    <nav v-if="page.folderPath && page.folderPath.length" class="breadcrumbs">
-      <router-link to="/" class="breadcrumb-home" :aria-label="t('common.home')">
-        <span class="material-symbols-outlined notranslate" translate="no">home</span>
-      </router-link>
-      <template v-for="folder in page.folderPath" :key="folder.id">
-        <span class="breadcrumb-sep" aria-hidden="true">/</span>
-        <router-link to="/" class="breadcrumb-item">{{ folder.name }}</router-link>
-      </template>
-      <span class="breadcrumb-sep" aria-hidden="true">/</span>
-      <span class="breadcrumb-current">{{ page.title }}</span>
-    </nav>
     <div v-if="loading" class="workspace-loading"><SkeletonLoader width="80px" height="12px" /></div>
     <div v-if="!editorUi.isReadingMode" class="workspace-header">
       <input
+        v-if="auth.isEditor"
         class="title-input"
         :class="{ 'title-input-locked': isLocked }"
         :value="title"
@@ -125,7 +274,19 @@ async function toggleLock() {
         :disabled="isLocked"
       />
       <div class="header-actions">
-        <div class="save-slot" aria-live="polite">
+        <router-link
+          class="history-btn"
+          :to="`/page/${encodeURIComponent(page.slug)}/history`"
+          :title="t('history.open')"
+          :aria-label="t('history.open')"
+        ><span class="material-symbols-outlined notranslate" translate="no">history</span></router-link>
+        <button type="button" class="favorite-btn" :class="{ active: favorite }"
+          :aria-label="favorite ? t('pkm.removeFavorite') : t('pkm.addFavorite')"
+          :aria-pressed="favorite" :aria-busy="favoriteBusy" :disabled="favoriteBusy"
+          @click="toggleFavorite">
+          <span class="material-symbols-outlined notranslate" translate="no">{{ favorite ? 'star' : 'star_outline' }}</span>
+        </button>
+        <div v-if="auth.isEditor" class="save-slot" aria-live="polite">
           <span v-if="isDirty()" class="unsaved-dot" :title="t('workspace.unsavedChanges')"></span>
           <span v-if="saveError" class="save-error" @click="clearSaveError">{{ saveError }}</span>
           <span v-else :class="['save-status', saveStatus]">
@@ -134,6 +295,7 @@ async function toggleLock() {
           </span>
         </div>
         <button
+          v-if="auth.isEditor"
           type="button"
           class="lock-btn"
           :class="{ locked: isLocked }"
@@ -143,6 +305,16 @@ async function toggleLock() {
           @click="toggleLock"
         >
           <span class="material-symbols-outlined notranslate" translate="no">{{ isLocked ? 'lock' : 'lock_open' }}</span>
+        </button>
+        <button
+          v-if="auth.isEditor && !isLocked"
+          type="button"
+          class="slug-rename-btn"
+          :title="t('workspace.renameSlug')"
+          :aria-label="t('workspace.renameSlug')"
+          @click="openRename"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no">drive_file_rename_outline</span>
         </button>
         <button
           type="button"
@@ -177,16 +349,56 @@ async function toggleLock() {
     </div>
 
     <div class="editor-area">
-      <MarkdownEditor
-        ref="editorRef"
-        :modelValue="content"
-        :readingTitle="title || page.title"
-        @update:modelValue="onContentChange"
-        @save="onEditorSave"
-        @mode-change="onEditorModeChange"
-        @export-markdown="exportMarkdown"
+      <PagePropertiesPanel
+        v-if="!editorUi.isReadingMode"
+        :page="page"
+        :editable="auth.isEditor && !isLocked"
+        :flush-pending-save="flushPendingSave"
+        @updated="onPropertiesUpdated"
       />
+      <div class="editor-host">
+        <MarkdownEditor
+          ref="editorRef"
+          :modelValue="content"
+          :page-slug="page.slug"
+          :readingTitle="title || page.title"
+          :readonly="!auth.isEditor || isLocked"
+          :section-map="sectionMap"
+          :section-key="routeSectionKey"
+          :copy-section-link="copySectionLink"
+          @update:modelValue="onContentChange"
+          @save="onEditorSave"
+          @mode-change="onEditorModeChange"
+          @export-markdown="exportMarkdown"
+        />
+      </div>
     </div>
+    <AppModal
+      v-if="renameOpen"
+      :label="t('workspace.renameSlug')"
+      :close-disabled="renameBusy"
+      @close="renameOpen = false"
+    >
+      <form class="slug-rename-form" @submit.prevent="renameSlug">
+        <h2>{{ t('workspace.renameSlug') }}</h2>
+        <p>{{ t('workspace.currentSlug', { slug: page.slug }) }}</p>
+        <input
+          v-model="renameValue"
+          class="slug-rename-input"
+          :aria-label="t('workspace.newSlug')"
+          autocomplete="off"
+        />
+        <p v-if="renameError" class="save-error" role="alert">{{ renameError }}</p>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" :disabled="renameBusy" @click="renameOpen = false">
+            {{ t('common.cancel') }}
+          </button>
+          <button type="submit" class="btn-primary" :disabled="renameBusy">
+            {{ renameBusy ? t('common.saving') : t('common.confirm') }}
+          </button>
+        </div>
+      </form>
+    </AppModal>
 
     <div v-if="!editorUi.isReadingMode && showGraph && page" class="graph-area">
       <GraphPanel :slug="page.slug" />
@@ -222,6 +434,8 @@ async function toggleLock() {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
   position: relative;
 }
 
@@ -298,6 +512,10 @@ async function toggleLock() {
   flex-shrink: 0;
 }
 
+.favorite-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid var(--color-border);border-radius:6px;background:transparent;color:var(--color-text-muted);cursor:pointer}
+.favorite-btn.active{color:var(--color-primary);border-color:var(--color-primary)}
+.favorite-btn:disabled{opacity:.6}
+
 .lock-btn:hover {
   color: var(--color-text);
   background: var(--color-bg-hover);
@@ -361,6 +579,8 @@ async function toggleLock() {
   white-space: nowrap;
 }
 
+.slug-rename-btn,
+.history-btn,
 .md-export-btn,
 .pdf-export-btn,
 .graph-toggle {
@@ -379,6 +599,8 @@ async function toggleLock() {
   flex-shrink: 0;
 }
 
+.slug-rename-btn:hover,
+.history-btn:hover,
 .md-export-btn:hover,
 .pdf-export-btn:hover:not(:disabled),
 .graph-toggle:hover {
@@ -391,6 +613,7 @@ async function toggleLock() {
   cursor: not-allowed;
 }
 
+.slug-rename-btn .material-symbols-outlined,
 .md-export-btn .material-symbols-outlined,
 .pdf-export-btn .material-symbols-outlined {
   font-size: 18px;
@@ -405,6 +628,23 @@ async function toggleLock() {
 .editor-area {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-host {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-host :deep(.markdown-editor-wrapper) {
+  flex: 1;
+  min-height: 0;
+  height: auto;
 }
 
 .workspace.reading-mode .editor-area {
@@ -432,6 +672,16 @@ async function toggleLock() {
 .backlinks-panel li {
   padding: 2px 0;
   font-size: 13px;
+}
+
+.slug-rename-form {
+  display: grid;
+  gap: 12px;
+}
+
+.slug-rename-form h2,
+.slug-rename-form p {
+  margin: 0;
 }
 
 .empty-workspace {
@@ -477,72 +727,5 @@ async function toggleLock() {
   .graph-area {
     height: 260px;
   }
-}
-
-.breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 12px;
-  color: var(--color-text-faint);
-  margin-bottom: 8px;
-  padding: 6px 4px;
-  flex-wrap: wrap;
-}
-
-.breadcrumb-home {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-  transition: all 0.15s;
-  flex-shrink: 0;
-}
-
-.breadcrumb-home:hover {
-  color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  text-decoration: none;
-}
-
-.breadcrumb-home .material-symbols-outlined {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.breadcrumb-item {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: 5px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-  font-weight: 450;
-  transition: all 0.15s;
-  cursor: pointer;
-}
-
-.breadcrumb-item:hover {
-  color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  text-decoration: none;
-}
-
-.breadcrumb-sep {
-  color: var(--color-text-faint);
-  user-select: none;
-  margin: 0 1px;
-}
-
-.breadcrumb-current {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  color: var(--color-text);
-  font-weight: 600;
 }
 </style>

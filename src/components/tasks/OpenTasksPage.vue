@@ -8,6 +8,7 @@ import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import AppModal from '@/components/ui/AppModal.vue'
+import CountBadge from '@/components/ui/CountBadge.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import { invalidatePageIndex } from '@/services/pageIndex'
 
@@ -131,17 +132,17 @@ onMounted(fetchOpenTasks)
     <div v-else class="groups">
       <section v-for="group in groups" :key="group.documentId" class="group-card">
         <div class="group-header">
-          <div>
+          <h2 class="group-title">
             <button
               type="button"
-              class="link-btn group-title"
+              class="link-btn"
               :data-testid="`open-document-${group.slug}`"
               @click="openDocument(group.slug)"
             >
               {{ group.documentTitle }}
             </button>
-            <p class="group-meta">{{ t('tasks.count', { count: group.items.length }, group.items.length) }}</p>
-          </div>
+            <CountBadge :value="group.items.length" />
+          </h2>
         </div>
 
         <ul class="task-list">
@@ -191,10 +192,15 @@ onMounted(fetchOpenTasks)
 </template>
 
 <style scoped>
-.group-header {
-  padding: 1rem 1rem 0.75rem;
-  border-bottom: 1px solid var(--color-border, #d0d7de);
-  background: color-mix(in srgb, var(--color-border, #d0d7de) 18%, transparent);
+.group-header .link-btn {
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-align: left;
+}
+
+.group-header .link-btn:hover {
+  color: var(--color-wikilink, #0d9488);
 }
 
 .task-list {

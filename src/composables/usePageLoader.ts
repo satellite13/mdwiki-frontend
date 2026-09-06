@@ -7,6 +7,7 @@ import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import { normalizePageSlug, titleForStubPage } from '@/utils/pageSlug'
 import type { Backlink, Page } from '@/types'
+import { touchRecent } from '@/api/library'
 
 type LoaderState = {
   page: Ref<Page | null>
@@ -22,6 +23,7 @@ type LoaderDependencies = {
   router: Router
   stopPendingSave: () => void
   onLoadStart?: () => void
+  canCreate?: boolean
 }
 
 /**
@@ -33,6 +35,7 @@ export function usePageLoader(
 ) {
   const { t } = useI18n()
   const dialog = useDialogStore()
+  let loadGeneration = 0
 
   function decodeRouteSlug(slugParam: string): string {
     try {
@@ -42,18 +45,22 @@ export function usePageLoader(
     }
   }
 
-  async function failWithMessage(e: unknown) {
+  async function failWithMessage(e: unknown, generation: number) {
+    if (generation !== loadGeneration) return
     state.loading.value = false
     await dialog.alert(getApiErrorMessage(e, t('errors.loadPageFailed')))
   }
 
   async function loadPage(slugParam: string) {
+    const generation = ++loadGeneration
+    const current = () => generation === loadGeneration
     deps.stopPendingSave()
     state.loading.value = true
     deps.onLoadStart?.()
     state.page.value = null
 
     const pages = await getPages()
+    if (!current()) return
     const tryOrder = slugCandidatesForNavigation(slugParam, pages)
 
     let loaded: Page | null = null
@@ -62,21 +69,27 @@ export function usePageLoader(
     for (const candidateSlug of tryOrder) {
       try {
         const { data } = await pagesApi.getPage(candidateSlug)
+        if (!current()) return
         loaded = data
         resolvedSlug = data.slug
         if (data.slug !== slugParam) {
           await deps.router.replace(`/page/${data.slug}`)
+          if (!current()) return
         }
         break
       } catch (e) {
         if (!isApiErrorWithStatus(e, 404)) {
-          await failWithMessage(e)
+          await failWithMessage(e, generation)
           return
         }
       }
     }
 
     if (!loaded) {
+      if (deps.canCreate === false) {
+        if (current()) state.loading.value = false
+        return
+      }
       const routeSlug = decodeRouteSlug(slugParam).trim()
       const normalizedSlug = normalizePageSlug(routeSlug)
 
@@ -89,42 +102,52 @@ export function usePageLoader(
 
       try {
         const { data } = await pagesApi.createPage(normalizedSlug, title, '')
+        if (!current()) return
         loaded = data
         resolvedSlug = data.slug
         if (data.slug !== slugParam) {
           await deps.router.replace(`/page/${data.slug}`)
+          if (!current()) return
         }
       } catch (e) {
         if (!isApiErrorWithStatus(e, 409)) {
-          await failWithMessage(e)
+          await failWithMessage(e, generation)
           return
         }
         try {
           const { data } = await pagesApi.getPage(normalizedSlug)
+          if (!current()) return
           loaded = data
           resolvedSlug = data.slug
           if (data.slug !== slugParam) {
             await deps.router.replace(`/page/${data.slug}`)
+            if (!current()) return
           }
         } catch (retryError) {
-          await failWithMessage(retryError)
+          await failWithMessage(retryError, generation)
           return
         }
       }
     }
 
+    if (!current()) return
     state.page.value = loaded
     try {
-      state.backlinks.value = (await pagesApi.getBacklinks(resolvedSlug)).data
+      const backlinks = (await pagesApi.getBacklinks(resolvedSlug)).data
+      if (!current()) return
+      state.backlinks.value = backlinks
     } catch {
-      state.backlinks.value = []
+      if (current()) state.backlinks.value = []
     }
+    if (!current()) return
     state.title.value = loaded.title
     state.lastSavedTitle.value = loaded.title
     const md = loaded.contentMd || ''
     state.lastSavedContentMd.value = md
     state.content.value = md
     state.loading.value = false
+    // Best-effort activity signal: page rendering and navigation never depend on it.
+    void touchRecent(loaded.id).catch(() => undefined)
   }
 
   return { loadPage }

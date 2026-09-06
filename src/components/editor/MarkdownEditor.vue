@@ -26,15 +26,20 @@ import EditorInputPane from '@/components/editor/EditorInputPane.vue'
 import AnnotationPanel from '@/components/annotations/AnnotationPanel.vue'
 import AnnotationPopup from '@/components/annotations/AnnotationPopup.vue'
 import AnnotationComment from '@/components/annotations/AnnotationComment.vue'
-import type { ReadingTheme } from '@/types'
+import { useToolbarActions } from '@/components/editor/useToolbarActions'
+import * as propertiesApi from '@/api/properties'
+import { upsertFrontmatterField } from '@/utils/frontmatter'
+import { defaultPropertyYamlValue } from '@/utils/propertyDefaults'
+import type { PageSectionMapResponse, PropertyDefinition, ReadingTheme } from '@/types'
+import type { TocItem } from './tocTypes'
 import { usePreviewCopyDecorations } from '@/components/editor/usePreviewCopyDecorations'
 import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPipeline'
 import { useReadingToc } from '@/components/editor/useReadingToc'
 import { useSplitScrollSync } from '@/components/editor/useSplitScrollSync'
 import { scrollToAnnotation, useAnnotations } from '@/components/editor/useAnnotations'
-import { useToolbarActions } from '@/components/editor/useToolbarActions'
 import type MarkdownIt from 'markdown-it'
 import { renderStructurizrSvg } from './structurizr'
+import { applySectionMap, focusSection } from './sectionDeepLink'
 import {
   clampSplitRatio,
   DEFAULT_SPLIT_RATIO,
@@ -67,7 +72,12 @@ async function getMarkdownRenderer(): Promise<MarkdownIt> {
 const { t } = useI18n()
 const props = defineProps<{
   modelValue: string
+  pageSlug: string
   readingTitle?: string
+  readonly?: boolean
+  sectionMap?: PageSectionMapResponse | null
+  sectionKey?: string
+  copySectionLink?: (sectionKey: string, stableId?: string) => Promise<boolean>
 }>()
 
 const emit = defineEmits<{
@@ -83,19 +93,28 @@ const dialog = useDialogStore()
 const { isMobile } = useBreakpoint()
 
 const uploadError = ref('')
+const copyLinkStatus = ref('')
 const uploadInput = ref<HTMLInputElement | null>(null)
 const editorRef = ref<InstanceType<typeof EditorInputPane> | null>(null)
 const splitShellRef = ref<HTMLElement | null>(null)
 const previewPaneRef = ref<InstanceType<typeof EditorPreviewPane> | null>(null)
 
-const editorMode = ref<EditorMode>(readEditorModePref())
+const preferredMode = readEditorModePref()
+const editorMode = ref<EditorMode>(
+  props.readonly && (preferredMode === 'editor' || preferredMode === 'split')
+    ? 'preview'
+    : preferredMode
+)
 const splitRatio = ref(readSplitRatioPref())
 const splitDragging = ref(false)
 const markdownValue = ref(props.modelValue)
+const propertyDefinitions = ref<PropertyDefinition[]>([])
 
 const history = useEditorHistory(props.modelValue)
 
-const lastNonReadingMode = ref<EditorMode>('split')
+const lastNonReadingMode = ref<EditorMode>(
+  editorMode.value === 'reading' ? 'preview' : editorMode.value
+)
 const readingFontSize = ref(readReadingFontSizePref())
 const readingTheme = ref<ReadingTheme>(readReadingThemePref())
 const readingTocVisible = ref(true)
@@ -146,7 +165,10 @@ const readingPreviewStyle = computed(() =>
     : undefined
 )
 const previewHasToc = computed(() => editorMode.value === 'reading' && readingTocVisible.value && readingTocItems.value.length > 0)
-const previewCopyDecorations = usePreviewCopyDecorations(() => getPreviewPaneElement())
+const previewCopyDecorations = usePreviewCopyDecorations(
+  () => getPreviewPaneElement(),
+  async (sectionKey, stableId) => copySection(sectionKey, stableId)
+)
 const previewRenderPipeline = usePreviewRenderPipeline({
   getRoot: () => getPreviewPaneElement(),
   shouldRender: () => editorMode.value !== 'editor',
@@ -166,7 +188,6 @@ const {
   annotationPopup,
   floatingBtn,
   tooltipAnnotation,
-  fetchAnnotations,
   applyAnnotationHighlights,
   onReadingMouseUp,
   onReadingMouseDown,
@@ -174,11 +195,15 @@ const {
   startAnnotation,
   onAnnotationCreated,
   onAnnotationDeleted,
+  onAnnotationUpdated,
   handleModeChange: handleAnnotationModeChange,
+  handlePageChange: handleAnnotationPageChange,
   dispose: disposeAnnotations
 } = useAnnotations({
   getPreviewContentElement,
-  getEditorMode: () => editorMode.value
+  getEditorMode: () => editorMode.value,
+  getPageSlug: () => props.pageSlug,
+  canMutate: () => !props.readonly
 })
 
 const {
@@ -209,6 +234,15 @@ const {
   setMode,
   editorMode
 })
+
+const readonlyHistoryActions = computed(() =>
+  props.readonly ? historyActions.value.filter((action) => action.key === 'find') : historyActions.value
+)
+const readonlyModeActions = computed(() =>
+  props.readonly
+    ? modeSwitchActions.value.filter((action) => action.key === 'mode-preview' || action.key === 'mode-reading')
+    : modeSwitchActions.value
+)
 
 // Токен последнего рендера превью — в инстансе компонента, а не в модульном синглтоне.
 let previewRenderToken = 0
@@ -270,12 +304,23 @@ watch(
 )
 
 function applyValue(value: string, options?: { keepHistory?: boolean }) {
+  if (props.readonly) return
   markdownValue.value = value
   emit('update:modelValue', value)
   if (!options?.keepHistory) history.push(value)
 }
 
+function insertProperty(definition: PropertyDefinition) {
+  if (props.readonly) return
+  applyValue(upsertFrontmatterField(
+    markdownValue.value,
+    definition.key,
+    defaultPropertyYamlValue(definition)
+  ))
+}
+
 function setMode(mode: EditorMode) {
+  if (props.readonly && (mode === 'editor' || mode === 'split')) return
   editorMode.value = mode
 }
 
@@ -284,6 +329,7 @@ function exitReadingMode() {
 }
 
 function undo() {
+  if (props.readonly) return
   const value = history.undo()
   if (value === null) return
   markdownValue.value = value
@@ -291,6 +337,7 @@ function undo() {
 }
 
 function redo() {
+  if (props.readonly) return
   const value = history.redo()
   if (value === null) return
   markdownValue.value = value
@@ -345,6 +392,7 @@ function applyWikilinkSuggestion(index: number) {
 }
 
 function onEditorInput(event: Event) {
+  if (props.readonly) return
   const target = event.target as HTMLTextAreaElement
   applyValue(target.value)
   refreshWikilinkSuggestions()
@@ -360,15 +408,15 @@ function onEditorKeydown(event: KeyboardEvent) {
   if (editorFind.handleKeydown(event)) return
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
     event.preventDefault()
-    emit('save')
+    if (!props.readonly) emit('save')
     return
   }
-  if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+  if (!props.readonly && (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
     event.preventDefault()
     undo()
     return
   }
-  if ((event.metaKey || event.ctrlKey) && ((event.shiftKey && event.key.toLowerCase() === 'z') || event.key.toLowerCase() === 'y')) {
+  if (!props.readonly && (event.metaKey || event.ctrlKey) && ((event.shiftKey && event.key.toLowerCase() === 'z') || event.key.toLowerCase() === 'y')) {
     event.preventDefault()
     redo()
     return
@@ -395,12 +443,13 @@ function onEditorKeydown(event: KeyboardEvent) {
       return
     }
   }
-  if (event.key === 'Enter' && continueListOnEnter()) {
+  if (!props.readonly && event.key === 'Enter' && continueListOnEnter()) {
     event.preventDefault()
   }
 }
 
 async function onUploadFiles(files: FileList | null) {
+  if (props.readonly) return
   if (!files || files.length === 0) return
   uploadError.value = ''
   try {
@@ -420,6 +469,7 @@ async function onUploadFiles(files: FileList | null) {
 }
 
 function triggerUpload() {
+  if (props.readonly) return
   uploadInput.value?.click()
 }
 
@@ -516,6 +566,11 @@ function resetSplitRatio() {
 
 async function renderPreviewDiagrams() {
   await previewRenderPipeline.renderPreviewBase()
+  const previewContent = getPreviewContentElement()
+  if (previewContent && props.sectionMap) {
+    applySectionMap(previewContent, props.sectionMap)
+    if (props.sectionKey) focusSection(previewContent, props.sectionKey)
+  }
   previewCopyDecorations.decorateHeadingAnchors()
   previewCopyDecorations.decorateCodeCopyButtons()
   readingToc.buildReadingToc()
@@ -523,6 +578,18 @@ async function renderPreviewDiagrams() {
     applyAnnotationHighlights()
   }
   if (previewFind.open.value) previewFind.refreshMatches()
+}
+
+async function copySection(sectionKey: string, stableId?: string): Promise<boolean> {
+  const copied = props.copySectionLink
+    ? await props.copySectionLink(sectionKey, stableId)
+    : false
+  copyLinkStatus.value = copied ? t('editor.anchorCopied') : t('editor.copyFailed')
+  return copied
+}
+
+function copyTocSection(item: TocItem) {
+  void copySection(item.sectionKey || item.id, item.stableId)
 }
 
 async function refreshPreview() {
@@ -581,13 +648,29 @@ onMounted(() => {
   emit('mode-change', editorMode.value)
   void getPages()
   void refreshPreview()
+  void propertiesApi.listPropertyDefinitions()
+    .then(({ data }) => { propertyDefinitions.value = data })
+    .catch(() => { propertyDefinitions.value = [] })
   window.addEventListener('keydown', onGlobalFindKeydown)
   if (editorMode.value === 'reading') {
-    void fetchAnnotations().then(() => {
-      void nextTick().then(() => applyAnnotationHighlights())
-    })
+    handleAnnotationPageChange()
   }
 })
+
+watch(() => props.pageSlug, () => {
+  handleAnnotationPageChange()
+})
+
+watch(
+  () => [props.sectionMap, props.sectionKey] as const,
+  async () => {
+    await nextTick()
+    const previewContent = getPreviewContentElement()
+    if (!previewContent || !props.sectionMap) return
+    applySectionMap(previewContent, props.sectionMap)
+    if (props.sectionKey) focusSection(previewContent, props.sectionKey)
+  }
+)
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onGlobalFindKeydown)
@@ -638,12 +721,15 @@ defineExpose({
           :inline-format-actions="inlineFormatActions"
           :list-and-block-actions="listAndBlockActions"
           :quick-insert-actions="quickInsertActions"
-          :history-actions="historyActions"
-          :mode-switch-actions="modeSwitchActions"
+          :history-actions="readonlyHistoryActions"
+          :mode-switch-actions="readonlyModeActions"
+          :readonly="props.readonly"
           :emoji-items="emojiItems"
+          :property-definitions="propertyDefinitions"
           :on-apply-heading="applyHeading"
           :on-apply-table-size="applyTableSize"
           :on-apply-emoji="applyEmoji"
+          :on-insert-property="insertProperty"
         />
       </template>
     </div>
@@ -698,6 +784,7 @@ defineExpose({
           @click="onPreviewClick"
           @scroll="onPreviewScroll"
           @select-heading="readingToc.scrollToHeading"
+          @copy-heading="copyTocSection"
           @mouseup="onReadingMouseUp"
           @mousedown="onReadingMouseDown"
           @touchend="onReadingTouchEnd"
@@ -710,9 +797,11 @@ defineExpose({
           v-show="annotationsVisible"
           :annotations="annotations"
           :visible="annotationsVisible"
+          :can-edit="!props.readonly"
           @update:visible="annotationsVisible = $event"
           @select="scrollToAnnotation($event.id)"
           @deleted="onAnnotationDeleted"
+          @updated="onAnnotationUpdated"
         />
       </div>
       <EditorPreviewPane
@@ -730,6 +819,7 @@ defineExpose({
         @click="onPreviewClick"
         @scroll="onPreviewScroll"
         @select-heading="readingToc.scrollToHeading"
+        @copy-heading="copyTocSection"
         @mouseup="onReadingMouseUp"
         @mousedown="onReadingMouseDown"
         @touchend="onReadingTouchEnd"
@@ -750,18 +840,19 @@ defineExpose({
     <p v-if="uploadError" class="upload-error">
       {{ uploadError }}
     </p>
+    <p class="visually-hidden" aria-live="polite">{{ copyLinkStatus }}</p>
     <button
-      v-if="floatingBtn"
+      v-if="!props.readonly && floatingBtn"
       type="button"
       class="annotation-floating-btn"
       :style="{ left: floatingBtn.x + 'px', top: floatingBtn.y + 'px' }"
       @click.stop="startAnnotation"
     >
       <span class="material-symbols-outlined notranslate" translate="no">chat_bubble</span>
-      Add annotation
+      {{ t('annotations.add') }}
     </button>
     <AnnotationPopup
-      v-if="annotationPopup"
+      v-if="!props.readonly && annotationPopup"
       :selected-text="annotationPopup.selectedText"
       :anchor-context="annotationPopup.anchorContext"
       :x="annotationPopup.x"
@@ -1125,6 +1216,12 @@ defineExpose({
   display: flex;
   justify-content: center;
   overflow-x: auto;
+}
+
+:deep(.markdown-body .section-deep-link-highlight) {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+  outline-offset: 5px;
+  border-radius: 3px;
 }
 
 :deep(.markdown-body .mermaid svg) {

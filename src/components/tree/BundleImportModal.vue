@@ -7,6 +7,7 @@ import * as bundlesApi from '@/api/bundles'
 import { useDialogStore } from '@/stores/dialog'
 import { useFolderStore } from '@/stores/folders'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { formatBytes } from '@/utils/formatBytes'
 import { invalidatePageIndex } from '@/services/pageIndex'
 import type { BundleImportResponse, FolderTreeNode } from '@/types'
 
@@ -44,12 +45,6 @@ const progressLabel = computed(() => {
 const progressDeterminate = computed(
   () => phase.value === 'upload' && uploadPercent.value !== null
 )
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 async function submit() {
   loading.value = true
@@ -267,12 +262,6 @@ h2 {
 
 .warnings {
   color: var(--color-warning);
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
 }
 
 @media (prefers-reduced-motion: no-preference) {

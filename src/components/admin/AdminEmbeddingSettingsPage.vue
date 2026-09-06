@@ -6,6 +6,9 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import type { EmbeddingSettings, EmbeddingSettingsWarning } from '@/types'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import { postWikiReindex } from '@/api/sync'
+import AdminNav from '@/components/admin/AdminNav.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 
 const { t } = useI18n()
 const dialog = useDialogStore()
@@ -19,6 +22,13 @@ const apiKey = ref('')
 const apiKeyConfigured = ref(false)
 const expectedDimension = ref<number | null>(null)
 const warning = ref<EmbeddingSettingsWarning | null>(null)
+const reindexing = ref(false)
+const reindexStatus = ref('')
+const providerOptions = [
+  { value: 'openai', label: 'openai' },
+  { value: 'ollama', label: 'ollama' },
+  { value: 'lmstudio', label: 'lmstudio' },
+]
 
 function applySettings(data: EmbeddingSettings) {
   provider.value = data.provider
@@ -68,27 +78,42 @@ async function saveSettings() {
   }
 }
 
+async function reindex() {
+  if (reindexing.value) return
+  reindexing.value = true
+  reindexStatus.value = t('admin.embeddingReindexRunning')
+  try {
+    const { data } = await postWikiReindex()
+    reindexStatus.value = t('admin.embeddingReindexDone', {
+      total: data.total,
+      reindexed: data.reindexed,
+      failed: data.failed
+    })
+  } catch (error) {
+    reindexStatus.value = ''
+    await dialog.alert(getApiErrorMessage(error, t('admin.embeddingReindexFailed')))
+  } finally {
+    reindexing.value = false
+  }
+}
+
 onMounted(loadSettings)
 </script>
 
 <template>
   <div class="admin-embedding">
-    <div class="admin-nav" :aria-label="t('admin.sections')">
-      <router-link to="/admin/users" class="admin-nav-link">{{ t('admin.openUsersSettings') }}</router-link>
-      <router-link to="/admin/embedding" class="admin-nav-link">{{ t('admin.openEmbeddingSettings') }}</router-link>
-      <router-link to="/admin/trash" class="admin-nav-link">{{ t('admin.openTrash') }}</router-link>
-    </div>
+    <AdminNav />
     <h1>{{ t('admin.embeddingTitle') }}</h1>
 
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="form" /></div>
     <form v-else class="settings-form" @submit.prevent="saveSettings">
       <label class="field">
         <span>{{ t('admin.embeddingProviderLabel') }}</span>
-        <select v-model="provider">
-          <option value="openai">openai</option>
-          <option value="ollama">ollama</option>
-          <option value="lmstudio">lmstudio</option>
-        </select>
+        <AppSelect
+          v-model="provider"
+          :options="providerOptions"
+          :aria-label="t('admin.embeddingProviderLabel')"
+        />
       </label>
 
       <label class="field">
@@ -121,52 +146,26 @@ onMounted(loadSettings)
         {{ t('admin.embeddingMismatchDetails', { actual: warning.actualDimension, expected: warning.expectedDimension }) }}
       </p>
 
-      <button class="btn-primary" type="submit" :disabled="saving">
-        {{ saving ? t('common.saving') : t('common.save') }}
-      </button>
+      <div class="settings-actions">
+        <button class="btn-primary" type="submit" :disabled="saving || reindexing">
+          {{ saving ? t('common.saving') : t('common.save') }}
+        </button>
+        <button
+          class="btn-secondary reindex-button"
+          type="button"
+          :disabled="saving || reindexing"
+          :aria-busy="reindexing"
+          @click="reindex"
+        >
+          {{ reindexing ? t('admin.embeddingReindexRunning') : t('admin.embeddingReindexButton') }}
+        </button>
+      </div>
+      <p v-if="reindexStatus" class="hint reindex-status" aria-live="polite">{{ reindexStatus }}</p>
     </form>
   </div>
 </template>
 
 <style scoped>
-.admin-nav {
-  display: flex;
-  gap: 6px;
-  width: fit-content;
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  margin-bottom: 16px;
-}
-
-.admin-nav-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-
-.admin-nav-link:hover {
-  color: var(--color-text);
-  border-color: var(--color-border);
-  background: var(--color-bg-hover);
-}
-
-.admin-nav-link.router-link-exact-active {
-  color: var(--color-primary);
-  font-weight: 600;
-  border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
 .admin-embedding h1 {
   margin-bottom: 20px;
 }
@@ -188,7 +187,7 @@ onMounted(loadSettings)
 }
 
 .field input,
-.field select {
+.field :deep(.app-select) {
   width: 100%;
 }
 
@@ -202,5 +201,11 @@ onMounted(loadSettings)
   margin: 0;
   font-size: 13px;
   color: var(--color-warning, #9a6700);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 </style>

@@ -9,7 +9,9 @@ import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import AppModal from '@/components/ui/AppModal.vue'
+import CountBadge from '@/components/ui/CountBadge.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import DiscoveryNav from '@/components/pkm/DiscoveryNav.vue'
 
 interface BrokenLinkGroup {
   brokenTarget: string
@@ -138,9 +140,13 @@ onMounted(fetchBrokenLinks)
   <div class="grouped-page">
     <div class="page-header">
       <div>
-        <h1>{{ t('brokenLinks.title') }}</h1>
+        <h1>{{ t('pkm.discovery') }}</h1>
         <p class="page-subtitle">{{ t('brokenLinks.subtitle') }}</p>
       </div>
+      <DiscoveryNav />
+    </div>
+
+    <div class="discovery-actions">
       <button type="button" class="btn-secondary" :disabled="loading" @click="fetchBrokenLinks">
         {{ t('brokenLinks.refresh') }}
       </button>
@@ -155,10 +161,10 @@ onMounted(fetchBrokenLinks)
     <div v-else class="groups">
       <section v-for="group in groups" :key="group.brokenTarget" class="group-card">
         <div class="group-header">
-          <div>
-            <h2 class="group-title">{{ group.brokenTarget }}</h2>
-            <p class="group-meta">{{ t('brokenLinks.occurrences', { count: group.items.length }, group.items.length) }}</p>
-          </div>
+          <h2 class="group-title">
+            {{ group.brokenTarget }}
+            <CountBadge :value="group.items.length" />
+          </h2>
           <button
             v-if="auth.isEditor"
             type="button"
@@ -254,14 +260,10 @@ onMounted(fetchBrokenLinks)
 </template>
 
 <style scoped>
-.group-header {
+.discovery-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1rem 0.75rem;
-  border-bottom: 1px solid var(--color-border, #d0d7de);
-  background: color-mix(in srgb, var(--color-border, #d0d7de) 18%, transparent);
+  justify-content: flex-end;
+  margin: -0.5rem 0 1.25rem;
 }
 
 .slug-hint {

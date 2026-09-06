@@ -3,7 +3,10 @@ import { useI18n } from 'vue-i18n'
 
 type RootGetter = () => HTMLElement | null
 
-export function usePreviewCopyDecorations(getRoot: RootGetter) {
+export function usePreviewCopyDecorations(
+  getRoot: RootGetter,
+  copyHeading?: (sectionKey: string, stableId?: string) => Promise<boolean>
+) {
   const { t } = useI18n()
   const copyFeedbackTimers = new WeakMap<HTMLButtonElement, number>()
 
@@ -70,8 +73,11 @@ export function usePreviewCopyDecorations(getRoot: RootGetter) {
 
       const anchor = headingButton.dataset.anchor
       if (!anchor) return
-      const link = `#${anchor}`
-      const copied = await copyTextToClipboard(link)
+      const heading = headingButton.closest<HTMLElement>('h1, h2, h3, h4, h5, h6')
+      const sectionKey = heading?.dataset.sectionKey || anchor
+      const copied = copyHeading
+        ? await copyHeading(sectionKey, heading?.dataset.stableId)
+        : await copyTextToClipboard(`#${anchor}`)
       applyCopyFeedback(
         headingButton,
         copied,

@@ -1,13 +1,14 @@
 import { nextTick, ref } from 'vue'
 import { listAnnotations } from '@/api/annotations'
 import type { Annotation } from '@/types'
-import { getPageSlugFromUrl } from '@/utils/pageSlug'
 import { groupAnnotationsByText } from '@/utils/groupAnnotations'
 import type { EditorMode } from './editorPreferences'
 
 export interface AnnotationsOptions {
   getPreviewContentElement: () => HTMLElement | null
   getEditorMode: () => EditorMode
+  getPageSlug: () => string
+  canMutate?: () => boolean
 }
 
 /** Аннотации в режиме чтения: загрузка, подсветка в preview, floating-кнопка, popup и tooltip. */
@@ -20,16 +21,25 @@ export function useAnnotations(options: AnnotationsOptions) {
   const tooltipAnnotation = ref<{ annotations: Annotation[]; index: number; x: number; y: number } | null>(null)
   let annotationHighlightSpans: HTMLSpanElement[] = []
   let touchEndTimer: ReturnType<typeof setTimeout> | undefined
+  let annotationRequestId = 0
 
   async function fetchAnnotations() {
-    const slug = getPageSlugFromUrl()
-    if (!slug) return
+    const slug = options.getPageSlug()
+    const requestId = ++annotationRequestId
+    if (!slug) {
+      annotations.value = []
+      return
+    }
     try {
       const { data } = await listAnnotations(slug)
-      annotations.value = data
+      if (requestId === annotationRequestId && options.getPageSlug() === slug) {
+        annotations.value = data
+      }
     } catch (e) {
       console.warn('Failed to load annotations:', e)
-      annotations.value = []
+      if (requestId === annotationRequestId && options.getPageSlug() === slug) {
+        annotations.value = []
+      }
     }
   }
 
@@ -145,6 +155,7 @@ export function useAnnotations(options: AnnotationsOptions) {
   }
 
   function onReadingMouseUp() {
+    if (options.canMutate && !options.canMutate()) return
     if (options.getEditorMode() !== 'reading') return
     showFloatingButtonForSelection(true)
   }
@@ -156,12 +167,14 @@ export function useAnnotations(options: AnnotationsOptions) {
 
   function onReadingTouchEnd() {
     touchEndTimer = setTimeout(() => {
+      if (options.canMutate && !options.canMutate()) return
       if (options.getEditorMode() !== 'reading') return
       showFloatingButtonForSelection(false)
     }, 10)
   }
 
   function startAnnotation() {
+    if (options.canMutate && !options.canMutate()) return
     const sel = window.getSelection()
     let selectedText: string
     let anchorContext: string
@@ -198,6 +211,13 @@ export function useAnnotations(options: AnnotationsOptions) {
     void nextTick().then(() => applyAnnotationHighlights())
   }
 
+  function onAnnotationUpdated(annotation: Annotation) {
+    annotations.value = annotations.value.map((existing) =>
+      existing.id === annotation.id ? annotation : existing
+    )
+    void nextTick().then(() => applyAnnotationHighlights())
+  }
+
   /** Реакция на смену режима редактора: в reading — подгрузить и подсветить, иначе — сбросить. */
   function handleModeChange(mode: EditorMode) {
     if (mode === 'reading') {
@@ -211,7 +231,24 @@ export function useAnnotations(options: AnnotationsOptions) {
     }
   }
 
+  function handlePageChange() {
+    annotationRequestId++
+    annotations.value = []
+    annotationsVisible.value = false
+    annotationPopup.value = null
+    floatingBtn.value = null
+    pendingAnnotation.value = null
+    tooltipAnnotation.value = null
+    clearAnnotationHighlights()
+    if (options.getEditorMode() === 'reading' && options.getPageSlug()) {
+      void fetchAnnotations().then(() => {
+        void nextTick().then(() => applyAnnotationHighlights())
+      })
+    }
+  }
+
   function dispose() {
+    annotationRequestId++
     if (touchEndTimer !== undefined) clearTimeout(touchEndTimer)
   }
 
@@ -230,7 +267,9 @@ export function useAnnotations(options: AnnotationsOptions) {
     startAnnotation,
     onAnnotationCreated,
     onAnnotationDeleted,
+    onAnnotationUpdated,
     handleModeChange,
+    handlePageChange,
     dispose
   }
 }

@@ -1,0 +1,53 @@
+.capture-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.capture-form label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.capture-form textarea {
+  resize: vertical;
+}
+
+.capture-form .btn-primary {
+  justify-self: start;
+  min-height: 44px;
+}
+
+.capture-form .file-meta {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.capture-form .upload-zone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.capture-form .upload-zone.drag-over {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light, rgba(13, 148, 136, 0.05));
+  color: var(--color-primary);
+}
+
+.capture-form .upload-zone p {
+  margin: 0;
+}
+
+.capture-form .file-label {
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.capture-form [role='alert'] {
+  margin: 0;
+  color: var(--color-danger);
+}

@@ -92,7 +92,7 @@ describe('OpenTasksPage', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Release notes')
-    expect(wrapper.text()).toContain('2 tasks')
+    expect(wrapper.findAll('.count-badge').map((n) => n.text())).toEqual(['2', '1'])
     expect(wrapper.text()).toContain('Roadmap')
     expect(wrapper.findAll('.group-card')).toHaveLength(2)
 

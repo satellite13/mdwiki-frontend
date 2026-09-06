@@ -1,48 +1,32 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { useFolderStore } from '@/stores/folders'
-import { useDialogStore } from '@/stores/dialog'
 import { useEditorUiStore } from '@/stores/editorUi'
-import { postWikiFullSync } from '@/api/sync'
-import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import { getLocale, toggleLocale } from '@/i18n'
 import ThemeModeIcon from './ThemeModeIcon.vue'
 import MdwikiMark from './MdwikiMark.vue'
+import { isCaptureShortcut } from '@/utils/pkm'
+
+type HeaderNavLink = {
+  key: string
+  to: RouteLocationRaw
+  label: string
+  icon: string
+  title?: string
+}
 
 const { t } = useI18n()
 const auth = useAuthStore()
-const folderStore = useFolderStore()
-const dialog = useDialogStore()
 const themeStore = useThemeStore()
 const editorUi = useEditorUiStore()
 const { mobileNavOpen } = storeToRefs(editorUi)
 const router = useRouter()
 const route = useRoute()
 const searchQuery = ref('')
-const syncWikiLoading = ref(false)
-
-async function onSyncWikiFromDisk() {
-  const ok = await dialog.confirm(t('admin.syncWikiConfirm'), {
-    title: t('admin.syncWikiTitle'),
-    confirmLabel: t('admin.syncWikiButton')
-  })
-  if (!ok) return
-  syncWikiLoading.value = true
-  try {
-    const { data } = await postWikiFullSync()
-    await folderStore.fetchTree(true)
-    await dialog.alert(t('admin.syncWikiDone', { added: data.added, updated: data.updated, removed: data.removed }))
-  } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t('admin.syncWikiFailed')))
-  } finally {
-    syncWikiLoading.value = false
-  }
-}
 
 const graphLinkTo = computed(() => {
   if (route.name === 'page' && typeof route.params.slug === 'string' && route.params.slug.length > 0) {
@@ -51,13 +35,18 @@ const graphLinkTo = computed(() => {
   return { name: 'wiki-graph' }
 })
 
-// Общие ссылки desktop- и mobile-навигации (Admin/sync/logout добавляются отдельно).
-const navLinks = computed<{ to: RouteLocationRaw; label: string; title?: string }[]>(() => [
-  { to: graphLinkTo.value, label: t('header.graph'), title: t('header.graphTitle') },
-  { to: '/broken-links', label: t('header.brokenLinks') },
-  { to: '/tasks', label: t('header.tasks') },
-  { to: '/attachments', label: t('header.attachments') },
-  { to: '/profile', label: auth.username ?? '' }
+// Группы по смыслу: захват → личная библиотека → работа → структура.
+// Профиль / админ / тема / выход — иконки справа.
+const navLinks = computed<HeaderNavLink[]>(() => [
+  { key: 'daily', to: '/daily', label: t('pkm.today'), icon: 'today' },
+  { key: 'recent', to: '/recent', label: t('pkm.recent'), icon: 'history' },
+  { key: 'favorites', to: '/favorites', label: t('pkm.favorites'), icon: 'star' },
+  { key: 'search-library', to: '/saved-searches', label: t('header.searchNav'), icon: 'saved_search' },
+  { key: 'views', to: '/views', label: t('views.title'), icon: 'view_list' },
+  { key: 'tasks', to: '/tasks', label: t('header.tasks'), icon: 'task_alt' },
+  { key: 'attachments', to: '/attachments', label: t('header.attachments'), icon: 'attach_file' },
+  { key: 'discovery', to: '/links/unlinked', label: t('pkm.discovery'), icon: 'explore' },
+  { key: 'graph', to: graphLinkTo.value, label: t('header.graph'), icon: 'hub', title: t('header.graphTitle') },
 ])
 
 const themeTitle = computed(() => {
@@ -66,6 +55,14 @@ const themeTitle = computed(() => {
 })
 
 const localeLabel = computed(() => (getLocale() === 'ru' ? 'RU' : 'EN'))
+const localeTitle = computed(() => t('header.languageCurrent', { language: localeLabel.value }))
+
+function isNavLinkActive(link: HeaderNavLink) {
+  if (typeof link.to === 'string') {
+    return route.path === link.to || (link.to !== '/' && route.path.startsWith(`${link.to}/`))
+  }
+  return 'name' in link.to && link.to.name != null && route.name === link.to.name
+}
 
 function toggleTheme() {
   themeStore.toggle()
@@ -74,7 +71,7 @@ function toggleTheme() {
 function onSearch() {
   if (searchQuery.value.trim()) {
     editorUi.closeMobileOverlays()
-    router.push({ name: 'search', query: { q: searchQuery.value } })
+    router.push({ name: 'search', query: { q: searchQuery.value, mode: 'hybrid' } })
   }
 }
 
@@ -87,6 +84,16 @@ function logout() {
 function onNavClick() {
   editorUi.closeMobileOverlays()
 }
+
+function onGlobalKeydown(event: KeyboardEvent) {
+  if (auth.isEditor && isCaptureShortcut(event)) {
+    event.preventDefault()
+    void router.push('/inbox')
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
 </script>
 
 <template>
@@ -100,9 +107,9 @@ function onNavClick() {
       <span class="material-symbols-outlined notranslate" translate="no">menu</span>
     </button>
 
-    <router-link to="/" class="logo" @click="onNavClick">
+    <router-link to="/" class="logo" aria-label="MDWiki" @click="onNavClick">
       <MdwikiMark class="logo-mark" />
-      <span>MDWiki</span>
+      <span class="logo-text">MDWiki</span>
     </router-link>
 
     <form class="search-form" @submit.prevent="onSearch">
@@ -111,50 +118,87 @@ function onNavClick() {
 
     <nav class="header-nav hide-mobile" :aria-label="t('header.mainNav')">
       <router-link
-        v-for="link in navLinks"
-        :key="link.label"
-        :to="link.to"
-        class="nav-link"
-        :title="link.title"
+        v-if="auth.isEditor"
+        to="/inbox"
+        class="quick-capture"
+        :aria-label="t('pkm.quickCapture')"
+        :title="t('pkm.quickCaptureShortcut')"
         @click="onNavClick"
       >
-        {{ link.label }}
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">add</span>
+      </router-link>
+      <router-link
+        v-for="link in navLinks"
+        :key="link.key"
+        :to="link.to"
+        class="nav-link"
+        :class="{ 'is-active': isNavLinkActive(link) }"
+        :data-nav-key="link.key"
+        :aria-label="link.label"
+        :aria-current="isNavLinkActive(link) ? 'page' : undefined"
+        :title="link.title ?? link.label"
+        @click="onNavClick"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">
+          {{ link.icon }}
+        </span>
+        <span v-if="isNavLinkActive(link)" class="nav-link-label">{{ link.label }}</span>
+      </router-link>
+      <router-link
+        to="/profile"
+        class="theme-toggle header-icon-link"
+        :class="{ 'is-active': route.path.startsWith('/profile') }"
+        :title="t('profile.title')"
+        :aria-label="t('profile.title')"
+        @click="onNavClick"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">person</span>
       </router-link>
       <router-link
         v-if="auth.isAdmin"
         to="/admin/users"
-        class="nav-link"
+        class="theme-toggle header-icon-link"
         :class="{ 'is-active': route.path.startsWith('/admin') }"
+        :title="t('header.admin')"
+        :aria-label="t('header.admin')"
         @click="onNavClick"
       >
-        {{ t('header.admin') }}
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">settings</span>
       </router-link>
       <button
-        v-if="auth.isAdmin"
         type="button"
-        class="sync-disk-btn hide-narrow"
-        :disabled="syncWikiLoading"
-        :title="t('admin.syncWikiTitle')"
-        @click="onSyncWikiFromDisk"
+        class="theme-toggle locale-toggle"
+        :title="localeTitle"
+        :aria-label="localeTitle"
+        @click="toggleLocale()"
       >
-        {{ syncWikiLoading ? '…' : t('admin.syncWikiButton') }}
-      </button>
-      <button class="theme-toggle locale-toggle" @click="toggleLocale()" :title="t('header.language')">
-        <span class="locale-label">{{ localeLabel }}</span>
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">language</span>
       </button>
       <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
         <ThemeModeIcon :mode="themeStore.mode" />
       </button>
-      <button class="btn-secondary logout-btn hide-narrow" @click="logout">{{ t('header.logout') }}</button>
+      <button
+        type="button"
+        class="theme-toggle logout-icon"
+        :title="t('header.logout')"
+        :aria-label="t('header.logout')"
+        @click="logout"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">logout</span>
+      </button>
     </nav>
 
     <div class="header-actions-mobile show-mobile-only">
-      <button class="theme-toggle locale-toggle" @click="toggleLocale()" :title="t('header.language')">
-        <span class="locale-label">{{ localeLabel }}</span>
-      </button>
-      <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
-        <ThemeModeIcon :mode="themeStore.mode" />
-      </button>
+      <router-link
+        v-if="auth.isEditor"
+        to="/inbox"
+        class="quick-capture"
+        :aria-label="t('pkm.quickCapture')"
+        :title="t('pkm.quickCaptureShortcut')"
+        @click="onNavClick"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">add</span>
+      </router-link>
       <button
         type="button"
         class="icon-btn"
@@ -178,32 +222,73 @@ function onNavClick() {
         </div>
         <router-link
           v-for="link in navLinks"
-          :key="link.label"
+          :key="link.key"
           :to="link.to"
           class="mobile-nav-link"
+          :data-nav-key="link.key"
+          :aria-current="isNavLinkActive(link) ? 'page' : undefined"
           @click="onNavClick"
         >
-          {{ link.label }}
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">
+            {{ link.icon }}
+          </span>
+          <span class="mobile-nav-label">{{ link.label }}</span>
+        </router-link>
+        <div class="mobile-nav-divider" role="separator" />
+        <router-link
+          to="/profile"
+          class="mobile-nav-link"
+          :class="{ 'is-active': route.path.startsWith('/profile') }"
+          :title="t('profile.title')"
+          :aria-label="t('profile.title')"
+          :aria-current="route.path.startsWith('/profile') ? 'page' : undefined"
+          @click="onNavClick"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">person</span>
+          <span class="mobile-nav-label">{{ t('profile.title') }}</span>
         </router-link>
         <router-link
           v-if="auth.isAdmin"
           to="/admin/users"
           class="mobile-nav-link"
+          :class="{ 'is-active': route.path.startsWith('/admin') }"
+          :title="t('header.admin')"
+          :aria-label="t('header.admin')"
+          :aria-current="route.path.startsWith('/admin') ? 'page' : undefined"
           @click="onNavClick"
         >
-          {{ t('header.admin') }}
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">settings</span>
+          <span class="mobile-nav-label">{{ t('header.admin') }}</span>
         </router-link>
         <button
-          v-if="auth.isAdmin"
           type="button"
-          class="mobile-nav-link mobile-nav-btn"
-          :disabled="syncWikiLoading"
-          @click="onSyncWikiFromDisk(); onNavClick()"
+          class="mobile-nav-link locale-toggle"
+          :title="localeTitle"
+          :aria-label="localeTitle"
+          @click="toggleLocale()"
         >
-          {{ syncWikiLoading ? '…' : t('admin.syncWikiButton') }}
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">language</span>
+          <span class="mobile-nav-label">{{ t('header.language') }}</span>
         </button>
-        <button type="button" class="mobile-nav-link mobile-nav-btn mobile-nav-logout" @click="logout">
-          {{ t('header.logout') }}
+        <button
+          type="button"
+          class="mobile-nav-link"
+          :title="themeTitle"
+          :aria-label="themeTitle"
+          @click="toggleTheme()"
+        >
+          <ThemeModeIcon :mode="themeStore.mode" />
+          <span class="mobile-nav-label">{{ themeTitle }}</span>
+        </button>
+        <button
+          type="button"
+          class="mobile-nav-link logout-icon"
+          :title="t('header.logout')"
+          :aria-label="t('header.logout')"
+          @click="logout"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">logout</span>
+          <span class="mobile-nav-label">{{ t('header.logout') }}</span>
         </button>
       </nav>
     </Transition>
@@ -257,6 +342,43 @@ function onNavClick() {
   color: var(--color-primary-hover);
 }
 
+.quick-capture {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  color: #fff;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.quick-capture:hover {
+  color: #fff;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  text-decoration: none;
+}
+
+.quick-capture .material-symbols-outlined {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.quick-capture.router-link-active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+.quick-capture:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .search-form {
   flex: 1;
   min-width: 0;
@@ -291,29 +413,25 @@ function onNavClick() {
 .nav-link {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
+  justify-content: center;
+  gap: 0;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 7px;
   color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 500;
   text-decoration: none;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-  position: relative;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
 }
 
-.nav-link::after {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 2px;
-  background: var(--color-primary);
-  border-radius: 2px;
-  transition: width 0.2s ease;
+.nav-link .material-symbols-outlined {
+  font-size: 19px;
+  line-height: 1;
 }
 
 .nav-link:hover {
@@ -323,21 +441,25 @@ function onNavClick() {
   text-decoration: none;
 }
 
-.nav-link:hover::after {
-  width: 50%;
+.nav-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .nav-link.router-link-active,
 .nav-link.is-active {
+  width: auto;
+  gap: 5px;
+  padding: 0 9px;
   color: var(--color-primary);
   border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  font-weight: 600;
 }
 
-.nav-link.router-link-active::after,
-.nav-link.is-active::after {
-  width: 70%;
+.nav-link-label {
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .icon-btn,
@@ -357,44 +479,38 @@ function onNavClick() {
   flex-shrink: 0;
 }
 
+a.theme-toggle {
+  text-decoration: none;
+}
+
+a.theme-toggle:hover {
+  text-decoration: none;
+  color: var(--color-text);
+}
+
 .icon-btn:hover,
 .theme-toggle:hover {
   color: var(--color-text);
   background: var(--color-bg-hover);
 }
 
-.locale-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+.header-icon-link.is-active,
+.header-icon-link.router-link-active {
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
-.icon-btn .material-symbols-outlined {
+.logout-icon:hover {
+  color: var(--color-danger, #cf222e);
+  border-color: color-mix(in srgb, var(--color-danger, #cf222e) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger, #cf222e) 8%, transparent);
+}
+
+.icon-btn .material-symbols-outlined,
+.theme-toggle .material-symbols-outlined {
   font-size: 20px;
   line-height: 1;
-}
-
-.sync-disk-btn {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
-}
-
-.sync-disk-btn:hover:not(:disabled) {
-  color: var(--color-text);
-  background: var(--color-bg-hover);
-  border-color: var(--color-text-faint);
-}
-
-.sync-disk-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .header-actions-mobile {
@@ -427,13 +543,23 @@ function onNavClick() {
   padding: 6px 4px 10px;
 }
 
+.mobile-nav-divider {
+  height: 1px;
+  margin: 8px 4px;
+  background: var(--color-border);
+}
+
 .mobile-nav-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
-  padding: 10px 4px;
+  min-height: 44px;
+  padding: 10px 8px;
   border: none;
   background: transparent;
   color: var(--color-text);
+  font: inherit;
   font-size: 14px;
   font-weight: 500;
   text-align: left;
@@ -442,17 +568,35 @@ function onNavClick() {
   cursor: pointer;
 }
 
+.mobile-nav-link .material-symbols-outlined,
+.mobile-nav-link :deep(svg) {
+  width: 22px;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.mobile-nav-link.is-active,
+.mobile-nav-link[aria-current='page'] {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
 .mobile-nav-link:hover {
   background: var(--color-bg-hover);
   text-decoration: none;
 }
 
-.mobile-nav-btn {
-  font-family: inherit;
+.mobile-nav-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
-.mobile-nav-logout {
-  color: var(--color-danger);
+.mobile-nav-link.logout-icon:hover {
+  color: var(--color-danger, #cf222e);
+  background: color-mix(in srgb, var(--color-danger, #cf222e) 8%, transparent);
 }
 
 /* Mobile nav slide-down transition */
@@ -476,7 +620,7 @@ function onNavClick() {
 .slide-down-enter-to,
 .slide-down-leave-from {
   opacity: 1;
-  max-height: 400px;
+  max-height: 720px;
 }
 
 @media (max-width: 767px) {
@@ -487,10 +631,33 @@ function onNavClick() {
     min-height: var(--app-header-height);
   }
 
+  .logo-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .search-form {
     order: 3;
     flex: 1 1 100%;
     max-width: none;
+  }
+
+  .header-actions-mobile {
+    gap: 10px;
+  }
+
+  .header-actions-mobile .quick-capture,
+  .header-actions-mobile .icon-btn,
+  .sidebar-toggle {
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -498,15 +665,34 @@ function onNavClick() {
   .app-header {
     padding: 0 14px;
     gap: 12px;
+    height: var(--app-header-height);
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .show-mobile-only {
+    display: flex !important;
+  }
+
+  .sidebar-toggle.show-mobile-only {
+    display: none !important;
+  }
+
+  .header-actions-mobile {
+    gap: 10px;
+  }
+
+  .header-actions-mobile .quick-capture,
+  .header-actions-mobile .icon-btn {
+    width: 44px;
+    height: 44px;
   }
 
   .search-form {
+    min-width: 0;
     max-width: 280px;
-  }
-
-  .nav-link {
-    padding: 0 8px;
-    font-size: 11px;
   }
 }
 </style>

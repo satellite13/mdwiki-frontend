@@ -4,14 +4,12 @@ import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import * as apiKeysApi from '@/api/apiKeys'
 import { changePassword } from '@/api/auth'
-import { getBackendVersion, type BackendVersion } from '@/api/version'
 import type { ApiKey } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { copyTextToClipboard } from '@/utils/clipboard'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
-
-const frontendVersionLabel = __APP_VERSION_TAG__
+import HelpTip from '@/components/ui/HelpTip.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -30,8 +28,6 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordLoading = ref(false)
 const showPassword = ref(false)
-const backendVersion = ref<BackendVersion | null>(null)
-const backendVersionError = ref(false)
 
 async function fetchKeys() {
   loading.value = true
@@ -42,17 +38,6 @@ async function fetchKeys() {
     await dialog.alert(getApiErrorMessage(e, t('errors.loadApiKeysFailed')))
   } finally {
     loading.value = false
-  }
-}
-
-async function fetchBackendVersion() {
-  try {
-    const { data } = await getBackendVersion()
-    backendVersion.value = data
-    backendVersionError.value = false
-  } catch {
-    backendVersion.value = null
-    backendVersionError.value = true
   }
 }
 
@@ -131,7 +116,6 @@ async function copyKey() {
 
 onMounted(() => {
   void fetchKeys()
-  void fetchBackendVersion()
 })
 
 onBeforeUnmount(() => {
@@ -147,8 +131,12 @@ onBeforeUnmount(() => {
       <p><strong>{{ t('profile.roleLabel') }}</strong> <span class="role-badge">{{ auth.role }}</span></p>
     </div>
 
-    <h2>{{ t('profile.changePasswordTitle') }}</h2>
-    <p class="hint">{{ t('profile.changePasswordHint') }}</p>
+    <div class="section-title-row">
+      <h2>{{ t('profile.changePasswordTitle') }}</h2>
+      <HelpTip :label="t('profile.changePasswordTitle')">
+        <p>{{ t('profile.changePasswordHint') }}</p>
+      </HelpTip>
+    </div>
 
     <form class="password-form" @submit.prevent="changePasswordAction">
       <div class="form-field">
@@ -178,8 +166,12 @@ onBeforeUnmount(() => {
       </button>
     </form>
 
-    <h2>{{ t('profile.apiKeysTitle') }}</h2>
-    <p class="hint">{{ t('profile.apiKeysHint') }}</p>
+    <div class="section-title-row">
+      <h2>{{ t('profile.apiKeysTitle') }}</h2>
+      <HelpTip :label="t('profile.apiKeysTitle')">
+        <p>{{ t('profile.apiKeysHint') }}</p>
+      </HelpTip>
+    </div>
 
     <div v-if="createdKey" class="key-created">
       <p><strong>{{ t('profile.keyCreatedTitle') }}</strong> {{ t('profile.keyCreatedCopyHint') }}</p>
@@ -210,22 +202,6 @@ onBeforeUnmount(() => {
       </tbody>
     </table>
     <p v-else class="state-placeholder">{{ t('profile.noApiKeys') }}</p>
-
-    <h2>{{ t('profile.versionsTitle') }}</h2>
-    <div class="versions-card">
-      <p>
-        <strong>{{ t('profile.frontendVersion') }}:</strong>
-        <span class="version-value">{{ frontendVersionLabel }}</span>
-      </p>
-      <p>
-        <strong>{{ t('profile.backendVersion') }}:</strong>
-        <span class="version-value">
-          <template v-if="backendVersion">{{ backendVersion.versionTag || `${backendVersion.version} (${backendVersion.gitSha})` }}</template>
-          <template v-else-if="backendVersionError">{{ t('profile.backendVersionUnavailable') }}</template>
-          <template v-else>…</template>
-        </span>
-      </p>
-    </div>
   </div>
 </template>
 
@@ -237,29 +213,24 @@ onBeforeUnmount(() => {
 
 .profile-page h2 {
   font-family: var(--font-body);
-  margin-top: 36px;
-  margin-bottom: 8px;
+  margin: 0;
   font-size: 1.3rem;
 }
 
-.profile-card,
-.versions-card {
+.section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 36px;
+  margin-bottom: 8px;
+}
+
+.profile-card {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 20px 24px;
   margin-bottom: 8px;
-}
-
-.versions-card {
-  margin-top: 8px;
-}
-
-.version-value {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  margin-left: 6px;
-  color: var(--color-text-muted);
 }
 
 .profile-card p {

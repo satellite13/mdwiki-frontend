@@ -6,6 +6,7 @@ import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import AdminNav from '@/components/admin/AdminNav.vue'
 
 const { t } = useI18n()
 const dialog = useDialogStore()
@@ -57,11 +58,7 @@ onMounted(fetchDeleted)
 
 <template>
   <div class="admin-trash">
-    <div class="admin-nav" :aria-label="t('admin.sections')">
-      <router-link to="/admin/users" class="admin-nav-link">{{ t('admin.openUsersSettings') }}</router-link>
-      <router-link to="/admin/embedding" class="admin-nav-link">{{ t('admin.openEmbeddingSettings') }}</router-link>
-      <router-link to="/admin/trash" class="admin-nav-link">{{ t('admin.openTrash') }}</router-link>
-    </div>
+    <AdminNav />
     <h1>{{ t('admin.trashTitle') }}</h1>
     <p class="trash-subtitle">{{ t('admin.trashSubtitle') }}</p>
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
@@ -97,44 +94,6 @@ onMounted(fetchDeleted)
 </template>
 
 <style scoped>
-.admin-nav {
-  display: flex;
-  gap: 6px;
-  width: fit-content;
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  margin-bottom: 16px;
-}
-
-.admin-nav-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-
-.admin-nav-link:hover {
-  color: var(--color-text);
-  border-color: var(--color-border);
-  background: var(--color-bg-hover);
-}
-
-.admin-nav-link.router-link-exact-active {
-  color: var(--color-primary);
-  font-weight: 600;
-  border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
 .admin-trash h1 {
   font-family: var(--font-body);
   margin-bottom: 8px;
@@ -204,18 +163,6 @@ onMounted(fetchDeleted)
 }
 
 @media (max-width: 767px) {
-  .admin-nav {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .admin-nav-link {
-    flex: 1 1 auto;
-    justify-content: center;
-    font-size: 12px;
-    padding: 0 8px;
-  }
-
   .admin-trash h1 {
     font-size: 1.35rem;
     margin-bottom: 6px;

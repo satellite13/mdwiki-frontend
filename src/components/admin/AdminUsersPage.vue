@@ -7,6 +7,9 @@ import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import AdminNav from '@/components/admin/AdminNav.vue'
+import AdminDiskSync from '@/components/admin/AdminDiskSync.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -15,6 +18,7 @@ const users = ref<User[]>([])
 const loading = ref(true)
 
 const VALID_ROLES: readonly UserRole[] = ['READER', 'EDITOR', 'ADMIN']
+const roleOptions = VALID_ROLES.map((value) => ({ value, label: value }))
 
 function toUserRole(value: string): UserRole | null {
   return (VALID_ROLES as readonly string[]).includes(value) ? (value as UserRole) : null
@@ -63,11 +67,8 @@ onMounted(fetchUsers)
 
 <template>
   <div class="admin-users">
-    <div class="admin-nav" :aria-label="t('admin.sections')">
-      <router-link to="/admin/users" class="admin-nav-link">{{ t('admin.openUsersSettings') }}</router-link>
-      <router-link to="/admin/embedding" class="admin-nav-link">{{ t('admin.openEmbeddingSettings') }}</router-link>
-      <router-link to="/admin/trash" class="admin-nav-link">{{ t('admin.openTrash') }}</router-link>
-    </div>
+    <AdminNav />
+    <AdminDiskSync />
     <h1>{{ t('admin.usersTitle') }}</h1>
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
     <div v-else class="table-scroll">
@@ -79,11 +80,13 @@ onMounted(fetchUsers)
           <td class="user-email" :data-label="t('admin.colEmail')">{{ user.email }}</td>
           <td class="role-cell" :data-label="t('admin.colRole')"><span class="role-badge">{{ user.role }}</span></td>
           <td class="actions-cell">
-            <select :value="user.role" @change="changeRole(user, ($event.target as HTMLSelectElement).value)">
-              <option value="READER">READER</option>
-              <option value="EDITOR">EDITOR</option>
-              <option value="ADMIN">ADMIN</option>
-            </select>
+            <AppSelect
+              class="role-select"
+              :model-value="user.role"
+              :options="roleOptions"
+              :aria-label="t('admin.colRole')"
+              @update:model-value="(v) => changeRole(user, String(v))"
+            />
             <button
               v-if="user.username !== auth.username"
               type="button"
@@ -101,44 +104,6 @@ onMounted(fetchUsers)
 </template>
 
 <style scoped>
-.admin-nav {
-  display: flex;
-  gap: 6px;
-  width: fit-content;
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  margin-bottom: 16px;
-}
-
-.admin-nav-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-
-.admin-nav-link:hover {
-  color: var(--color-text);
-  border-color: var(--color-border);
-  background: var(--color-bg-hover);
-}
-
-.admin-nav-link.router-link-exact-active {
-  color: var(--color-primary);
-  font-weight: 600;
-  border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
 .admin-users h1 {
   font-family: var(--font-body);
   margin-bottom: 28px;
@@ -167,22 +132,15 @@ onMounted(fetchUsers)
   font-weight: 500;
 }
 
-.users-table select {
-  padding: 6px 10px;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  font-family: var(--font-body);
-  font-size: 13px;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: all 0.15s ease;
+.users-table :deep(.role-select) {
   width: auto;
+  min-width: 8rem;
 }
 
-.users-table select:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.12);
+.users-table :deep(.role-select .app-select-trigger) {
+  min-height: 36px;
+  font-size: 13px;
+  background: var(--color-bg-tertiary);
 }
 
 .actions-cell {
@@ -211,18 +169,6 @@ onMounted(fetchUsers)
 }
 
 @media (max-width: 767px) {
-  .admin-nav {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .admin-nav-link {
-    flex: 1 1 auto;
-    justify-content: center;
-    font-size: 12px;
-    padding: 0 8px;
-  }
-
   .admin-users h1 {
     font-size: 1.35rem;
     margin-bottom: 20px;
@@ -300,10 +246,12 @@ onMounted(fetchUsers)
     display: none !important;
   }
 
-  .users-table select {
+  .users-table :deep(.role-select) {
+    min-width: 8rem;
+  }
+
+  .users-table :deep(.role-select .app-select-trigger) {
     min-height: 36px;
-    min-width: 44px;
-    padding: 6px 12px;
     font-size: 13px;
   }
 

@@ -101,6 +101,8 @@ export interface SearchResult {
   slug: string
   title: string
   snippet: string
+  updatedAt?: string | null
+  tags?: string[]
 }
 
 export interface RagSearchResult {
@@ -111,6 +113,155 @@ export interface RagSearchResult {
   snippet: string
   score: number
   tags: string[]
+  updatedAt?: string | null
+}
+
+export interface PageSectionMapItem {
+  key: string
+  stableId?: string | null
+  heading: string | null
+  headingPath: string
+  level: number
+  length: number
+  hash: string
+  includesChildren: boolean
+}
+
+export type RevisionOperation =
+  | 'CREATE' | 'EDIT' | 'PATCH' | 'RESTORE' | 'IMPORT' | 'FILESYSTEM' | 'RENAME'
+  | 'DELETE' | 'RESTORE_TRASH'
+export interface RevisionSummary {
+  revisionNo: number
+  contentHash: string
+  title: string
+  slug: string
+  folderId: string | null
+  deletedAt?: string | null
+  operation: RevisionOperation
+  createdByName: string | null
+  createdAt: string
+  restoredFromRevisionNo: number | null
+}
+export interface RevisionSnapshot extends RevisionSummary {
+  id: string
+  contentMd: string
+}
+
+export type SavedSearchMode = 'HYBRID' | 'TEXT' | 'SEMANTIC'
+export type SavedSearchSort = 'RELEVANCE' | 'UPDATED'
+export interface SavedSearch {
+  id: string
+  name: string
+  queryText: string
+  mode: SavedSearchMode
+  tags: string[]
+  minScore: number | null
+  sort: SavedSearchSort
+  favorited: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type PropertyType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'DATE' | 'DATETIME' | 'URL' | 'SELECT' | 'MULTI_SELECT' | 'PAGE_REF'
+export interface PropertyDefinition {
+  id: string
+  key: string
+  displayName: string
+  type: PropertyType
+  config: Record<string, unknown>
+  required: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+export interface PageProperties {
+  definitions: PropertyDefinition[]
+  values: Record<string, unknown>
+  unknown: Record<string, unknown>
+  warnings: string[]
+}
+export type SavedViewType = 'TABLE' | 'LIST' | 'CARDS'
+export type ViewFilterMode = 'ALL' | 'ANY'
+export type ViewFilterOperator =
+  | 'EQ' | 'NEQ' | 'CONTAINS' | 'EXISTS'
+  | 'GT' | 'GTE' | 'LT' | 'LTE'
+export interface ViewFilterCondition {
+  key: string
+  op: ViewFilterOperator
+  value?: string | number | boolean
+}
+export interface SavedViewSort {
+  key: string
+  direction: 'ASC' | 'DESC'
+}
+export interface SavedViewGrouping {
+  key: string
+}
+export interface SavedViewWritePayload {
+  name: string
+  type: SavedViewType
+  filterMode: ViewFilterMode
+  filters: ViewFilterCondition[]
+  sort: SavedViewSort[]
+  grouping: SavedViewGrouping | null
+  layout: Record<string, unknown>
+  expectedVersion?: number
+}
+export interface SavedView {
+  id: string
+  name: string
+  type: SavedViewType
+  filterMode: ViewFilterMode
+  filters: ViewFilterCondition[]
+  sort: SavedViewSort[]
+  grouping: SavedViewGrouping | null
+  layout: Record<string, unknown>
+  favorited: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+export interface ViewRunItem {
+  page: PageListItem
+  groupKey: string | null
+}
+export interface ViewRunResult {
+  items: ViewRunItem[]
+  nextCursor: string | null
+  nullOrdering: 'NULLS_LAST'
+  view: SavedView
+}
+
+export interface AnswerCitation {
+  id: number
+  pageSlug: string
+  pageTitle: string
+  sectionKey: string | null
+  sectionHeading: string | null
+  quote: string
+  score: number
+}
+export interface AnswerResponse {
+  answerMd: string
+  citations: AnswerCitation[]
+  grounded: boolean
+  model: 'extractive-rag'
+}
+
+export interface StableLinkResponse {
+  stableId: string
+  sectionKey: string
+  pageSlug: string
+  updatedAt: string
+  url: string
+  page: Page | null
+}
+
+export interface PageSectionMapResponse {
+  slug: string
+  updatedAt: string
+  sections: PageSectionMapItem[]
 }
 
 export interface ApiKey {
@@ -174,6 +325,8 @@ export interface CreateAnnotationPayload {
 export interface UpdateAnnotationPayload {
   comment?: string | null
   color?: string | null
+  clearComment?: boolean
+  clearColor?: boolean
 }
 
 export interface EmbeddingSettings {
@@ -248,4 +401,44 @@ export interface BundleImportResponse {
   remappedSlugs: BundleSlugRemap[]
   attachments: number
   errors: string[]
+}
+
+export interface CaptureResponse {
+  kind: 'text' | 'url' | 'image'
+  page: Page
+  attachment?: Attachment | null
+}
+
+export interface DailyNoteResponse {
+  date: string
+  page: Page
+  created: boolean
+}
+
+export interface RecentPage {
+  page: PageListItem
+  lastOpenedAt: string
+  openCount: number
+}
+
+export interface FavoritePage {
+  page: PageListItem
+  favoritedAt: string
+}
+
+export interface UnlinkedMention {
+  sourceSlug: string
+  sourceTitle: string
+  snippet: string
+  sectionKey?: string | null
+  startOffset: number
+  endOffset: number
+  expectedUpdatedAt: string
+}
+
+export type OrphanDefinition = 'NO_INCOMING' | 'NO_LINKS' | 'NO_OUTGOING'
+export interface OrphanPage {
+  page: PageListItem
+  incomingCount: number
+  outgoingCount: number
 }

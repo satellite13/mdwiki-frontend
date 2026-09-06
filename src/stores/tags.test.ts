@@ -21,9 +21,14 @@ describe('useTagStore filter', () => {
     expect(store.selectedTags).toEqual(['orchestration'])
   })
 
+  it('starts with the tags panel collapsed', () => {
+    const store = useTagStore()
+    expect(store.tagsCollapsed).toBe(true)
+  })
+
   it('expands the tags panel when toggling a filter from preview', () => {
     const store = useTagStore()
-    store.tagsCollapsed = true
+    expect(store.tagsCollapsed).toBe(true)
     store.toggleTagFilter('agents')
     expect(store.tagsCollapsed).toBe(false)
     store.tagsCollapsed = true

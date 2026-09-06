@@ -38,13 +38,14 @@ npm run test       # Vitest (unit + component)
 | Route | Purpose |
 |-------|---------|
 | `/page/:slug` | Page editor and reader |
-| `/search` | Semantic search (RAG) |
+| `/search` | Hybrid, text, and semantic search |
 | `/graph` | Graph of all pages and links |
 | `/broken-links` | Broken `[[wikilink]]` and `/page/…` links |
 | `/tasks` | Open Markdown tasks (`- [ ]`) |
 | `/attachments` | Attachments |
 | `/profile` | Profile, password change, API keys, frontend/backend **versions** |
 | `/admin/users`, `/admin/embedding` | Admin panel |
+| `/admin/trash` | Restore or permanently delete soft-deleted pages |
 
 UI language is toggled with the **EN/RU** button in the header (persisted in
 `localPreferences['locale']`).
@@ -84,7 +85,30 @@ selection — that is invisible without focus).
 - Wikilinks to missing pages get the `wikilink-missing` class
   (yellow highlight, same as “ghost” nodes in the graph)
 - Internal markdown links `/page/…` — `mdlink-internal-missing`
-- Export the current page to PDF (button in Reading mode)
+- Stable section deep links from semantic/hybrid search scroll to the mapped
+  heading, including duplicate headings with distinct section keys
+- Export the current page to Markdown or PDF
+- Reading mode supports comments/highlight annotations; EDITOR/ADMIN can
+  create, edit, and delete them, while READER is read-only
+
+### Search and page actions
+
+- Search defaults to **Hybrid** and also supports explicit **Text** and
+  **Semantic** modes. Hybrid search keeps text results if semantic search is
+  unavailable and merges duplicate slugs without inventing text scores.
+- EDITOR/ADMIN can explicitly rename a page slug. The backend rewrites links,
+  and the frontend refreshes navigation and backlinks.
+- READER opens pages in read-only preview/reading modes with find, graph,
+  backlinks, annotations, and Markdown/PDF export available.
+- The document tree supports ZIP bundle import/export with referenced
+  attachments.
+
+### Administration
+
+- Trash supports restore and permanent deletion.
+- Embedding settings include synchronous search reindex with final total,
+  success, and failure counters.
+- Disk sync remains available to administrators.
 
 ## Versions in the UI
 
@@ -235,3 +259,32 @@ second docker tag).
 ```
 
 Chart details: `deploy/helm/mdwiki-frontend/README.md`.
+
+## PKM Wave 1 / Персональная база знаний
+
+Authenticated users now have compact navigation for:
+
+- `/inbox` — accessible text, URL and image quick capture (Editor/Admin), also opened with `Cmd/Ctrl+Shift+N` outside editable fields;
+- `/daily/:date?` — opens the local-date daily note and creates it for Editor/Admin when absent;
+- `/recent` and `/favorites` — personal page lists; the workspace star updates favorites optimistically;
+- `/links/unlinked` and `/links/orphans` — unlinked mention and orphan discovery. Readers can inspect results; Editors/Admins can convert a mention to a wiki-link.
+
+Both Discovery pages expose a keyboard-accessible local navigation with current-page state.
+Async Daily, library, page/backlink, recent and favorite operations use navigation-generation
+guards so delayed responses cannot overwrite the current route.
+
+Для авторизованных пользователей доступны:
+
+- `/inbox` — быстрый захват текста, ссылок и изображений; черновик сохраняется после ошибки;
+- `/daily/:date?` — ежедневная заметка по локальной дате;
+- `/recent` и `/favorites` — персональные списки недавних и избранных страниц;
+- `/links/unlinked` и `/links/orphans` — поиск несвязанных упоминаний и страниц-сирот с учётом прав доступа.
+
+All interface strings are available in English and Russian. Reader-only states, keyboard navigation, mutation status announcements, mobile-width forms and 44px primary controls are included.
+
+## PKM Wave 2
+
+- `/page/:slug/history?from=<no>&to=<no>` lists revision summaries, loads selected snapshots, shows an accessible line diff, and lets Editors/Admins restore content with conflict protection.
+- `/saved-searches` lists the current user's private saved searches; saved definitions open the normal `/search` route.
+- Search keeps normal results visible while “Answer with sources” builds a synchronous extractive answer with quoted page links. It is not generative AI.
+- Explicit stable heading IDs are exposed by the section map and deep links continue to use the `section` query parameter.

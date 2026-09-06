@@ -161,6 +161,17 @@ onBeforeUnmount(() => {
   background: var(--color-bg);
 }
 
+.app-main:has(.workspace) {
+  overflow: hidden;
+}
+
+.app-main:has(.workspace) > :deep(*) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .app-layout.reading-mode .app-main {
   padding: 0;
   height: 100vh;

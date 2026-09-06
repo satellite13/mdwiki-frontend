@@ -1,6 +1,7 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFolderStore } from '@/stores/folders'
+import { useAuthStore } from '@/stores/auth'
 import type { Backlink, Page } from '@/types'
 import { usePageLoader } from '@/composables/usePageLoader'
 import { usePageAutosave } from '@/composables/usePageAutosave'
@@ -9,6 +10,7 @@ export function useWorkspacePage() {
   const route = useRoute()
   const router = useRouter()
   const folderStore = useFolderStore()
+  const auth = useAuthStore()
 
   const page = ref<Page | null>(null)
   const backlinks = ref<Backlink[]>([])
@@ -31,7 +33,8 @@ export function useWorkspacePage() {
     {
       router,
       stopPendingSave: autosave.clearSaveTimer,
-      onLoadStart: autosave.resetSaveState
+      onLoadStart: autosave.resetSaveState,
+      canCreate: auth.isEditor
     }
   )
 
@@ -53,6 +56,14 @@ export function useWorkspacePage() {
 
   function toggleGraph() {
     showGraph.value = !showGraph.value
+  }
+
+  function acceptExternalPageUpdate(updated: Page) {
+    page.value = updated
+    title.value = updated.title
+    content.value = updated.contentMd || ''
+    lastSavedTitle.value = updated.title
+    lastSavedContentMd.value = updated.contentMd || ''
   }
 
   onMounted(() => {
@@ -94,7 +105,9 @@ export function useWorkspacePage() {
     onTitleInput: autosave.onTitleInput,
     onEditorSave: autosave.onEditorSave,
     doSave: autosave.doSave,
+    flushPendingSave: autosave.flushPendingSave,
     clearSaveError,
-    toggleGraph
+    toggleGraph,
+    acceptExternalPageUpdate
   }
 }
