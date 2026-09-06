@@ -26,6 +26,8 @@ import EditorInputPane from '@/components/editor/EditorInputPane.vue'
 import AnnotationPanel from '@/components/annotations/AnnotationPanel.vue'
 import AnnotationPopup from '@/components/annotations/AnnotationPopup.vue'
 import AnnotationComment from '@/components/annotations/AnnotationComment.vue'
+import ReadingBottomSheet from '@/components/ui/ReadingBottomSheet.vue'
+import ReadingToc from '@/components/editor/ReadingToc.vue'
 import { useToolbarActions } from '@/components/editor/useToolbarActions'
 import * as propertiesApi from '@/api/properties'
 import { upsertFrontmatterField } from '@/utils/frontmatter'
@@ -90,7 +92,7 @@ const emit = defineEmits<{
 const themeStore = useThemeStore()
 const tagStore = useTagStore()
 const dialog = useDialogStore()
-const { isMobile } = useBreakpoint()
+const { isMobile, isReadingSheet } = useBreakpoint()
 
 const uploadError = ref('')
 const copyLinkStatus = ref('')
@@ -164,7 +166,6 @@ const readingPreviewStyle = computed(() =>
     ? { fontSize: `${readingFontSize.value}px` }
     : undefined
 )
-const previewHasToc = computed(() => editorMode.value === 'reading' && readingTocVisible.value && readingTocItems.value.length > 0)
 const previewCopyDecorations = usePreviewCopyDecorations(
   () => getPreviewPaneElement(),
   async (sectionKey, stableId) => copySection(sectionKey, stableId)
@@ -177,6 +178,11 @@ const previewRenderPipeline = usePreviewRenderPipeline({
 })
 const readingToc = useReadingToc(() => getPreviewPaneElement())
 const readingTocItems = readingToc.readingTocItems
+const tocAvailable = computed(
+  () => editorMode.value === 'reading' && readingTocVisible.value && readingTocItems.value.length > 0
+)
+const previewHasToc = computed(() => tocAvailable.value && !isReadingSheet.value)
+const sheetHasToc = computed(() => tocAvailable.value && isReadingSheet.value)
 const splitScrollSync = useSplitScrollSync({
   getEditor: () => getEditorElement(),
   getPreview: () => getPreviewPaneElement()
@@ -205,6 +211,16 @@ const {
   getPageSlug: () => props.pageSlug,
   canMutate: () => !props.readonly
 })
+
+function setReadingTocVisible(value: boolean) {
+  readingTocVisible.value = value
+  if (value) annotationsVisible.value = false
+}
+
+function setAnnotationsVisible(value: boolean) {
+  annotationsVisible.value = value
+  if (value) readingTocVisible.value = false
+}
 
 const {
   emojiItems,
@@ -708,8 +724,8 @@ defineExpose({
           :annotations-visible="annotationsVisible"
           @update:font-size="readingFontSize = $event"
           @update:theme="readingTheme = $event"
-          @update:toc-visible="readingTocVisible = $event"
-          @update:annotations-visible="annotationsVisible = $event"
+          @update:toc-visible="setReadingTocVisible"
+          @update:annotations-visible="setAnnotationsVisible"
           @find="openEditorFind"
           @exit="exitReadingMode"
           @export-pdf="exportToPdf"
@@ -793,12 +809,44 @@ defineExpose({
           @find-prev="previewFind.findPrev()"
           @find-close="previewFind.closeFind()"
         />
+        <ReadingBottomSheet
+          v-if="isReadingSheet"
+          :open="sheetHasToc"
+          :aria-label="t('reading.toc')"
+        >
+          <ReadingToc
+            :items="readingTocItems"
+            :theme="readingTheme"
+            variant="sheet"
+            @select="readingToc.scrollToHeading"
+            @copy="copyTocSection"
+            @close="setReadingTocVisible(false)"
+          />
+        </ReadingBottomSheet>
+
+        <ReadingBottomSheet
+          v-if="isReadingSheet"
+          :open="annotationsVisible"
+          :aria-label="t('annotations.panel', { count: annotations.length })"
+        >
+          <AnnotationPanel
+            :annotations="annotations"
+            :visible="annotationsVisible"
+            :can-edit="!props.readonly"
+            @update:visible="setAnnotationsVisible"
+            @select="scrollToAnnotation($event.id)"
+            @deleted="onAnnotationDeleted"
+            @updated="onAnnotationUpdated"
+          />
+        </ReadingBottomSheet>
+
         <AnnotationPanel
+          v-else
           v-show="annotationsVisible"
           :annotations="annotations"
           :visible="annotationsVisible"
           :can-edit="!props.readonly"
-          @update:visible="annotationsVisible = $event"
+          @update:visible="setAnnotationsVisible"
           @select="scrollToAnnotation($event.id)"
           @deleted="onAnnotationDeleted"
           @updated="onAnnotationUpdated"

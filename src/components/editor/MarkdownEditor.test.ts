@@ -33,15 +33,25 @@ const EditorToolbarStub = {
 }
 
 const PreviewPaneStub = {
-  props: ['findOpen'],
+  props: ['findOpen', 'showToc'],
   emits: ['mouseup'],
-  template: '<div class="preview-pane-stub" :data-find-open="String(findOpen)"><button class="preview-mouseup" @mouseup="$emit(\'mouseup\', $event)" /></div>'
+  template:
+    '<div class="preview-pane-stub" :data-show-toc="String(showToc)" :data-find-open="String(findOpen)"><button class="preview-mouseup" @mouseup="$emit(\'mouseup\', $event)" /></div>'
 }
 
 const ReadingToolbarStub = {
-  emits: ['find', 'exportMarkdown', 'exportPdf', 'exit'],
+  props: ['tocVisible', 'annotationsVisible'],
+  emits: ['find', 'exportMarkdown', 'exportPdf', 'exit', 'update:tocVisible', 'update:annotationsVisible'],
   template: `
     <div class="reading-toolbar-stub">
+      <button
+        class="reading-toc"
+        @click="$emit('update:tocVisible', !tocVisible)"
+      />
+      <button
+        class="reading-annotations"
+        @click="$emit('update:annotationsVisible', !annotationsVisible)"
+      />
       <button class="reading-find" @click="$emit('find')" />
       <button class="reading-export-md" @click="$emit('exportMarkdown')" />
       <button class="reading-export-pdf" @click="$emit('exportPdf')" />
