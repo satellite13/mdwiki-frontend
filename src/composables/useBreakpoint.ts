@@ -2,6 +2,8 @@ import { computed, ref } from 'vue'
 
 export const BP_MOBILE_MAX = 767
 export const BP_TABLET_MAX = 1023
+// mirror in ReadingBottomSheet / EditorPreviewPane CSS
+export const BP_READING_SHEET_MAX = 1100
 
 // Синглтон: один resize-listener на всё приложение вместо слушателя на каждый компонент.
 const width = ref(typeof window !== 'undefined' ? window.innerWidth : BP_TABLET_MAX + 1)
@@ -17,6 +19,7 @@ export function useBreakpoint() {
   const isTablet = computed(() => width.value > BP_MOBILE_MAX && width.value <= BP_TABLET_MAX)
   const isDesktop = computed(() => width.value > BP_TABLET_MAX)
   const isNarrow = computed(() => width.value <= BP_TABLET_MAX)
+  const isReadingSheet = computed(() => width.value <= BP_READING_SHEET_MAX)
 
-  return { width, isMobile, isTablet, isDesktop, isNarrow }
+  return { width, isMobile, isTablet, isDesktop, isNarrow, isReadingSheet }
 }
