@@ -589,7 +589,7 @@ a.theme-toggle:hover {
   max-height: 400px;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 767px) {
   .app-header {
     padding: 0 12px;
     gap: 8px;
@@ -605,12 +605,27 @@ a.theme-toggle:hover {
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
+  .app-header {
+    padding: 0 14px;
+    gap: 12px;
+    height: var(--app-header-height);
+  }
+
   .hide-mobile {
     display: none !important;
   }
 
   .show-mobile-only {
     display: flex !important;
+  }
+
+  .sidebar-toggle.show-mobile-only {
+    display: none !important;
+  }
+
+  .search-form {
+    min-width: 0;
+    max-width: 280px;
   }
 }
 </style>
