@@ -107,9 +107,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
       <span class="material-symbols-outlined notranslate" translate="no">menu</span>
     </button>
 
-    <router-link to="/" class="logo" @click="onNavClick">
+    <router-link to="/" class="logo" aria-label="MDWiki" @click="onNavClick">
       <MdwikiMark class="logo-mark" />
-      <span>MDWiki</span>
+      <span class="logo-text">MDWiki</span>
     </router-link>
 
     <form class="search-form" @submit.prevent="onSearch">
@@ -199,48 +199,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
       >
         <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">add</span>
       </router-link>
-      <router-link
-        to="/profile"
-        class="theme-toggle header-icon-link"
-        :class="{ 'is-active': route.path.startsWith('/profile') }"
-        :title="t('profile.title')"
-        :aria-label="t('profile.title')"
-        @click="onNavClick"
-      >
-        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">person</span>
-      </router-link>
-      <router-link
-        v-if="auth.isAdmin"
-        to="/admin/users"
-        class="theme-toggle header-icon-link"
-        :class="{ 'is-active': route.path.startsWith('/admin') }"
-        :title="t('header.admin')"
-        :aria-label="t('header.admin')"
-        @click="onNavClick"
-      >
-        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">settings</span>
-      </router-link>
-      <button
-        type="button"
-        class="theme-toggle locale-toggle"
-        :title="localeTitle"
-        :aria-label="localeTitle"
-        @click="toggleLocale()"
-      >
-        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">language</span>
-      </button>
-      <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
-        <ThemeModeIcon :mode="themeStore.mode" />
-      </button>
-      <button
-        type="button"
-        class="theme-toggle logout-icon"
-        :title="t('header.logout')"
-        :aria-label="t('header.logout')"
-        @click="logout"
-      >
-        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">logout</span>
-      </button>
       <button
         type="button"
         class="icon-btn"
@@ -276,6 +234,62 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
           </span>
           <span class="mobile-nav-label">{{ link.label }}</span>
         </router-link>
+        <div class="mobile-nav-divider" role="separator" />
+        <router-link
+          to="/profile"
+          class="mobile-nav-link"
+          :class="{ 'is-active': route.path.startsWith('/profile') }"
+          :title="t('profile.title')"
+          :aria-label="t('profile.title')"
+          :aria-current="route.path.startsWith('/profile') ? 'page' : undefined"
+          @click="onNavClick"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">person</span>
+          <span class="mobile-nav-label">{{ t('profile.title') }}</span>
+        </router-link>
+        <router-link
+          v-if="auth.isAdmin"
+          to="/admin/users"
+          class="mobile-nav-link"
+          :class="{ 'is-active': route.path.startsWith('/admin') }"
+          :title="t('header.admin')"
+          :aria-label="t('header.admin')"
+          :aria-current="route.path.startsWith('/admin') ? 'page' : undefined"
+          @click="onNavClick"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">settings</span>
+          <span class="mobile-nav-label">{{ t('header.admin') }}</span>
+        </router-link>
+        <button
+          type="button"
+          class="mobile-nav-link locale-toggle"
+          :title="localeTitle"
+          :aria-label="localeTitle"
+          @click="toggleLocale()"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">language</span>
+          <span class="mobile-nav-label">{{ t('header.language') }}</span>
+        </button>
+        <button
+          type="button"
+          class="mobile-nav-link"
+          :title="themeTitle"
+          :aria-label="themeTitle"
+          @click="toggleTheme()"
+        >
+          <ThemeModeIcon :mode="themeStore.mode" />
+          <span class="mobile-nav-label">{{ themeTitle }}</span>
+        </button>
+        <button
+          type="button"
+          class="mobile-nav-link logout-icon"
+          :title="t('header.logout')"
+          :aria-label="t('header.logout')"
+          @click="logout"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">logout</span>
+          <span class="mobile-nav-label">{{ t('header.logout') }}</span>
+        </button>
       </nav>
     </Transition>
   </header>
@@ -529,15 +543,23 @@ a.theme-toggle:hover {
   padding: 6px 4px 10px;
 }
 
+.mobile-nav-divider {
+  height: 1px;
+  margin: 8px 4px;
+  background: var(--color-border);
+}
+
 .mobile-nav-link {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
+  min-height: 44px;
   padding: 10px 8px;
   border: none;
   background: transparent;
   color: var(--color-text);
+  font: inherit;
   font-size: 14px;
   font-weight: 500;
   text-align: left;
@@ -546,13 +568,20 @@ a.theme-toggle:hover {
   cursor: pointer;
 }
 
-.mobile-nav-link .material-symbols-outlined {
+.mobile-nav-link .material-symbols-outlined,
+.mobile-nav-link :deep(svg) {
   width: 22px;
   color: var(--color-text-muted);
   font-size: 20px;
   line-height: 1;
   text-align: center;
   flex-shrink: 0;
+}
+
+.mobile-nav-link.is-active,
+.mobile-nav-link[aria-current='page'] {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .mobile-nav-link:hover {
@@ -563,6 +592,11 @@ a.theme-toggle:hover {
 .mobile-nav-link:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
+}
+
+.mobile-nav-link.logout-icon:hover {
+  color: var(--color-danger, #cf222e);
+  background: color-mix(in srgb, var(--color-danger, #cf222e) 8%, transparent);
 }
 
 /* Mobile nav slide-down transition */
@@ -586,7 +620,7 @@ a.theme-toggle:hover {
 .slide-down-enter-to,
 .slide-down-leave-from {
   opacity: 1;
-  max-height: 400px;
+  max-height: 720px;
 }
 
 @media (max-width: 767px) {
@@ -597,10 +631,33 @@ a.theme-toggle:hover {
     min-height: var(--app-header-height);
   }
 
+  .logo-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .search-form {
     order: 3;
     flex: 1 1 100%;
     max-width: none;
+  }
+
+  .header-actions-mobile {
+    gap: 10px;
+  }
+
+  .header-actions-mobile .quick-capture,
+  .header-actions-mobile .icon-btn,
+  .sidebar-toggle {
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -621,6 +678,16 @@ a.theme-toggle:hover {
 
   .sidebar-toggle.show-mobile-only {
     display: none !important;
+  }
+
+  .header-actions-mobile {
+    gap: 10px;
+  }
+
+  .header-actions-mobile .quick-capture,
+  .header-actions-mobile .icon-btn {
+    width: 44px;
+    height: 44px;
   }
 
   .search-form {

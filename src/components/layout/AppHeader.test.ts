@@ -139,4 +139,36 @@ describe('AppHeader search', () => {
       expect(button.attributes('aria-label')).toContain('EN')
     }
   })
+
+  it('keeps only capture and menu actions in the mobile header bar', async () => {
+    localStorage.setItem('token', 'token')
+    localStorage.setItem('username', 'admin')
+    localStorage.setItem('role', 'ADMIN')
+    const wrapper = mountHeader()
+    const mobileActions = wrapper.get('.header-actions-mobile')
+
+    expect(mobileActions.find('.quick-capture').exists()).toBe(true)
+    expect(mobileActions.find('[aria-label="Navigation menu"]').exists()).toBe(true)
+    expect(mobileActions.find('[aria-label="Profile"]').exists()).toBe(false)
+    expect(mobileActions.find('[aria-label="Admin"]').exists()).toBe(false)
+    expect(mobileActions.find('.locale-toggle').exists()).toBe(false)
+    expect(mobileActions.find('[aria-label="Logout"]').exists()).toBe(false)
+
+    await mobileActions.get('[aria-label="Navigation menu"]').trigger('click')
+    const menu = wrapper.get('.mobile-nav-menu')
+    expect(menu.find('[aria-label="Profile"]').exists()).toBe(true)
+    expect(menu.find('[aria-label="Admin"]').exists()).toBe(true)
+    expect(menu.find('.locale-toggle').exists()).toBe(true)
+    expect(menu.find('[aria-label="Logout"]').exists()).toBe(true)
+    expect(menu.find('[title="Theme: System"]').exists()).toBe(true)
+  })
+
+  it('exposes brand mark with hideable logo text for narrow screens', () => {
+    const wrapper = mountHeader()
+    const logo = wrapper.get('.logo')
+
+    expect(logo.find('.logo-mark').exists()).toBe(true)
+    expect(logo.get('.logo-text').text()).toBe('MDWiki')
+    expect(logo.attributes('aria-label')).toBe('MDWiki')
+  })
 })
