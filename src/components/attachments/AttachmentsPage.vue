@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogStore } from '@/stores/dialog'
 import * as attachmentsApi from '@/api/attachments'
@@ -9,24 +9,81 @@ import { copyTextToClipboard } from '@/utils/clipboard'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
+const PAGE_SIZE = 20
+
 const { t } = useI18n()
 const auth = useAuthStore()
 const dialog = useDialogStore()
 const attachments = ref<Attachment[]>([])
+const total = ref(0)
+const page = ref(0)
+const searchInput = ref('')
+const query = ref('')
 const loading = ref(true)
 const uploading = ref(false)
 const dragOver = ref(false)
 
+let controller: AbortController | null = null
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+const from = computed(() => (total.value === 0 ? 0 : page.value * PAGE_SIZE + 1))
+const to = computed(() => Math.min((page.value + 1) * PAGE_SIZE, total.value))
+const canPrev = computed(() => page.value > 0)
+const canNext = computed(() => (page.value + 1) * PAGE_SIZE < total.value)
+const showNoResults = computed(
+  () => !loading.value && attachments.value.length === 0 && !!query.value.trim()
+)
+const showEmpty = computed(
+  () => !loading.value && attachments.value.length === 0 && !query.value.trim()
+)
+
 async function fetchAttachments() {
+  controller?.abort()
+  const next = new AbortController()
+  controller = next
   loading.value = true
   try {
-    const { data } = await attachmentsApi.listAttachments()
-    attachments.value = data
+    const result = await attachmentsApi.listAttachments({
+      page: page.value,
+      size: PAGE_SIZE,
+      q: query.value,
+      signal: next.signal,
+    })
+    attachments.value = result.items
+    total.value = result.total
+    if (attachments.value.length === 0 && page.value > 0 && total.value > 0) {
+      page.value -= 1
+      await fetchAttachments()
+    }
   } catch (e) {
+    if ((e as { code?: string }).code === 'ERR_CANCELED') return
     await dialog.alert(getApiErrorMessage(e, t('errors.loadAttachmentsFailed')))
   } finally {
-    loading.value = false
+    if (controller === next) {
+      loading.value = false
+    }
   }
+}
+
+watch(searchInput, (value) => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    query.value = value.trim()
+    page.value = 0
+    void fetchAttachments()
+  }, 300)
+})
+
+function goPrev() {
+  if (!canPrev.value) return
+  page.value -= 1
+  void fetchAttachments()
+}
+
+function goNext() {
+  if (!canNext.value) return
+  page.value += 1
+  void fetchAttachments()
 }
 
 async function handleFiles(files: FileList | null) {
@@ -94,6 +151,10 @@ function isImage(contentType: string): boolean {
 }
 
 onMounted(fetchAttachments)
+onBeforeUnmount(() => {
+  controller?.abort()
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 </script>
 
 <template>
@@ -111,49 +172,124 @@ onMounted(fetchAttachments)
       <p v-else>{{ t('attachments.dropHint') }} <label class="file-label"><input type="file" multiple @change="onFileInput" hidden />{{ t('attachments.browse') }}</label></p>
     </div>
 
-    <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
-    <div v-else-if="attachments.length === 0" class="state-placeholder">{{ t('attachments.empty') }}</div>
-    <div v-else class="table-scroll">
-    <table class="data-table attachments-table">
-      <thead>
-        <tr>
-          <th></th>
-          <th>{{ t('attachments.colName') }}</th>
-          <th>{{ t('attachments.colType') }}</th>
-          <th>{{ t('attachments.colSize') }}</th>
-          <th>{{ t('attachments.colUploadedBy') }}</th>
-          <th>{{ t('attachments.colDate') }}</th>
-          <th>{{ t('attachments.colActions') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="att in attachments" :key="att.id">
-          <td class="preview-cell">
-            <img v-if="isImage(att.contentType)" :src="att.url" class="thumb" :alt="att.originalName" />
-            <span v-else class="file-icon">📎</span>
-          </td>
-          <td class="name-cell" :data-label="t('attachments.colName')">
-            <a :href="att.url" target="_blank">{{ att.originalName }}</a>
-          </td>
-          <td class="type-cell" :data-label="t('attachments.colType')">{{ att.contentType }}</td>
-          <td class="size-cell" :data-label="t('attachments.colSize')">{{ formatSize(att.sizeBytes) }}</td>
-          <td class="user-cell" :data-label="t('attachments.colUploadedBy')">{{ att.uploadedBy || '—' }}</td>
-          <td class="date-cell" :data-label="t('attachments.colDate')">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
-          <td class="actions-cell">
-            <div class="actions-inner">
-              <button class="btn-secondary btn-sm" type="button" @click="copyLink(att)" :title="t('attachments.copyMarkdownLink')">{{ t('attachments.copyLink') }}</button>
-              <button v-if="auth.isEditor" class="btn-danger btn-sm" type="button" @click="deleteAttachment(att)">{{ t('tree.delete') }}</button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="attachments-toolbar">
+      <input
+        data-testid="attachments-search"
+        type="search"
+        class="attachments-search"
+        v-model="searchInput"
+        :placeholder="t('attachments.searchPlaceholder')"
+        :aria-label="t('attachments.searchPlaceholder')"
+      />
     </div>
+
+    <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
+    <div v-else-if="showEmpty" class="state-placeholder">{{ t('attachments.empty') }}</div>
+    <div v-else-if="showNoResults" class="state-placeholder">{{ t('attachments.noResults') }}</div>
+    <template v-else>
+      <div class="table-scroll">
+        <table class="data-table attachments-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>{{ t('attachments.colName') }}</th>
+              <th>{{ t('attachments.colType') }}</th>
+              <th>{{ t('attachments.colSize') }}</th>
+              <th>{{ t('attachments.colUploadedBy') }}</th>
+              <th>{{ t('attachments.colDate') }}</th>
+              <th>{{ t('attachments.colActions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="att in attachments" :key="att.id">
+              <td class="preview-cell">
+                <img v-if="isImage(att.contentType)" :src="att.url" class="thumb" :alt="att.originalName" />
+                <span v-else class="file-icon">📎</span>
+              </td>
+              <td class="name-cell" :data-label="t('attachments.colName')">
+                <a :href="att.url" target="_blank">{{ att.originalName }}</a>
+              </td>
+              <td class="type-cell" :data-label="t('attachments.colType')">{{ att.contentType }}</td>
+              <td class="size-cell" :data-label="t('attachments.colSize')">{{ formatSize(att.sizeBytes) }}</td>
+              <td class="user-cell" :data-label="t('attachments.colUploadedBy')">{{ att.uploadedBy || '—' }}</td>
+              <td class="date-cell" :data-label="t('attachments.colDate')">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
+              <td class="actions-cell">
+                <div class="actions-inner">
+                  <button class="btn-secondary btn-sm" type="button" @click="copyLink(att)" :title="t('attachments.copyMarkdownLink')">{{ t('attachments.copyLink') }}</button>
+                  <button v-if="auth.isEditor" class="btn-danger btn-sm" type="button" @click="deleteAttachment(att)">{{ t('tree.delete') }}</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <nav
+        v-if="total > 0"
+        class="attachments-pagination"
+        :aria-label="t('attachments.title')"
+      >
+        <span class="attachments-range">
+          {{ t('attachments.range', { from, to, total }) }}
+        </span>
+        <div class="attachments-page-actions">
+          <button
+            type="button"
+            class="btn-secondary btn-sm"
+            data-testid="attachments-prev"
+            :disabled="!canPrev"
+            @click="goPrev"
+          >{{ t('attachments.prevPage') }}</button>
+          <button
+            type="button"
+            class="btn-secondary btn-sm"
+            data-testid="attachments-next"
+            :disabled="!canNext"
+            @click="goNext"
+          >{{ t('attachments.nextPage') }}</button>
+        </div>
+      </nav>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .attachments-page h1 { margin-bottom: 20px; }
+
+.attachments-toolbar {
+  display: flex;
+  margin-bottom: 16px;
+}
+
+.attachments-search {
+  width: 100%;
+  max-width: 28rem;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.attachments-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.attachments-range {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.attachments-page-actions {
+  display: flex;
+  gap: 8px;
+}
 
 .attachments-table tbody td {
   vertical-align: middle;
@@ -215,6 +351,10 @@ onMounted(fetchAttachments)
 
   .attachments-page h1 {
     font-size: 1.35rem;
+  }
+
+  .attachments-search {
+    max-width: none;
   }
 
   .attachments-table thead {
