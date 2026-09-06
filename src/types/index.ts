@@ -157,6 +157,7 @@ export interface SavedSearch {
   tags: string[]
   minScore: number | null
   sort: SavedSearchSort
+  favorited: boolean
   version: number
   createdAt: string
   updatedAt: string
@@ -189,6 +190,7 @@ export interface SavedView {
   sort: unknown[]
   grouping: unknown | null
   layout: Record<string, unknown>
+  favorited: boolean
   version: number
   createdAt: string
   updatedAt: string

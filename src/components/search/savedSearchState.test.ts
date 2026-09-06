@@ -4,7 +4,7 @@ import type { SavedSearch } from '@/types'
 
 const saved: SavedSearch = {
   id: 's1', name: 'Mine', queryText: 'lambda', mode: 'SEMANTIC',
-  tags: ['one', 'два'], minScore: 0.75, sort: 'UPDATED', version: 2,
+  tags: ['one', 'два'], minScore: 0.75, sort: 'UPDATED', favorited: false, version: 2,
   createdAt: '', updatedAt: '',
 }
 
