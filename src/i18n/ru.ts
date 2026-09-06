@@ -582,6 +582,7 @@ export const ru = {
     themeDark: 'Тёмный',
     themeDarkBg: 'Тёмный фон',
     toc: 'Оглавление',
+    closeToc: 'Закрыть оглавление',
     annotations: 'Аннотации',
     exit: 'Выйти из режима чтения',
   },

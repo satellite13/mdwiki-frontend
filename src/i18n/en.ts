@@ -582,6 +582,7 @@ export const en = {
     themeDark: 'Dark',
     themeDarkBg: 'Dark background',
     toc: 'Table of contents',
+    closeToc: 'Close table of contents',
     annotations: 'Annotations',
     exit: 'Exit reading mode',
   },

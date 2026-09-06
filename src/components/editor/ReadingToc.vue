@@ -7,11 +7,13 @@ const { t } = useI18n()
 const props = defineProps<{
   items: TocItem[]
   theme: 'white' | 'paper' | 'dark'
+  variant?: 'sidebar' | 'sheet'
 }>()
 
 const emit = defineEmits<{
   select: [id: string]
   copy: [item: TocItem]
+  close: []
 }>()
 
 function onSelect(id: string) {
@@ -20,8 +22,24 @@ function onSelect(id: string) {
 </script>
 
 <template>
-  <aside class="reading-toc" :class="`reading-toc--${props.theme}`">
-    <div class="reading-toc-title">{{ t('reading.toc') }}</div>
+  <component
+    :is="props.variant === 'sheet' ? 'div' : 'aside'"
+    class="reading-toc"
+    :class="`reading-toc--${props.theme}`"
+  >
+    <div class="reading-toc-title-row">
+      <div class="reading-toc-title">{{ t('reading.toc') }}</div>
+      <button
+        v-if="props.variant === 'sheet'"
+        type="button"
+        class="reading-toc-close"
+        :title="t('reading.closeToc')"
+        :aria-label="t('reading.closeToc')"
+        @click="emit('close')"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no">close</span>
+      </button>
+    </div>
     <div
       v-for="item in props.items"
       :key="item.id"
@@ -33,7 +51,7 @@ function onSelect(id: string) {
         <span class="material-symbols-outlined notranslate" translate="no">content_copy</span>
       </button>
     </div>
-  </aside>
+  </component>
 </template>
 
 <style scoped>
@@ -64,10 +82,16 @@ function onSelect(id: string) {
   border-color: #2b3442;
 }
 
+.reading-toc-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 2px 6px 8px;
+}
+
 .reading-toc-title {
   font-size: 12px;
   color: #66768b;
-  margin: 2px 6px 8px;
 }
 
 .reading-toc--paper .reading-toc-title {
@@ -76,6 +100,41 @@ function onSelect(id: string) {
 
 .reading-toc--dark .reading-toc-title {
   color: #9ca8bb;
+}
+
+.reading-toc-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #66768b;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.reading-toc-close:hover {
+  background: #eef2f7;
+}
+
+.reading-toc--paper .reading-toc-close {
+  color: #6d634e;
+}
+
+.reading-toc--paper .reading-toc-close:hover {
+  background: #ebe2ce;
+}
+
+.reading-toc--dark .reading-toc-close {
+  color: #9ca8bb;
+}
+
+.reading-toc--dark .reading-toc-close:hover {
+  background: #202733;
 }
 
 .reading-toc-item {
@@ -111,13 +170,5 @@ function onSelect(id: string) {
 
 .reading-toc--dark .reading-toc-item:hover {
   background: #202733;
-}
-
-@media (max-width: 1100px) {
-  .reading-toc {
-    position: static;
-    max-height: 220px;
-    margin-top: 8px;
-  }
 }
 </style>
