@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import * as viewsApi from '@/api/views'
 import * as propertiesApi from '@/api/properties'
+import * as libraryApi from '@/api/library'
 import { useI18n } from 'vue-i18n'
 import type { PropertyDefinition, SavedView, ViewRunItem } from '@/types'
 import HelpTip from '@/components/ui/HelpTip.vue'
@@ -15,8 +17,11 @@ import {
   type ViewFilterOp,
 } from '@/utils/viewFilters'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { useDialogStore } from '@/stores/dialog'
 
 const { t } = useI18n()
+const route = useRoute()
+const dialog = useDialogStore()
 const views = ref<SavedView[]>([])
 const definitions = ref<PropertyDefinition[]>([])
 const items = ref<ViewRunItem[]>([])
@@ -32,6 +37,7 @@ const activeView = ref<SavedView | null>(null)
 const filterKey = ref('')
 const filterOp = ref<ViewFilterOp>('EQ')
 const filterValue = ref('')
+const favoriteBusyId = ref<string | null>(null)
 
 const typeByKey = computed(() =>
   Object.fromEntries(definitions.value.map((d) => [d.key, d.type])) as Record<string, PropertyDefinition['type']>
@@ -171,6 +177,22 @@ async function remove(view: SavedView) {
   await load()
 }
 
+async function toggleFavorite(view: SavedView) {
+  if (favoriteBusyId.value === view.id) return
+  const previous = view.favorited
+  view.favorited = !previous
+  favoriteBusyId.value = view.id
+  try {
+    if (view.favorited) await libraryApi.addFavoriteView(view.id)
+    else await libraryApi.removeFavoriteView(view.id)
+  } catch (e) {
+    view.favorited = previous
+    await dialog.alert(getApiErrorMessage(e, t('pkm.favoriteFailed')))
+  } finally {
+    if (favoriteBusyId.value === view.id) favoriteBusyId.value = null
+  }
+}
+
 function filterSummary(view: SavedView): string {
   const filters = Array.isArray(view.filters) ? view.filters : []
   if (!filters.length) return t('views.noFilter')
@@ -180,6 +202,17 @@ function filterSummary(view: SavedView): string {
   if (first.op === 'EXISTS') return `${label} · ${t('views.opEXISTS')}`
   return `${label} ${t(`views.op${first.op}`)} ${String(first.value ?? '')}`
 }
+
+watch(
+  () => [route.query.view, views.value.map((v) => v.id).join('\0')] as const,
+  ([id]) => {
+    if (typeof id !== 'string' || !id) return
+    if (activeView.value?.id === id) return
+    const v = views.value.find((x) => x.id === id)
+    if (v) void run(v)
+  },
+  { immediate: true },
+)
 
 onMounted(load)
 </script>
@@ -294,12 +327,26 @@ onMounted(load)
             <button type="button" class="link-btn" @click="run(view)">{{ view.name }}</button>
             <small>{{ filterSummary(view) }} · {{ view.type }}</small>
           </div>
-          <button
-            type="button"
-            class="btn-secondary"
-            :aria-label="t('views.deleteNamed', { name: view.name })"
-            @click="remove(view)"
-          >{{ t('views.delete') }}</button>
+          <div class="view-actions">
+            <button
+              type="button"
+              class="favorite-btn"
+              :class="{ active: view.favorited }"
+              :aria-label="view.favorited ? t('pkm.removeFavorite') : t('pkm.addFavorite')"
+              :aria-pressed="view.favorited"
+              :aria-busy="favoriteBusyId === view.id"
+              :disabled="favoriteBusyId === view.id"
+              @click="toggleFavorite(view)"
+            >
+              <span class="material-symbols-outlined notranslate" translate="no">{{ view.favorited ? 'star' : 'star_outline' }}</span>
+            </button>
+            <button
+              type="button"
+              class="btn-secondary"
+              :aria-label="t('views.deleteNamed', { name: view.name })"
+              @click="remove(view)"
+            >{{ t('views.delete') }}</button>
+          </div>
         </li>
       </ul>
     </section>
@@ -464,6 +511,35 @@ onMounted(load)
 
 .load-more {
   margin-top: 1rem;
+}
+
+.view-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.favorite-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.favorite-btn.active {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.favorite-btn:disabled {
+  opacity: 0.6;
 }
 
 .sr-only {

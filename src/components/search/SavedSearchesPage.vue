@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as api from '@/api/savedSearches'
+import * as libraryApi from '@/api/library'
 import type { SavedSearch, SavedSearchMode, SavedSearchSort } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useDialogStore } from '@/stores/dialog'
@@ -21,6 +22,7 @@ const tagsText = ref('')
 const minScore = ref<number | null>(null)
 const sort = ref<SavedSearchSort>('RELEVANCE')
 const formOpen = ref(false)
+const favoriteBusyId = ref<string | null>(null)
 const formTitle = computed(() => editing.value ? t('savedSearches.editTitle') : t('savedSearches.createTitle'))
 const modeOptions = [
   { value: 'HYBRID', label: 'Hybrid' },
@@ -75,6 +77,22 @@ async function remove(item: SavedSearch) {
   try { await api.deleteSavedSearch(item.id); await load() }
   catch (e) { error.value = getApiErrorMessage(e, t('savedSearches.deleteFailed')) }
 }
+
+async function toggleFavorite(item: SavedSearch) {
+  if (favoriteBusyId.value === item.id) return
+  const previous = item.favorited
+  item.favorited = !previous
+  favoriteBusyId.value = item.id
+  try {
+    if (item.favorited) await libraryApi.addFavoriteSearch(item.id)
+    else await libraryApi.removeFavoriteSearch(item.id)
+  } catch (e) {
+    item.favorited = previous
+    await dialog.alert(getApiErrorMessage(e, t('pkm.favoriteFailed')))
+  } finally {
+    if (favoriteBusyId.value === item.id) favoriteBusyId.value = null
+  }
+}
 onMounted(load)
 </script>
 <template>
@@ -86,6 +104,18 @@ onMounted(load)
     <ul v-else><li v-for="item in items" :key="item.id">
       <router-link :to="{ name: 'search', query: { saved: item.id, q: item.queryText, mode: item.mode.toLowerCase() } }">{{ item.name }}</router-link>
       <span class="actions">
+        <button
+          type="button"
+          class="favorite-btn"
+          :class="{ active: item.favorited }"
+          :aria-label="item.favorited ? t('pkm.removeFavorite') : t('pkm.addFavorite')"
+          :aria-pressed="item.favorited"
+          :aria-busy="favoriteBusyId === item.id"
+          :disabled="favoriteBusyId === item.id"
+          @click="toggleFavorite(item)"
+        >
+          <span class="material-symbols-outlined notranslate" translate="no">{{ item.favorited ? 'star' : 'star_outline' }}</span>
+        </button>
         <button :aria-label="t('savedSearches.editName', { name: item.name })" @click="openEdit(item)">{{ t('common.edit') }}</button>
         <button :aria-label="t('savedSearches.deleteName', { name: item.name })" @click="remove(item)">{{ t('common.delete') }}</button>
       </span>
@@ -102,4 +132,15 @@ onMounted(load)
     </form>
   </main>
 </template>
-<style scoped>main{display:grid;gap:16px}header,.actions{display:flex;gap:8px;align-items:center;justify-content:space-between}ul{list-style:none;display:grid;gap:8px}li{display:flex;justify-content:space-between;padding:12px;border:1px solid var(--color-border);border-radius:8px}.saved-form{display:grid;gap:12px;max-width:540px;padding:16px;border:1px solid var(--color-border);border-radius:8px}.saved-form label{display:grid;gap:4px}@media(max-width:767px){header,li{align-items:stretch;flex-direction:column}.saved-form{max-width:none}}</style>
+<style scoped>
+main{display:grid;gap:16px}
+header,.actions{display:flex;gap:8px;align-items:center;justify-content:space-between}
+ul{list-style:none;display:grid;gap:8px}
+li{display:flex;justify-content:space-between;padding:12px;border:1px solid var(--color-border);border-radius:8px}
+.saved-form{display:grid;gap:12px;max-width:540px;padding:16px;border:1px solid var(--color-border);border-radius:8px}
+.saved-form label{display:grid;gap:4px}
+.favorite-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid var(--color-border);border-radius:6px;background:transparent;color:var(--color-text-muted);cursor:pointer}
+.favorite-btn.active{color:var(--color-primary);border-color:var(--color-primary)}
+.favorite-btn:disabled{opacity:.6}
+@media(max-width:767px){header,li{align-items:stretch;flex-direction:column}.saved-form{max-width:none}}
+</style>
