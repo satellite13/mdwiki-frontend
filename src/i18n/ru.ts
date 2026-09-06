@@ -442,6 +442,7 @@ export const ru = {
     themeDark: 'Тема: тёмная',
     themeSystem: 'Тема: системная',
     language: 'Язык',
+    languageCurrent: 'Язык: {language}',
     openDocuments: 'Открыть документы',
     navMenu: 'Меню навигации',
     mainNav: 'Основная навигация',

@@ -11,6 +11,14 @@ import ThemeModeIcon from './ThemeModeIcon.vue'
 import MdwikiMark from './MdwikiMark.vue'
 import { isCaptureShortcut } from '@/utils/pkm'
 
+type HeaderNavLink = {
+  key: string
+  to: RouteLocationRaw
+  label: string
+  icon: string
+  title?: string
+}
+
 const { t } = useI18n()
 const auth = useAuthStore()
 const themeStore = useThemeStore()
@@ -29,16 +37,16 @@ const graphLinkTo = computed(() => {
 
 // Группы по смыслу: захват → личная библиотека → работа → структура.
 // Профиль / админ / тема / выход — иконки справа.
-const navLinks = computed<{ to: RouteLocationRaw; label: string; title?: string; key: string }[]>(() => [
-  { key: 'daily', to: '/daily', label: t('pkm.today') },
-  { key: 'recent', to: '/recent', label: t('pkm.recent') },
-  { key: 'favorites', to: '/favorites', label: t('pkm.favorites') },
-  { key: 'search-library', to: '/saved-searches', label: t('header.searchNav') },
-  { key: 'views', to: '/views', label: t('views.title') },
-  { key: 'tasks', to: '/tasks', label: t('header.tasks') },
-  { key: 'attachments', to: '/attachments', label: t('header.attachments') },
-  { key: 'discovery', to: '/links/unlinked', label: t('pkm.discovery') },
-  { key: 'graph', to: graphLinkTo.value, label: t('header.graph'), title: t('header.graphTitle') },
+const navLinks = computed<HeaderNavLink[]>(() => [
+  { key: 'daily', to: '/daily', label: t('pkm.today'), icon: 'today' },
+  { key: 'recent', to: '/recent', label: t('pkm.recent'), icon: 'history' },
+  { key: 'favorites', to: '/favorites', label: t('pkm.favorites'), icon: 'star' },
+  { key: 'search-library', to: '/saved-searches', label: t('header.searchNav'), icon: 'saved_search' },
+  { key: 'views', to: '/views', label: t('views.title'), icon: 'view_list' },
+  { key: 'tasks', to: '/tasks', label: t('header.tasks'), icon: 'task_alt' },
+  { key: 'attachments', to: '/attachments', label: t('header.attachments'), icon: 'attach_file' },
+  { key: 'discovery', to: '/links/unlinked', label: t('pkm.discovery'), icon: 'explore' },
+  { key: 'graph', to: graphLinkTo.value, label: t('header.graph'), icon: 'hub', title: t('header.graphTitle') },
 ])
 
 const themeTitle = computed(() => {
@@ -47,6 +55,14 @@ const themeTitle = computed(() => {
 })
 
 const localeLabel = computed(() => (getLocale() === 'ru' ? 'RU' : 'EN'))
+const localeTitle = computed(() => t('header.languageCurrent', { language: localeLabel.value }))
+
+function isNavLinkActive(link: HeaderNavLink) {
+  if (typeof link.to === 'string') {
+    return route.path === link.to || (link.to !== '/' && route.path.startsWith(`${link.to}/`))
+  }
+  return 'name' in link.to && link.to.name != null && route.name === link.to.name
+}
 
 function toggleTheme() {
   themeStore.toggle()
@@ -116,10 +132,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
         :key="link.key"
         :to="link.to"
         class="nav-link"
-        :title="link.title"
+        :class="{ 'is-active': isNavLinkActive(link) }"
+        :data-nav-key="link.key"
+        :aria-label="link.label"
+        :aria-current="isNavLinkActive(link) ? 'page' : undefined"
+        :title="link.title ?? link.label"
         @click="onNavClick"
       >
-        {{ link.label }}
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">
+          {{ link.icon }}
+        </span>
+        <span v-if="isNavLinkActive(link)" class="nav-link-label">{{ link.label }}</span>
       </router-link>
       <router-link
         to="/profile"
@@ -142,8 +165,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
       >
         <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">settings</span>
       </router-link>
-      <button class="theme-toggle locale-toggle" @click="toggleLocale()" :title="t('header.language')">
-        <span class="locale-label">{{ localeLabel }}</span>
+      <button
+        type="button"
+        class="theme-toggle locale-toggle"
+        :title="localeTitle"
+        :aria-label="localeTitle"
+        @click="toggleLocale()"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">language</span>
       </button>
       <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
         <ThemeModeIcon :mode="themeStore.mode" />
@@ -191,8 +220,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
       >
         <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">settings</span>
       </router-link>
-      <button class="theme-toggle locale-toggle" @click="toggleLocale()" :title="t('header.language')">
-        <span class="locale-label">{{ localeLabel }}</span>
+      <button
+        type="button"
+        class="theme-toggle locale-toggle"
+        :title="localeTitle"
+        :aria-label="localeTitle"
+        @click="toggleLocale()"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">language</span>
       </button>
       <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
         <ThemeModeIcon :mode="themeStore.mode" />
@@ -232,9 +267,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
           :key="link.key"
           :to="link.to"
           class="mobile-nav-link"
+          :data-nav-key="link.key"
+          :aria-current="isNavLinkActive(link) ? 'page' : undefined"
           @click="onNavClick"
         >
-          {{ link.label }}
+          <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">
+            {{ link.icon }}
+          </span>
+          <span class="mobile-nav-label">{{ link.label }}</span>
         </router-link>
       </nav>
     </Transition>
@@ -359,29 +399,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
 .nav-link {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
+  justify-content: center;
+  gap: 0;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 7px;
   color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 500;
   text-decoration: none;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-  position: relative;
+  transition:
+    width 0.18s ease,
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
 }
 
-.nav-link::after {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 2px;
-  background: var(--color-primary);
-  border-radius: 2px;
-  transition: width 0.2s ease;
+.nav-link .material-symbols-outlined {
+  font-size: 19px;
+  line-height: 1;
 }
 
 .nav-link:hover {
@@ -391,21 +428,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
   text-decoration: none;
 }
 
-.nav-link:hover::after {
-  width: 50%;
+.nav-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .nav-link.router-link-active,
 .nav-link.is-active {
+  width: auto;
+  gap: 5px;
+  padding: 0 9px;
   color: var(--color-primary);
   border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  font-weight: 600;
 }
 
-.nav-link.router-link-active::after,
-.nav-link.is-active::after {
-  width: 70%;
+.nav-link-label {
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .icon-btn,
@@ -453,12 +494,6 @@ a.theme-toggle:hover {
   background: color-mix(in srgb, var(--color-danger, #cf222e) 8%, transparent);
 }
 
-.locale-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
-
 .icon-btn .material-symbols-outlined,
 .theme-toggle .material-symbols-outlined {
   font-size: 20px;
@@ -496,7 +531,9 @@ a.theme-toggle:hover {
 }
 
 .mobile-nav-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   padding: 10px 4px;
   border: none;
@@ -510,9 +547,23 @@ a.theme-toggle:hover {
   cursor: pointer;
 }
 
+.mobile-nav-link .material-symbols-outlined {
+  width: 22px;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .mobile-nav-link:hover {
   background: var(--color-bg-hover);
   text-decoration: none;
+}
+
+.mobile-nav-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 /* Mobile nav slide-down transition */
@@ -562,11 +613,6 @@ a.theme-toggle:hover {
 
   .search-form {
     max-width: 280px;
-  }
-
-  .nav-link {
-    padding: 0 8px;
-    font-size: 11px;
   }
 }
 </style>

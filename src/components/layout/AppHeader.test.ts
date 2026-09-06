@@ -1,22 +1,50 @@
 import { createPinia } from 'pinia'
-import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { reactive } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AppHeader from './AppHeader.vue'
-import { i18n } from '@/i18n'
+import { i18n, setLocale } from '@/i18n'
 
 const push = vi.fn()
+enableAutoUnmount(afterEach)
+
+const route = reactive({
+  name: 'views',
+  path: '/views',
+  params: {} as Record<string, string>,
+  query: {} as Record<string, string>
+})
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push }),
-  useRoute: () => ({ name: 'workspace', path: '/', params: {}, query: {} })
+  useRoute: () => route
 }))
 vi.mock('@/api/sync', () => ({
   postWikiFullSync: vi.fn()
 }))
 
+function mountHeader() {
+  return mount(AppHeader, {
+    global: {
+      plugins: [createPinia(), i18n],
+      stubs: {
+        RouterLink: { template: '<a><slot /></a>' },
+        ThemeModeIcon: true,
+        MdwikiMark: true
+      }
+    }
+  })
+}
+
 describe('AppHeader search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
+    route.name = 'views'
+    route.path = '/views'
+    route.params = {}
+    route.query = {}
+    setLocale('en')
     window.matchMedia = vi.fn().mockReturnValue({
       matches: false,
       addEventListener: vi.fn(),
@@ -25,16 +53,7 @@ describe('AppHeader search', () => {
   })
 
   it('navigates to canonical hybrid search URL', async () => {
-    const wrapper = mount(AppHeader, {
-      global: {
-        plugins: [createPinia(), i18n],
-        stubs: {
-          RouterLink: { template: '<a><slot /></a>' },
-          ThemeModeIcon: true,
-          MdwikiMark: true
-        }
-      }
-    })
+    const wrapper = mountHeader()
 
     await wrapper.get('.search-form input').setValue('knowledge')
     await wrapper.get('.search-form').trigger('submit.prevent')
@@ -49,12 +68,7 @@ describe('AppHeader search', () => {
     localStorage.setItem('token', 'token')
     localStorage.setItem('username', 'editor')
     localStorage.setItem('role', 'EDITOR')
-    const wrapper = mount(AppHeader, {
-      global: {
-        plugins: [createPinia(), i18n],
-        stubs: { RouterLink: { template: '<a><slot /></a>' }, ThemeModeIcon: true, MdwikiMark: true }
-      }
-    })
+    const wrapper = mountHeader()
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'N', shiftKey: true, metaKey: true, bubbles: true }))
     wrapper.get('.search-form input').element.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'N', shiftKey: true, metaKey: true, bubbles: true })
@@ -64,5 +78,47 @@ describe('AppHeader search', () => {
     wrapper.unmount()
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'N', shiftKey: true, metaKey: true }))
     expect(push).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders desktop navigation as icons and labels only the active route', () => {
+    const wrapper = mountHeader()
+    const views = wrapper.get('[data-nav-key="views"]')
+    const recent = wrapper.get('[data-nav-key="recent"]')
+
+    expect(views.get('.material-symbols-outlined').text()).toBe('view_list')
+    expect(views.get('.nav-link-label').text()).toBe('Views')
+    expect(views.attributes('aria-label')).toBe('Views')
+    expect(views.attributes('title')).toBe('Views')
+
+    expect(recent.get('.material-symbols-outlined').text()).toBe('history')
+    expect(recent.find('.nav-link-label').exists()).toBe(false)
+    expect(recent.attributes('aria-label')).toBe('Recent')
+  })
+
+  it('marks manually matched child routes as the current page', async () => {
+    route.path = '/views/123'
+    const wrapper = mountHeader()
+
+    expect(wrapper.get('.nav-link[data-nav-key="views"]').attributes('aria-current')).toBe('page')
+
+    await wrapper.get('.header-actions-mobile .icon-btn').trigger('click')
+    expect(wrapper.get('.mobile-nav-link[data-nav-key="views"]').attributes('aria-current')).toBe('page')
+  })
+
+  it('keeps icon labels in mobile navigation and exposes language accessibly', async () => {
+    const wrapper = mountHeader()
+    await wrapper.get('.header-actions-mobile .icon-btn').trigger('click')
+
+    const mobileViews = wrapper.get('.mobile-nav-link[data-nav-key="views"]')
+    expect(mobileViews.get('.material-symbols-outlined').text()).toBe('view_list')
+    expect(mobileViews.get('.mobile-nav-label').text()).toBe('Views')
+
+    const localeButtons = wrapper.findAll('.locale-toggle')
+    expect(localeButtons).toHaveLength(2)
+    for (const button of localeButtons) {
+      expect(button.get('.material-symbols-outlined').text()).toBe('language')
+      expect(button.text()).not.toMatch(/\b(EN|RU)\b/)
+      expect(button.attributes('aria-label')).toContain('EN')
+    }
   })
 })

@@ -442,6 +442,7 @@ export const en = {
     themeDark: 'Theme: Dark',
     themeSystem: 'Theme: System',
     language: 'Language',
+    languageCurrent: 'Language: {language}',
     openDocuments: 'Open documents',
     navMenu: 'Navigation menu',
     mainNav: 'Main navigation',
