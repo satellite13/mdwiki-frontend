@@ -4,6 +4,7 @@ import { reactive } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AppHeader from './AppHeader.vue'
 import { i18n, setLocale } from '@/i18n'
+import { localIsoDate } from '@/utils/pkm'
 
 const push = vi.fn()
 enableAutoUnmount(afterEach)
@@ -170,5 +171,19 @@ describe('AppHeader search', () => {
     expect(logo.find('.logo-mark').exists()).toBe(true)
     expect(logo.get('.logo-text').text()).toBe('MDWiki')
     expect(logo.attributes('aria-label')).toBe('MDWiki')
+  })
+
+  it('keeps Today labeled after redirect to the daily note page', () => {
+    const today = localIsoDate()
+    route.name = 'page'
+    route.path = `/page/daily-11111111-2222-3333-4444-555555555555-${today}`
+    route.params = { slug: `daily-11111111-2222-3333-4444-555555555555-${today}` }
+
+    const wrapper = mountHeader()
+    const todayLink = wrapper.get('.nav-link[data-nav-key="daily"]')
+
+    expect(todayLink.get('.nav-link-label').text()).toBe('Today')
+    expect(todayLink.attributes('aria-current')).toBe('page')
+    expect(wrapper.find('.nav-link[data-nav-key="views"] .nav-link-label').exists()).toBe(false)
   })
 })
