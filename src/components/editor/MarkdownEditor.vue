@@ -812,7 +812,7 @@ defineExpose({
         <ReadingBottomSheet
           v-if="isReadingSheet"
           :open="sheetHasToc"
-          :aria-label="t('reading.toc')"
+          :ariaLabel="t('reading.toc')"
         >
           <ReadingToc
             :items="readingTocItems"
@@ -827,7 +827,7 @@ defineExpose({
         <ReadingBottomSheet
           v-if="isReadingSheet"
           :open="annotationsVisible"
-          :aria-label="t('annotations.panel', { count: annotations.length })"
+          :ariaLabel="t('annotations.panel', { count: annotations.length })"
         >
           <AnnotationPanel
             :annotations="annotations"
