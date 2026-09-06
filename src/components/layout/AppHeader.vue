@@ -535,7 +535,7 @@ a.theme-toggle:hover {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 4px;
+  padding: 10px 8px;
   border: none;
   background: transparent;
   color: var(--color-text);
