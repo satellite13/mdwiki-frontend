@@ -86,8 +86,9 @@ describe('PageHistory', () => {
     await flushPromises()
     expect(wrapper.get('.restore-action button').text()).toContain('Restore revision #2')
     expect(wrapper.find('.restore-hint').exists()).toBe(false)
-    expect(wrapper.find('.help-tip-trigger').exists()).toBe(true)
-    await wrapper.get('.help-tip-trigger').trigger('click')
+    const restoreHelp = wrapper.find('.field-label-row .help-tip-trigger')
+    expect(restoreHelp.exists()).toBe(true)
+    await restoreHelp.trigger('click')
     expect(document.body.textContent).toContain('The button restores the “From” revision content')
   })
 

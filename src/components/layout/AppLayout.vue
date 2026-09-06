@@ -133,14 +133,18 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .app-layout {
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .app-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   position: relative;
 }
 
@@ -157,12 +161,13 @@ onBeforeUnmount(() => {
   flex-direction: column;
   padding: 24px 32px;
   overflow-y: auto;
-  height: calc(100vh - var(--app-header-height));
+  overscroll-behavior: contain;
   background: var(--color-bg);
 }
 
 .app-main:has(.workspace) {
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .app-main:has(.workspace) > :deep(*) {
@@ -174,7 +179,6 @@ onBeforeUnmount(() => {
 
 .app-layout.reading-mode .app-main {
   padding: 0;
-  height: 100vh;
 }
 
 .sidebar-backdrop {

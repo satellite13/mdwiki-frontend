@@ -76,6 +76,28 @@
   margin-bottom: 1.25rem;
 }
 
+.title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  flex-wrap: wrap;
+}
+
+.title-row h1,
+.title-row h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  margin: 0;
+}
+
+/* Подпись и ? — один текстовый ряд, общий размер шрифта */
+.field-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
 .page-subtitle {
   margin: 0.35rem 0 0;
   color: var(--color-text-muted, #656d76);
@@ -226,6 +248,11 @@
 }
 
 @media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .library-list li {
     align-items: flex-start;
     flex-direction: column;
@@ -236,6 +263,14 @@
   display: block;
   margin-bottom: 0.35rem;
   font-weight: 600;
+}
+
+.field-label:has(.help-tip),
+.field-label-row .field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  margin-bottom: 0;
 }
 
 .field-input {

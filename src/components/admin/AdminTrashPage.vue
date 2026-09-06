@@ -7,6 +7,7 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import AdminNav from '@/components/admin/AdminNav.vue'
+import HelpTip from '@/components/ui/HelpTip.vue'
 
 const { t } = useI18n()
 const dialog = useDialogStore()
@@ -59,8 +60,14 @@ onMounted(fetchDeleted)
 <template>
   <div class="admin-trash">
     <AdminNav />
-    <h1>{{ t('admin.trashTitle') }}</h1>
-    <p class="trash-subtitle">{{ t('admin.trashSubtitle') }}</p>
+    <div class="title-row">
+      <h1>
+        {{ t('admin.trashTitle') }}
+        <HelpTip :label="t('admin.trashTitle')">
+          <p>{{ t('admin.trashSubtitle') }}</p>
+        </HelpTip>
+      </h1>
+    </div>
     <div v-if="loading" class="state-placeholder"><SkeletonPage variant="table" /></div>
     <p v-else-if="pages.length === 0" class="trash-empty">{{ t('admin.trashEmpty') }}</p>
     <div v-else class="table-scroll">
@@ -94,15 +101,12 @@ onMounted(fetchDeleted)
 </template>
 
 <style scoped>
-.admin-trash h1 {
-  font-family: var(--font-body);
-  margin-bottom: 8px;
+.admin-trash .title-row {
+  margin-bottom: 28px;
 }
 
-.trash-subtitle {
-  margin: 0 0 28px;
-  color: var(--color-text-muted);
-  font-size: 14px;
+.admin-trash .title-row h1 {
+  font-family: var(--font-body);
 }
 
 .trash-empty {
@@ -168,7 +172,7 @@ onMounted(fetchDeleted)
     margin-bottom: 6px;
   }
 
-  .trash-subtitle {
+  .admin-trash .title-row {
     margin-bottom: 20px;
   }
 

@@ -714,6 +714,24 @@ async function copySectionLink(sectionKey: string, stableId?: string): Promise<b
     min-width: 0;
   }
 
+  .header-actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .save-slot {
+    order: 1;
+    flex: 1 1 100%;
+    min-width: 0;
+    min-height: 1.25rem;
+    margin-right: 0;
+    justify-content: flex-start;
+  }
+
   .graph-area {
     height: 220px;
   }

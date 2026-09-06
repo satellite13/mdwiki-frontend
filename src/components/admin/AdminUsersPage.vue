@@ -174,6 +174,15 @@ onMounted(fetchUsers)
     margin-bottom: 20px;
   }
 
+  .table-scroll {
+    overflow: visible;
+  }
+
+  .users-table {
+    min-width: 0;
+    width: 100%;
+  }
+
   .users-table thead {
     display: none;
   }
@@ -198,6 +207,8 @@ onMounted(fetchUsers)
     padding: 3px 0;
     border-bottom: none;
     text-align: left;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .users-table td::before {
@@ -221,6 +232,10 @@ onMounted(fetchUsers)
     display: none !important;
   }
 
+  .user-email {
+    overflow-wrap: anywhere;
+  }
+
   .role-cell {
     display: flex;
     align-items: center;
@@ -235,7 +250,7 @@ onMounted(fetchUsers)
   .actions-cell {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: stretch;
     gap: 8px;
     margin-top: 10px;
     padding-top: 10px;
@@ -247,7 +262,10 @@ onMounted(fetchUsers)
   }
 
   .users-table :deep(.role-select) {
-    min-width: 8rem;
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .users-table :deep(.role-select .app-select-trigger) {
@@ -256,6 +274,7 @@ onMounted(fetchUsers)
   }
 
   .btn-delete-user {
+    flex: 1 1 auto;
     min-height: 36px;
     min-width: 44px;
     padding: 6px 14px;

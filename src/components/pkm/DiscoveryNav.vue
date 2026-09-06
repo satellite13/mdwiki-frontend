@@ -13,24 +13,27 @@ const { t } = useI18n()
       role="tab"
       :aria-selected="route.name === 'unlinked-mentions'"
       :aria-current="route.name === 'unlinked-mentions' ? 'page' : undefined"
+      :title="t('pkm.unlinked')"
     >
-      {{ t('pkm.unlinked') }}
+      {{ t('pkm.unlinkedNav') }}
     </router-link>
     <router-link
       to="/links/orphans"
       role="tab"
       :aria-selected="route.name === 'orphans'"
       :aria-current="route.name === 'orphans' ? 'page' : undefined"
+      :title="t('pkm.orphans')"
     >
-      {{ t('pkm.orphans') }}
+      {{ t('pkm.orphansNav') }}
     </router-link>
     <router-link
       to="/broken-links"
       role="tab"
       :aria-selected="route.name === 'broken-links'"
       :aria-current="route.name === 'broken-links' ? 'page' : undefined"
+      :title="t('header.brokenLinks')"
     >
-      {{ t('header.brokenLinks') }}
+      {{ t('pkm.brokenNav') }}
     </router-link>
   </nav>
 </template>
@@ -45,6 +48,9 @@ const { t } = useI18n()
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg-secondary);
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .discovery-nav a {
@@ -52,6 +58,7 @@ const { t } = useI18n()
   align-items: center;
   justify-content: center;
   min-height: 36px;
+  min-width: 0;
   padding: 0 12px;
   border: 0;
   border-radius: 6px;
@@ -70,12 +77,14 @@ const { t } = useI18n()
 
 @media (max-width: 767px) {
   .discovery-nav {
+    display: flex;
     width: 100%;
+    flex-shrink: 1;
   }
 
   .discovery-nav a {
-    flex: 1;
-    padding: 0 8px;
+    flex: 1 1 0;
+    padding: 0 6px;
     font-size: 0.85rem;
   }
 }

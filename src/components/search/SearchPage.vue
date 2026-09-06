@@ -350,11 +350,15 @@ watch(() => route.query.saved, (saved) => {
   <div class="grouped-page search-page">
     <div class="page-header">
       <div>
-        <h1>{{ t('search.title') }}</h1>
-        <p class="page-subtitle">
-          <template v-if="query">{{ t('search.resultsFor', { query }) }}</template>
-          <template v-else>{{ t('search.subtitle') }}</template>
-        </p>
+        <div class="title-row">
+          <h1>
+            {{ t('search.title') }}
+            <HelpTip :label="t('search.title')">
+              <p>{{ t('search.subtitle') }}</p>
+            </HelpTip>
+          </h1>
+        </div>
+        <p v-if="query" class="page-subtitle">{{ t('search.resultsFor', { query }) }}</p>
       </div>
       <router-link class="btn-secondary" to="/saved-searches">
         {{ t('savedSearches.title') }}
@@ -539,6 +543,10 @@ watch(() => route.query.saved, (saved) => {
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
+}
+
+.mode-row > :deep(.help-tip) {
+  font-size: 0.875rem;
 }
 
 .search-modes {

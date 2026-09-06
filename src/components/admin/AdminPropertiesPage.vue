@@ -80,11 +80,13 @@ onMounted(load)
 <template>
   <main class="admin-properties">
     <AdminNav />
-    <div class="admin-title-row">
-      <h1>{{ t('adminProperties.title') }}</h1>
-      <HelpTip :label="t('adminProperties.title')">
-        <p>{{ t('adminProperties.subtitle') }}</p>
-      </HelpTip>
+    <div class="title-row">
+      <h1>
+        {{ t('adminProperties.title') }}
+        <HelpTip :label="t('adminProperties.title')">
+          <p>{{ t('adminProperties.subtitle') }}</p>
+        </HelpTip>
+      </h1>
     </div>
     <p v-if="error" role="alert">{{ error }}</p>
 
@@ -156,15 +158,8 @@ onMounted(load)
   padding: 0 0 2rem;
 }
 
-.admin-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.admin-properties .title-row {
   margin-bottom: 1.25rem;
-}
-
-.admin-title-row h1 {
-  margin: 0;
 }
 
 .create-form {

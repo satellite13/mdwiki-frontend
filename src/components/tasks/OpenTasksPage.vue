@@ -11,6 +11,7 @@ import AppModal from '@/components/ui/AppModal.vue'
 import CountBadge from '@/components/ui/CountBadge.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import { invalidatePageIndex } from '@/services/pageIndex'
+import HelpTip from '@/components/ui/HelpTip.vue'
 
 interface TaskGroup {
   documentId: string
@@ -115,8 +116,14 @@ onMounted(fetchOpenTasks)
   <div class="grouped-page">
     <div class="page-header">
       <div>
-        <h1>{{ t('tasks.title') }}</h1>
-        <p class="page-subtitle">{{ t('tasks.subtitle') }}</p>
+        <div class="title-row">
+          <h1>
+            {{ t('tasks.title') }}
+            <HelpTip :label="t('tasks.title')">
+              <p>{{ t('tasks.subtitle') }}</p>
+            </HelpTip>
+          </h1>
+        </div>
       </div>
       <button type="button" class="btn-secondary" :disabled="loading" @click="fetchOpenTasks">
         {{ t('tasks.refresh') }}

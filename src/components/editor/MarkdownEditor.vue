@@ -251,10 +251,18 @@ const {
   editorMode
 })
 
-const readonlyHistoryActions = computed(() =>
-  props.readonly ? historyActions.value.filter((action) => action.key === 'find') : historyActions.value
+/** В preview/readonly правки недоступны — прячем иконки редактирования. */
+const hideEditToolbar = computed(
+  () => props.readonly || editorMode.value === 'preview'
 )
-const readonlyModeActions = computed(() =>
+
+const toolbarHistoryActions = computed(() =>
+  hideEditToolbar.value
+    ? historyActions.value.filter((action) => action.key === 'find')
+    : historyActions.value
+)
+
+const toolbarModeActions = computed(() =>
   props.readonly
     ? modeSwitchActions.value.filter((action) => action.key === 'mode-preview' || action.key === 'mode-reading')
     : modeSwitchActions.value
@@ -737,9 +745,9 @@ defineExpose({
           :inline-format-actions="inlineFormatActions"
           :list-and-block-actions="listAndBlockActions"
           :quick-insert-actions="quickInsertActions"
-          :history-actions="readonlyHistoryActions"
-          :mode-switch-actions="readonlyModeActions"
-          :readonly="props.readonly"
+          :history-actions="toolbarHistoryActions"
+          :mode-switch-actions="toolbarModeActions"
+          :readonly="hideEditToolbar"
           :emoji-items="emojiItems"
           :property-definitions="propertyDefinitions"
           :on-apply-heading="applyHeading"
@@ -991,6 +999,8 @@ defineExpose({
   min-height: 0;
   display: grid;
   gap: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .editor-shell.mode-editor {

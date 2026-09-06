@@ -298,16 +298,18 @@ onMounted(load)
     <div class="page-header">
       <div>
         <div class="title-row">
-          <h1>{{ t('views.title') }}</h1>
-          <HelpTip :label="t('views.helpLabel')">
-            <p>{{ t('views.helpIntro') }}</p>
-            <p>{{ t('views.helpStep1') }}</p>
-            <p>{{ t('views.helpStep2') }}</p>
-            <p>{{ t('views.helpStep3') }}</p>
-            <p>{{ t('views.helpLimit') }}</p>
-          </HelpTip>
+          <h1>
+            {{ t('views.title') }}
+            <HelpTip :label="t('views.helpLabel')">
+              <p>{{ t('views.subtitle') }}</p>
+              <p>{{ t('views.helpIntro') }}</p>
+              <p>{{ t('views.helpStep1') }}</p>
+              <p>{{ t('views.helpStep2') }}</p>
+              <p>{{ t('views.helpStep3') }}</p>
+              <p>{{ t('views.helpLimit') }}</p>
+            </HelpTip>
+          </h1>
         </div>
-        <p class="page-subtitle">{{ t('views.subtitle') }}</p>
       </div>
     </div>
 
@@ -535,16 +537,6 @@ onMounted(load)
 </template>
 
 <style scoped>
-.title-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.title-row h1 {
-  margin: 0;
-}
-
 .create-card {
   padding: 1rem 1.1rem;
   margin-bottom: 1rem;

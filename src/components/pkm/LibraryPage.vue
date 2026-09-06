@@ -7,6 +7,7 @@ import type { SavedSearch, SavedView } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import CountBadge from '@/components/ui/CountBadge.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import HelpTip from '@/components/ui/HelpTip.vue'
 
 type Item = { page: { id: string; slug: string; title: string }; at: string; count?: number }
 const route = useRoute()
@@ -91,8 +92,14 @@ onBeforeUnmount(() => controller?.abort())
   <div class="grouped-page">
     <div class="page-header">
       <div>
-        <h1>{{ t(`pkm.${mode}`) }}</h1>
-        <p class="page-subtitle">{{ t(`pkm.${mode}Subtitle`) }}</p>
+        <div class="title-row">
+          <h1>
+            {{ t(`pkm.${mode}`) }}
+            <HelpTip :label="t(`pkm.${mode}`)">
+              <p>{{ t(`pkm.${mode}Subtitle`) }}</p>
+            </HelpTip>
+          </h1>
+        </div>
       </div>
       <div class="header-actions">
         <button type="button" class="btn-secondary" :disabled="loading" @click="load">

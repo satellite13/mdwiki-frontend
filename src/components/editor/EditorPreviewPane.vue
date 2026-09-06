@@ -96,6 +96,7 @@ defineExpose({
   border-radius: 8px;
   background: var(--color-bg);
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 14px;
 }
 

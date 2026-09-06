@@ -35,8 +35,9 @@ const sidebarStyle = computed(() => {
   flex-shrink: 0;
   background: var(--color-bg-secondary);
   border-right: 1px solid var(--color-border);
-  height: calc(100vh - var(--app-header-height));
+  height: 100%;
   overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .sidebar--drawer {

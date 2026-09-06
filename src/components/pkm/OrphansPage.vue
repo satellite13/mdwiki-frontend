@@ -7,6 +7,7 @@ import type { OrphanDefinition, OrphanPage } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import DiscoveryNav from './DiscoveryNav.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
+import HelpTip from '@/components/ui/HelpTip.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 
 const route = useRoute()
@@ -50,8 +51,14 @@ function changeDefinition(value: string | string[] | null) {
   <div class="grouped-page">
     <div class="page-header">
       <div>
-        <h1>{{ t('pkm.discovery') }}</h1>
-        <p class="page-subtitle">{{ t('pkm.orphansSubtitle') }}</p>
+        <div class="title-row">
+          <h1>
+            {{ t('pkm.discovery') }}
+            <HelpTip :label="t('pkm.discovery')">
+              <p>{{ t('pkm.orphansSubtitle') }}</p>
+            </HelpTip>
+          </h1>
+        </div>
       </div>
       <DiscoveryNav />
     </div>

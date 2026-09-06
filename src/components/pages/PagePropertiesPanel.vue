@@ -224,6 +224,9 @@ async function saveMulti(definition: PropertyDefinition, value: string[]) {
   align-items: center;
   gap: .35rem;
 }
+.properties-header > :deep(.help-tip) {
+  font-size: 1rem;
+}
 .properties-toggle {
   display: flex;
   align-items: center;

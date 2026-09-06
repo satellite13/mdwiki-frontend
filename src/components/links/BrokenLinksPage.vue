@@ -12,6 +12,7 @@ import AppModal from '@/components/ui/AppModal.vue'
 import CountBadge from '@/components/ui/CountBadge.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import DiscoveryNav from '@/components/pkm/DiscoveryNav.vue'
+import HelpTip from '@/components/ui/HelpTip.vue'
 
 interface BrokenLinkGroup {
   brokenTarget: string
@@ -140,8 +141,14 @@ onMounted(fetchBrokenLinks)
   <div class="grouped-page">
     <div class="page-header">
       <div>
-        <h1>{{ t('pkm.discovery') }}</h1>
-        <p class="page-subtitle">{{ t('brokenLinks.subtitle') }}</p>
+        <div class="title-row">
+          <h1>
+            {{ t('pkm.discovery') }}
+            <HelpTip :label="t('pkm.discovery')">
+              <p>{{ t('brokenLinks.subtitle') }}</p>
+            </HelpTip>
+          </h1>
+        </div>
       </div>
       <DiscoveryNav />
     </div>

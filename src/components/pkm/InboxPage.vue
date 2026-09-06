@@ -6,6 +6,7 @@ import type { CaptureResponse } from '@/types'
 import InboxTextCapture from './InboxTextCapture.vue'
 import InboxUrlCapture from './InboxUrlCapture.vue'
 import InboxImageCapture from './InboxImageCapture.vue'
+import HelpTip from '@/components/ui/HelpTip.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -37,8 +38,14 @@ function onCaptured(response: CaptureResponse) {
   <div class="grouped-page">
     <div class="page-header">
       <div>
-        <h1>{{ t('pkm.inbox') }}</h1>
-        <p class="page-subtitle">{{ t('pkm.inboxSubtitle') }}</p>
+        <div class="title-row">
+          <h1>
+            {{ t('pkm.inbox') }}
+            <HelpTip :label="t('pkm.inbox')">
+              <p>{{ t('pkm.inboxSubtitle') }}</p>
+            </HelpTip>
+          </h1>
+        </div>
       </div>
     </div>
 

@@ -143,6 +143,25 @@ describe('MarkdownEditor readonly', () => {
     expect(wrapper.find('.mode-preview').exists()).toBe(true)
   })
 
+  it('hides editing icons in preview mode for editors', async () => {
+    window.localStorage.setItem('mdwiki-editor-mode', 'preview')
+    const wrapper = mountEditor(false)
+    await flushPromises()
+
+    expect(wrapper.find('.formatting-control').exists()).toBe(false)
+    expect(wrapper.find('.history-undo').exists()).toBe(false)
+    expect(wrapper.find('.history-redo').exists()).toBe(false)
+    expect(wrapper.find('.history-find').exists()).toBe(true)
+    expect(wrapper.find('.mode-editor').exists()).toBe(true)
+    expect(wrapper.find('.mode-split').exists()).toBe(true)
+    expect(wrapper.find('.mode-preview').exists()).toBe(true)
+
+    await wrapper.get('.mode-editor').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.formatting-control').exists()).toBe(true)
+    expect(wrapper.find('.history-undo').exists()).toBe(true)
+  })
+
   it('localizes the add annotation action', async () => {
     i18n.global.locale.value = 'ru'
     window.localStorage.setItem('mdwiki-editor-mode', 'preview')

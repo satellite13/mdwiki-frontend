@@ -35,17 +35,27 @@
 }
 
 html {
+  height: 100%;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -webkit-font-feature-settings: 'liga';
   font-feature-settings: 'liga';
+  overscroll-behavior: none;
 }
 
 body {
+  height: 100%;
+  overflow: hidden;
   font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-bg);
   line-height: 1.6;
+  overscroll-behavior: none;
+}
+
+#app {
+  height: 100%;
+  overflow: hidden;
 }
 
 h1, h2, h3, h4, h5, h6 {

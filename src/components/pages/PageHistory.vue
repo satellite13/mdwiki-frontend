@@ -123,8 +123,14 @@ watch(() => route.params.slug, () => {
   <main class="grouped-page history-page">
     <div class="page-header">
       <div>
-        <h1>{{ t('history.title') }}</h1>
-        <p class="page-subtitle">{{ t('history.subtitle') }}</p>
+        <div class="title-row">
+          <h1>
+            {{ t('history.title') }}
+            <HelpTip :label="t('history.title')">
+              <p>{{ t('history.subtitle') }}</p>
+            </HelpTip>
+          </h1>
+        </div>
       </div>
       <router-link class="btn-secondary history-back" :to="`/page/${encodeURIComponent(slug)}`">
         {{ t('history.back') }}
@@ -142,10 +148,12 @@ watch(() => route.params.slug, () => {
         <div class="selectors">
           <label>
             <span class="field-label-row">
-              <span class="field-label">{{ t('history.before') }}</span>
-              <HelpTip :label="t('history.restoreHelpLabel')">
-                <p>{{ t('history.restoreHint') }}</p>
-              </HelpTip>
+              <span class="field-label">
+                {{ t('history.before') }}
+                <HelpTip :label="t('history.restoreHelpLabel')">
+                  <p>{{ t('history.restoreHint') }}</p>
+                </HelpTip>
+              </span>
             </span>
             <AppSelect
               :model-value="before ? String(before.revisionNo) : null"
@@ -215,12 +223,6 @@ watch(() => route.params.slug, () => {
   gap: 0.35rem;
   min-width: min(100%, 16rem);
   flex: 1 1 14rem;
-}
-
-.field-label-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
 }
 
 .field-label {

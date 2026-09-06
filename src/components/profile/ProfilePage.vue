@@ -131,11 +131,13 @@ onBeforeUnmount(() => {
       <p><strong>{{ t('profile.roleLabel') }}</strong> <span class="role-badge">{{ auth.role }}</span></p>
     </div>
 
-    <div class="section-title-row">
-      <h2>{{ t('profile.changePasswordTitle') }}</h2>
-      <HelpTip :label="t('profile.changePasswordTitle')">
-        <p>{{ t('profile.changePasswordHint') }}</p>
-      </HelpTip>
+    <div class="title-row">
+      <h2>
+        {{ t('profile.changePasswordTitle') }}
+        <HelpTip :label="t('profile.changePasswordTitle')">
+          <p>{{ t('profile.changePasswordHint') }}</p>
+        </HelpTip>
+      </h2>
     </div>
 
     <form class="password-form" @submit.prevent="changePasswordAction">
@@ -166,11 +168,13 @@ onBeforeUnmount(() => {
       </button>
     </form>
 
-    <div class="section-title-row">
-      <h2>{{ t('profile.apiKeysTitle') }}</h2>
-      <HelpTip :label="t('profile.apiKeysTitle')">
-        <p>{{ t('profile.apiKeysHint') }}</p>
-      </HelpTip>
+    <div class="title-row">
+      <h2>
+        {{ t('profile.apiKeysTitle') }}
+        <HelpTip :label="t('profile.apiKeysTitle')">
+          <p>{{ t('profile.apiKeysHint') }}</p>
+        </HelpTip>
+      </h2>
     </div>
 
     <div v-if="createdKey" class="key-created">
@@ -217,12 +221,13 @@ onBeforeUnmount(() => {
   font-size: 1.3rem;
 }
 
-.section-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
+.profile-page .title-row {
   margin-top: 36px;
   margin-bottom: 8px;
+}
+
+.profile-page .title-row:first-of-type {
+  margin-top: 36px;
 }
 
 .profile-card {

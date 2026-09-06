@@ -139,6 +139,10 @@ onBeforeUnmount(() => {
   position: relative;
   display: inline-flex;
   align-items: center;
+  align-self: center;
+  flex-shrink: 0;
+  /* Не участвует в baseline-выравнивании соседнего текста */
+  line-height: 0;
   vertical-align: middle;
 }
 
@@ -146,10 +150,12 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
+  box-sizing: border-box;
+  /* Масштаб от шрифта родителя (h1 / label / h2) */
+  width: 1.15em;
+  height: 1.15em;
+  min-width: 1.15em;
+  min-height: 1.15em;
   padding: 0;
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -159,8 +165,10 @@ onBeforeUnmount(() => {
 }
 
 .help-tip-trigger .material-symbols-outlined {
-  font-size: 18px;
+  font-size: 0.72em;
   line-height: 1;
+  display: block;
+  font-weight: 400;
 }
 
 .help-tip-trigger:hover,

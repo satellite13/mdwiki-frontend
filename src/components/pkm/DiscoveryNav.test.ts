@@ -19,6 +19,8 @@ describe('DiscoveryNav', () => {
       '/links/orphans',
       '/broken-links',
     ])
+    expect(links.map((link) => link.text())).toEqual(['Unlinked', 'Orphans', 'Broken'])
     expect(links[0].attributes('aria-current')).toBe('page')
+    expect(links[0].attributes('title')).toBe('Unlinked mentions')
   })
 })

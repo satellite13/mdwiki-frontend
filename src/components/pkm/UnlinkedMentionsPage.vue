@@ -81,8 +81,14 @@ async function link(item: UnlinkedMention) {
   <div class="grouped-page">
     <div class="page-header">
       <div>
-        <h1>{{ t('pkm.discovery') }}</h1>
-        <p class="page-subtitle">{{ t('pkm.unlinkedSubtitle') }}</p>
+        <div class="title-row">
+          <h1>
+            {{ t('pkm.discovery') }}
+            <HelpTip :label="t('pkm.discovery')">
+              <p>{{ t('pkm.unlinkedSubtitle') }}</p>
+            </HelpTip>
+          </h1>
+        </div>
       </div>
       <DiscoveryNav />
     </div>
@@ -90,10 +96,12 @@ async function link(item: UnlinkedMention) {
     <section class="group-card discovery-toolbar">
       <label class="toolbar-field">
         <span class="field-label-row">
-          <span class="field-label">{{ t('pkm.targetPage') }}</span>
-          <HelpTip :label="t('pkm.targetPageHelpLabel')">
-            <p>{{ t('pkm.targetPageHelp') }}</p>
-          </HelpTip>
+          <span class="field-label">
+            {{ t('pkm.targetPage') }}
+            <HelpTip :label="t('pkm.targetPageHelpLabel')">
+              <p>{{ t('pkm.targetPageHelp') }}</p>
+            </HelpTip>
+          </span>
         </span>
         <AppSelect
           v-model="target"
@@ -137,12 +145,6 @@ async function link(item: UnlinkedMention) {
 </template>
 
 <style scoped>
-.field-label-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
 .toolbar-field :deep(.app-select) {
   box-sizing: border-box;
   display: block;
