@@ -4,11 +4,7 @@ import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { useFolderStore } from '@/stores/folders'
-import { useDialogStore } from '@/stores/dialog'
 import { useEditorUiStore } from '@/stores/editorUi'
-import { postWikiFullSync } from '@/api/sync'
-import { getApiErrorMessage } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import { getLocale, toggleLocale } from '@/i18n'
 import ThemeModeIcon from './ThemeModeIcon.vue'
@@ -17,33 +13,12 @@ import { isCaptureShortcut } from '@/utils/pkm'
 
 const { t } = useI18n()
 const auth = useAuthStore()
-const folderStore = useFolderStore()
-const dialog = useDialogStore()
 const themeStore = useThemeStore()
 const editorUi = useEditorUiStore()
 const { mobileNavOpen } = storeToRefs(editorUi)
 const router = useRouter()
 const route = useRoute()
 const searchQuery = ref('')
-const syncWikiLoading = ref(false)
-
-async function onSyncWikiFromDisk() {
-  const ok = await dialog.confirm(t('admin.syncWikiConfirm'), {
-    title: t('admin.syncWikiTitle'),
-    confirmLabel: t('admin.syncWikiButton')
-  })
-  if (!ok) return
-  syncWikiLoading.value = true
-  try {
-    const { data } = await postWikiFullSync()
-    await folderStore.fetchTree(true)
-    await dialog.alert(t('admin.syncWikiDone', { added: data.added, updated: data.updated, removed: data.removed }))
-  } catch (e) {
-    await dialog.alert(getApiErrorMessage(e, t('admin.syncWikiFailed')))
-  } finally {
-    syncWikiLoading.value = false
-  }
-}
 
 const graphLinkTo = computed(() => {
   if (route.name === 'page' && typeof route.params.slug === 'string' && route.params.slug.length > 0) {
@@ -52,18 +27,18 @@ const graphLinkTo = computed(() => {
   return { name: 'wiki-graph' }
 })
 
-// Общие ссылки desktop- и mobile-навигации (Admin/sync/logout добавляются отдельно).
-const navLinks = computed<{ to: RouteLocationRaw; label: string; title?: string }[]>(() => [
-  { to: '/inbox', label: t('pkm.inbox') },
-  { to: '/daily', label: t('pkm.today') },
-  { to: '/recent', label: t('pkm.recent') },
-  { to: '/favorites', label: t('pkm.favorites') },
-  { to: '/links/unlinked', label: t('pkm.discovery') },
-  { to: graphLinkTo.value, label: t('header.graph'), title: t('header.graphTitle') },
-  { to: '/broken-links', label: t('header.brokenLinks') },
-  { to: '/tasks', label: t('header.tasks') },
-  { to: '/attachments', label: t('header.attachments') },
-  { to: '/profile', label: auth.username ?? '' }
+// Группы по смыслу: захват → личная библиотека → работа → структура.
+// Профиль / админ / тема / выход — иконки справа.
+const navLinks = computed<{ to: RouteLocationRaw; label: string; title?: string; key: string }[]>(() => [
+  { key: 'daily', to: '/daily', label: t('pkm.today') },
+  { key: 'recent', to: '/recent', label: t('pkm.recent') },
+  { key: 'favorites', to: '/favorites', label: t('pkm.favorites') },
+  { key: 'search-library', to: '/saved-searches', label: t('header.searchNav') },
+  { key: 'views', to: '/views', label: t('views.title') },
+  { key: 'tasks', to: '/tasks', label: t('header.tasks') },
+  { key: 'attachments', to: '/attachments', label: t('header.attachments') },
+  { key: 'discovery', to: '/links/unlinked', label: t('pkm.discovery') },
+  { key: 'graph', to: graphLinkTo.value, label: t('header.graph'), title: t('header.graphTitle') },
 ])
 
 const themeTitle = computed(() => {
@@ -121,19 +96,24 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
       <span>MDWiki</span>
     </router-link>
 
-    <router-link v-if="auth.isEditor" to="/inbox" class="quick-capture" :aria-label="t('pkm.quickCapture')"
-      :title="t('pkm.quickCaptureShortcut')">
-      <span class="material-symbols-outlined notranslate" translate="no">add</span>
-    </router-link>
-
     <form class="search-form" @submit.prevent="onSearch">
       <input v-model="searchQuery" :placeholder="t('header.searchPlaceholder')" type="search" />
     </form>
 
     <nav class="header-nav hide-mobile" :aria-label="t('header.mainNav')">
       <router-link
+        v-if="auth.isEditor"
+        to="/inbox"
+        class="quick-capture"
+        :aria-label="t('pkm.quickCapture')"
+        :title="t('pkm.quickCaptureShortcut')"
+        @click="onNavClick"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">add</span>
+      </router-link>
+      <router-link
         v-for="link in navLinks"
-        :key="link.label"
+        :key="link.key"
         :to="link.to"
         class="nav-link"
         :title="link.title"
@@ -142,39 +122,89 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
         {{ link.label }}
       </router-link>
       <router-link
-        v-if="auth.isAdmin"
-        to="/admin/users"
-        class="nav-link"
-        :class="{ 'is-active': route.path.startsWith('/admin') }"
+        to="/profile"
+        class="theme-toggle header-icon-link"
+        :class="{ 'is-active': route.path.startsWith('/profile') }"
+        :title="t('profile.title')"
+        :aria-label="t('profile.title')"
         @click="onNavClick"
       >
-        {{ t('header.admin') }}
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">person</span>
       </router-link>
-      <button
+      <router-link
         v-if="auth.isAdmin"
-        type="button"
-        class="sync-disk-btn hide-narrow"
-        :disabled="syncWikiLoading"
-        :title="t('admin.syncWikiTitle')"
-        @click="onSyncWikiFromDisk"
+        to="/admin/users"
+        class="theme-toggle header-icon-link"
+        :class="{ 'is-active': route.path.startsWith('/admin') }"
+        :title="t('header.admin')"
+        :aria-label="t('header.admin')"
+        @click="onNavClick"
       >
-        {{ syncWikiLoading ? '…' : t('admin.syncWikiButton') }}
-      </button>
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">settings</span>
+      </router-link>
       <button class="theme-toggle locale-toggle" @click="toggleLocale()" :title="t('header.language')">
         <span class="locale-label">{{ localeLabel }}</span>
       </button>
       <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
         <ThemeModeIcon :mode="themeStore.mode" />
       </button>
-      <button class="btn-secondary logout-btn hide-narrow" @click="logout">{{ t('header.logout') }}</button>
+      <button
+        type="button"
+        class="theme-toggle logout-icon"
+        :title="t('header.logout')"
+        :aria-label="t('header.logout')"
+        @click="logout"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">logout</span>
+      </button>
     </nav>
 
     <div class="header-actions-mobile show-mobile-only">
+      <router-link
+        v-if="auth.isEditor"
+        to="/inbox"
+        class="quick-capture"
+        :aria-label="t('pkm.quickCapture')"
+        :title="t('pkm.quickCaptureShortcut')"
+        @click="onNavClick"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">add</span>
+      </router-link>
+      <router-link
+        to="/profile"
+        class="theme-toggle header-icon-link"
+        :class="{ 'is-active': route.path.startsWith('/profile') }"
+        :title="t('profile.title')"
+        :aria-label="t('profile.title')"
+        @click="onNavClick"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">person</span>
+      </router-link>
+      <router-link
+        v-if="auth.isAdmin"
+        to="/admin/users"
+        class="theme-toggle header-icon-link"
+        :class="{ 'is-active': route.path.startsWith('/admin') }"
+        :title="t('header.admin')"
+        :aria-label="t('header.admin')"
+        @click="onNavClick"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">settings</span>
+      </router-link>
       <button class="theme-toggle locale-toggle" @click="toggleLocale()" :title="t('header.language')">
         <span class="locale-label">{{ localeLabel }}</span>
       </button>
       <button class="theme-toggle" @click="toggleTheme()" :title="themeTitle">
         <ThemeModeIcon :mode="themeStore.mode" />
+      </button>
+      <button
+        type="button"
+        class="theme-toggle logout-icon"
+        :title="t('header.logout')"
+        :aria-label="t('header.logout')"
+        @click="logout"
+      >
+        <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">logout</span>
       </button>
       <button
         type="button"
@@ -199,33 +229,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
         </div>
         <router-link
           v-for="link in navLinks"
-          :key="link.label"
+          :key="link.key"
           :to="link.to"
           class="mobile-nav-link"
           @click="onNavClick"
         >
           {{ link.label }}
         </router-link>
-        <router-link
-          v-if="auth.isAdmin"
-          to="/admin/users"
-          class="mobile-nav-link"
-          @click="onNavClick"
-        >
-          {{ t('header.admin') }}
-        </router-link>
-        <button
-          v-if="auth.isAdmin"
-          type="button"
-          class="mobile-nav-link mobile-nav-btn"
-          :disabled="syncWikiLoading"
-          @click="onSyncWikiFromDisk(); onNavClick()"
-        >
-          {{ syncWikiLoading ? '…' : t('admin.syncWikiButton') }}
-        </button>
-        <button type="button" class="mobile-nav-link mobile-nav-btn mobile-nav-logout" @click="logout">
-          {{ t('header.logout') }}
-        </button>
       </nav>
     </Transition>
   </header>
@@ -279,10 +289,41 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
 }
 
 .quick-capture {
-  display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;
-  color:var(--color-primary);border:1px solid var(--color-primary);text-decoration:none;flex-shrink:0
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  color: #fff;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
 }
-.quick-capture:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
+
+.quick-capture:hover {
+  color: #fff;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  text-decoration: none;
+}
+
+.quick-capture .material-symbols-outlined {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.quick-capture.router-link-active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+.quick-capture:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
 
 .search-form {
   flex: 1;
@@ -384,10 +425,32 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
   flex-shrink: 0;
 }
 
+a.theme-toggle {
+  text-decoration: none;
+}
+
+a.theme-toggle:hover {
+  text-decoration: none;
+  color: var(--color-text);
+}
+
 .icon-btn:hover,
 .theme-toggle:hover {
   color: var(--color-text);
   background: var(--color-bg-hover);
+}
+
+.header-icon-link.is-active,
+.header-icon-link.router-link-active {
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.logout-icon:hover {
+  color: var(--color-danger, #cf222e);
+  border-color: color-mix(in srgb, var(--color-danger, #cf222e) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger, #cf222e) 8%, transparent);
 }
 
 .locale-label {
@@ -396,32 +459,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
   letter-spacing: 0.5px;
 }
 
-.icon-btn .material-symbols-outlined {
+.icon-btn .material-symbols-outlined,
+.theme-toggle .material-symbols-outlined {
   font-size: 20px;
   line-height: 1;
-}
-
-.sync-disk-btn {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
-}
-
-.sync-disk-btn:hover:not(:disabled) {
-  color: var(--color-text);
-  background: var(--color-bg-hover);
-  border-color: var(--color-text-faint);
-}
-
-.sync-disk-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .header-actions-mobile {
@@ -472,14 +513,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
 .mobile-nav-link:hover {
   background: var(--color-bg-hover);
   text-decoration: none;
-}
-
-.mobile-nav-btn {
-  font-family: inherit;
-}
-
-.mobile-nav-logout {
-  color: var(--color-danger);
 }
 
 /* Mobile nav slide-down transition */

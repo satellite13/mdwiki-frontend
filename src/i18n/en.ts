@@ -374,6 +374,7 @@ export const en = {
     attachments: 'Attachments',
     admin: 'Admin',
     logout: 'Logout',
+    searchNav: 'Search',
     searchPlaceholder: 'Search pages...   ⌘K',
     themeLight: 'Theme: Light',
     themeDark: 'Theme: Dark',
@@ -521,6 +522,9 @@ export const en = {
   },
   pkm: {
     inbox: 'Inbox', today: 'Today', recent: 'Recent', favorites: 'Favorites', discovery: 'Discovery',
+    recentSubtitle: 'Pages you opened recently.',
+    favoritesSubtitle: 'Only starred searches, views, and pages.',
+    favoritePages: 'Pages',
     quickCapture: 'Quick capture', quickCaptureShortcut: 'Quick capture (Cmd/Ctrl+Shift+N)',
     readerCapture: 'Quick capture requires Editor or Admin permission.',
     captureType: 'Capture type', text: 'Text', url: 'URL', image: 'Image',

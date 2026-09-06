@@ -356,8 +356,8 @@ watch(() => route.query.saved, (saved) => {
           <template v-else>{{ t('search.subtitle') }}</template>
         </p>
       </div>
-      <router-link class="btn-secondary" to="/favorites">
-        {{ t('pkm.favorites') }}
+      <router-link class="btn-secondary" to="/saved-searches">
+        {{ t('savedSearches.title') }}
       </router-link>
     </div>
 

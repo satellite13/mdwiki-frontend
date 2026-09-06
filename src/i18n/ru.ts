@@ -374,6 +374,7 @@ export const ru = {
     attachments: 'Вложения',
     admin: 'Админ',
     logout: 'Выйти',
+    searchNav: 'Поиск',
     searchPlaceholder: 'Поиск страниц...   ⌘K',
     themeLight: 'Тема: светлая',
     themeDark: 'Тема: тёмная',
@@ -521,6 +522,9 @@ export const ru = {
   },
   pkm: {
     inbox: 'Входящие', today: 'Сегодня', recent: 'Недавние', favorites: 'Избранное', discovery: 'Обнаружение',
+    recentSubtitle: 'Страницы, которые вы недавно открывали.',
+    favoritesSubtitle: 'Только отмеченные звёздочкой поиски, представления и страницы.',
+    favoritePages: 'Страницы',
     quickCapture: 'Быстрый захват', quickCaptureShortcut: 'Быстрый захват (Cmd/Ctrl+Shift+N)',
     readerCapture: 'Для быстрого захвата нужна роль редактора или администратора.',
     captureType: 'Тип захвата', text: 'Текст', url: 'URL', image: 'Изображение',
