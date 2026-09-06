@@ -80,17 +80,35 @@ describe('AppHeader search', () => {
     expect(push).toHaveBeenCalledTimes(1)
   })
 
-  it('renders desktop navigation as icons and labels only the active route', () => {
+  it('renders every desktop navigation icon', () => {
+    const wrapper = mountHeader()
+    const mappings = [
+      ['daily', 'today'],
+      ['recent', 'history'],
+      ['favorites', 'star'],
+      ['search-library', 'saved_search'],
+      ['views', 'view_list'],
+      ['tasks', 'task_alt'],
+      ['attachments', 'attach_file'],
+      ['discovery', 'explore'],
+      ['graph', 'hub']
+    ] as const
+
+    expect(wrapper.findAll('.header-nav .nav-link')).toHaveLength(mappings.length)
+    for (const [key, icon] of mappings) {
+      expect(wrapper.get(`.header-nav [data-nav-key="${key}"] .material-symbols-outlined`).text()).toBe(icon)
+    }
+  })
+
+  it('labels only the active desktop route and exposes navigation accessibly', () => {
     const wrapper = mountHeader()
     const views = wrapper.get('[data-nav-key="views"]')
     const recent = wrapper.get('[data-nav-key="recent"]')
 
-    expect(views.get('.material-symbols-outlined').text()).toBe('view_list')
     expect(views.get('.nav-link-label').text()).toBe('Views')
     expect(views.attributes('aria-label')).toBe('Views')
     expect(views.attributes('title')).toBe('Views')
 
-    expect(recent.get('.material-symbols-outlined').text()).toBe('history')
     expect(recent.find('.nav-link-label').exists()).toBe(false)
     expect(recent.attributes('aria-label')).toBe('Recent')
   })

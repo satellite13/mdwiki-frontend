@@ -410,7 +410,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
   color: var(--color-text-muted);
   text-decoration: none;
   transition:
-    width 0.18s ease,
     color 0.15s,
     border-color 0.15s,
     background 0.15s;
@@ -590,7 +589,7 @@ a.theme-toggle:hover {
   max-height: 400px;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .app-header {
     padding: 0 12px;
     gap: 8px;
@@ -606,13 +605,12 @@ a.theme-toggle:hover {
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
-  .app-header {
-    padding: 0 14px;
-    gap: 12px;
+  .hide-mobile {
+    display: none !important;
   }
 
-  .search-form {
-    max-width: 280px;
+  .show-mobile-only {
+    display: flex !important;
   }
 }
 </style>
