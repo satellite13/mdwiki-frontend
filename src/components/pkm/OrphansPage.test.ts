@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { i18n } from '@/i18n'
+import { getDocumentByTestId } from '@/test/dom'
 import OrphansPage from './OrphansPage.vue'
 
 const route = reactive({ name: 'orphans', query: { definition: 'NO_INCOMING' } })
@@ -17,7 +18,7 @@ describe('OrphansPage navigation', () => {
     })
     await flushPromises()
     await wrapper.get('[data-testid="app-select-trigger"]').trigger('click')
-    await wrapper.get('[data-testid="app-select-option-NO_LINKS"]').trigger('click')
+    await getDocumentByTestId('app-select-option-NO_LINKS').trigger('click')
     expect(replace).toHaveBeenCalledWith({ query: { definition: 'NO_LINKS' } })
   })
 })

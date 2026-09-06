@@ -83,24 +83,6 @@ function changeDefinition(value: string | string[] | null) {
 </template>
 
 <style scoped>
-.discovery-toolbar {
-  padding: 1rem 1.1rem;
-  margin-bottom: 1rem;
-}
-
-.toolbar-field {
-  display: grid;
-  gap: 0.35rem;
-  width: min(100%, 40rem);
-}
-
-.toolbar-field .field-label {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 650;
-  color: var(--color-text-muted);
-}
-
 .toolbar-field :deep(.app-select) {
   display: block;
   width: 100%;

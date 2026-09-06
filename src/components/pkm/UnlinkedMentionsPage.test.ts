@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { i18n } from '@/i18n'
+import { getDocumentByTestId } from '@/test/dom'
 import UnlinkedMentionsPage from './UnlinkedMentionsPage.vue'
 
 const route = reactive({ name: 'unlinked-mentions', query: { target: 'target' as string | undefined } })
@@ -38,7 +39,7 @@ function mountPage() {
 async function pickAppSelectOption(wrapper: ReturnType<typeof mountPage>, value: string) {
   await wrapper.get('[data-testid="app-select-trigger"]').trigger('click')
   const testId = value === '' ? 'app-select-option-empty' : `app-select-option-${value}`
-  await wrapper.get(`[data-testid="${testId}"]`).trigger('click')
+  await getDocumentByTestId(testId).trigger('click')
 }
 
 describe('UnlinkedMentionsPage', () => {

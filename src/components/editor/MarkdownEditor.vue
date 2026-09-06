@@ -26,14 +26,17 @@ import EditorInputPane from '@/components/editor/EditorInputPane.vue'
 import AnnotationPanel from '@/components/annotations/AnnotationPanel.vue'
 import AnnotationPopup from '@/components/annotations/AnnotationPopup.vue'
 import AnnotationComment from '@/components/annotations/AnnotationComment.vue'
-import type { PageSectionMapResponse, ReadingTheme } from '@/types'
+import { useToolbarActions } from '@/components/editor/useToolbarActions'
+import * as propertiesApi from '@/api/properties'
+import { upsertFrontmatterField } from '@/utils/frontmatter'
+import { defaultPropertyYamlValue } from '@/utils/propertyDefaults'
+import type { PageSectionMapResponse, PropertyDefinition, ReadingTheme } from '@/types'
 import type { TocItem } from './tocTypes'
 import { usePreviewCopyDecorations } from '@/components/editor/usePreviewCopyDecorations'
 import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPipeline'
 import { useReadingToc } from '@/components/editor/useReadingToc'
 import { useSplitScrollSync } from '@/components/editor/useSplitScrollSync'
 import { scrollToAnnotation, useAnnotations } from '@/components/editor/useAnnotations'
-import { useToolbarActions } from '@/components/editor/useToolbarActions'
 import type MarkdownIt from 'markdown-it'
 import { renderStructurizrSvg } from './structurizr'
 import { applySectionMap, focusSection } from './sectionDeepLink'
@@ -105,6 +108,7 @@ const editorMode = ref<EditorMode>(
 const splitRatio = ref(readSplitRatioPref())
 const splitDragging = ref(false)
 const markdownValue = ref(props.modelValue)
+const propertyDefinitions = ref<PropertyDefinition[]>([])
 
 const history = useEditorHistory(props.modelValue)
 
@@ -304,6 +308,15 @@ function applyValue(value: string, options?: { keepHistory?: boolean }) {
   markdownValue.value = value
   emit('update:modelValue', value)
   if (!options?.keepHistory) history.push(value)
+}
+
+function insertProperty(definition: PropertyDefinition) {
+  if (props.readonly) return
+  applyValue(upsertFrontmatterField(
+    markdownValue.value,
+    definition.key,
+    defaultPropertyYamlValue(definition)
+  ))
 }
 
 function setMode(mode: EditorMode) {
@@ -635,6 +648,9 @@ onMounted(() => {
   emit('mode-change', editorMode.value)
   void getPages()
   void refreshPreview()
+  void propertiesApi.listPropertyDefinitions()
+    .then(({ data }) => { propertyDefinitions.value = data })
+    .catch(() => { propertyDefinitions.value = [] })
   window.addEventListener('keydown', onGlobalFindKeydown)
   if (editorMode.value === 'reading') {
     handleAnnotationPageChange()
@@ -709,9 +725,11 @@ defineExpose({
           :mode-switch-actions="readonlyModeActions"
           :readonly="props.readonly"
           :emoji-items="emojiItems"
+          :property-definitions="propertyDefinitions"
           :on-apply-heading="applyHeading"
           :on-apply-table-size="applyTableSize"
           :on-apply-emoji="applyEmoji"
+          :on-insert-property="insertProperty"
         />
       </template>
     </div>

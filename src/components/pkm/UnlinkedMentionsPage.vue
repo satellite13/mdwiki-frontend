@@ -137,28 +137,10 @@ async function link(item: UnlinkedMention) {
 </template>
 
 <style scoped>
-.discovery-toolbar {
-  padding: 1rem 1.1rem;
-  margin-bottom: 1rem;
-}
-
-.toolbar-field {
-  display: grid;
-  gap: 0.35rem;
-  width: min(100%, 40rem);
-}
-
 .field-label-row {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-}
-
-.toolbar-field .field-label {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 650;
-  color: var(--color-text-muted);
 }
 
 .toolbar-field :deep(.app-select) {

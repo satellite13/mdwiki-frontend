@@ -178,24 +178,4 @@ onBeforeUnmount(() => controller?.abort())
 .error-actions {
   margin-top: 0.75rem;
 }
-
-.group-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1rem 0.75rem;
-  border-bottom: 1px solid var(--color-border, #d0d7de);
-  background: color-mix(in srgb, var(--color-border, #d0d7de) 18%, transparent);
-}
-
-.group-header .group-title {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.5rem;
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-}
 </style>

@@ -18,6 +18,7 @@ import TreeContextMenu from './TreeContextMenu.vue'
 import BundleExportModal from './BundleExportModal.vue'
 import BundleImportModal from './BundleImportModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import SidebarVersions from '@/components/layout/SidebarVersions.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -217,15 +218,20 @@ onMounted(async () => {
 
     <div class="tags-panel">
       <div class="tags-panel-header">
-        <button class="tags-toggle-btn" type="button" @click="toggleTagsPanel">
+        <button
+          class="tags-toggle-btn"
+          type="button"
+          :aria-expanded="!tagsCollapsed"
+          @click="toggleTagsPanel"
+        >
           <span class="tree-title">{{ t('tree.tags') }}</span>
-          <span :class="['tags-chevron', { collapsed: tagsCollapsed }]">▾</span>
+          <span :class="['tags-chevron', { collapsed: tagsCollapsed }]" aria-hidden="true">▾</span>
         </button>
         <button
           v-if="selectedTags.length > 0"
           class="clear-tag-btn"
           type="button"
-          @click="clearTagFilter"
+          @click.stop="clearTagFilter"
         >
           {{ t('tree.clearFilter') }}
         </button>
@@ -259,6 +265,7 @@ onMounted(async () => {
       </div>
     </div>
 
+    <div class="tree-scroll">
     <div v-if="folderStore.loading" class="tree-loading">
       <SkeletonLoader width="70%" height="14px" />
       <SkeletonLoader width="55%" height="14px" :style="{ marginLeft: '16px' }" />
@@ -300,6 +307,7 @@ onMounted(async () => {
         <template v-else>{{ t('tree.noDocuments') }}</template>
       </div>
     </div>
+    </div>
 
     <TreeContextMenu
       v-if="contextMenu"
@@ -323,6 +331,8 @@ onMounted(async () => {
       :initial-folder-id="importFolderId"
       @close="importOpen = false"
     />
+
+    <SidebarVersions />
   </div>
 </template>
 
@@ -331,6 +341,12 @@ onMounted(async () => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.tree-scroll {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -380,6 +396,7 @@ onMounted(async () => {
 }
 
 .tags-panel {
+  flex-shrink: 0;
   padding: 10px 12px;
   border-bottom: 1px solid var(--color-border);
 }
@@ -387,24 +404,41 @@ onMounted(async () => {
 .tags-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+}
+
+.tags-panel-header:has(+ .tags-panel-body) {
   margin-bottom: 8px;
 }
 
 .tags-toggle-btn {
+  flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
-  padding: 0;
+  margin: -10px -12px;
+  padding: 10px 12px;
   display: inline-flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border-radius: 0;
+}
+
+.tags-toggle-btn:hover .tree-title,
+.tags-toggle-btn:hover .tags-chevron {
+  color: var(--color-text-muted);
 }
 
 .tags-chevron {
   font-size: 11px;
   color: var(--color-text-muted);
   transition: transform 0.15s;
+  flex-shrink: 0;
 }
 
 .tags-chevron.collapsed {
@@ -412,12 +446,15 @@ onMounted(async () => {
 }
 
 .clear-tag-btn {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
   border: none;
   background: transparent;
   color: var(--color-primary);
   font-size: 12px;
   cursor: pointer;
-  padding: 0;
+  padding: 2px 0;
 }
 
 .clear-tag-btn:hover {

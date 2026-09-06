@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import PagePropertiesPanel from './PagePropertiesPanel.vue'
 import { i18n } from '@/i18n'
+import { getDocumentByTestId } from '@/test/dom'
 
 const getPageProperties = vi.fn()
 const patchPageProperties = vi.fn()
@@ -137,7 +138,7 @@ describe('PagePropertiesPanel', () => {
 
     expect(wrapper.find('select').exists()).toBe(false)
     await wrapper.get('[data-testid="app-select-trigger"]').trigger('click')
-    await wrapper.get('[data-testid="app-select-option-done"]').trigger('click')
+    await getDocumentByTestId('app-select-option-done').trigger('click')
     await flushPromises()
 
     expect(patchPageProperties).toHaveBeenCalledWith('page', '2026-01-01T00:00:00Z', [
@@ -191,7 +192,7 @@ describe('PagePropertiesPanel', () => {
 
     expect(wrapper.find('select').exists()).toBe(false)
     await wrapper.get('[data-testid="app-select-trigger"]').trigger('click')
-    await wrapper.get('[data-testid="app-select-option-b"]').trigger('click')
+    await getDocumentByTestId('app-select-option-b').trigger('click')
     await flushPromises()
 
     expect(patchPageProperties).toHaveBeenCalledWith('page', '2026-01-01T00:00:00Z', [

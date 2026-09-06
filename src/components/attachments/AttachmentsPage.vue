@@ -6,6 +6,7 @@ import * as attachmentsApi from '@/api/attachments'
 import type { Attachment } from '@/types'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { copyTextToClipboard } from '@/utils/clipboard'
+import { formatBytes } from '@/utils/formatBytes'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 
@@ -140,12 +141,6 @@ async function copyLink(att: Attachment) {
   await copyTextToClipboard(md)
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
 function isImage(contentType: string): boolean {
   return contentType.startsWith('image/')
 }
@@ -210,7 +205,7 @@ onBeforeUnmount(() => {
                 <a :href="att.url" target="_blank">{{ att.originalName }}</a>
               </td>
               <td class="type-cell" :data-label="t('attachments.colType')">{{ att.contentType }}</td>
-              <td class="size-cell" :data-label="t('attachments.colSize')">{{ formatSize(att.sizeBytes) }}</td>
+              <td class="size-cell" :data-label="t('attachments.colSize')">{{ formatBytes(att.sizeBytes) }}</td>
               <td class="user-cell" :data-label="t('attachments.colUploadedBy')">{{ att.uploadedBy || '—' }}</td>
               <td class="date-cell" :data-label="t('attachments.colDate')">{{ new Date(att.createdAt).toLocaleDateString() }}</td>
               <td class="actions-cell">
@@ -341,7 +336,6 @@ onBeforeUnmount(() => {
   gap: 6px;
   flex-wrap: wrap;
 }
-.btn-sm { padding: 4px 10px; font-size: 12px; }
 
 @media (max-width: 767px) {
   .upload-zone {

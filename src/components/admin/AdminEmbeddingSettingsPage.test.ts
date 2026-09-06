@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import AdminEmbeddingSettingsPage from './AdminEmbeddingSettingsPage.vue'
 import { i18n } from '@/i18n'
+import { getDocumentByTestId } from '@/test/dom'
 
 const mockGetEmbeddingSettings = vi.fn()
 const mockUpdateEmbeddingSettings = vi.fn()
@@ -78,7 +79,7 @@ describe('AdminEmbeddingSettingsPage', () => {
     expect((apiKeyInput.element as HTMLInputElement).value).toBe('')
 
     await providerSelect.get('[data-testid="app-select-trigger"]').trigger('click')
-    await providerSelect.get('[data-testid="app-select-option-ollama"]').trigger('click')
+    await getDocumentByTestId('app-select-option-ollama').trigger('click')
     await modelInput.setValue('nomic-embed-text')
     await baseUrlInput.setValue('http://localhost:11434')
     await wrapper.find('form').trigger('submit.prevent')

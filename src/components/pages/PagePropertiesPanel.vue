@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { Page, PageListItem, PageProperties, PropertyDefinition } from '@/types'
 import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
 import AppSelect from '@/components/ui/AppSelect.vue'
+import CountBadge from '@/components/ui/CountBadge.vue'
 import HelpTip from '@/components/ui/HelpTip.vue'
 
 const props = defineProps<{ page: Page, editable: boolean, flushPendingSave: () => Promise<boolean> }>()
@@ -135,7 +136,7 @@ async function saveMulti(definition: PropertyDefinition, value: string[]) {
         @click="collapsed = !collapsed"
       >
         <span class="properties-title">{{ t('properties.title') }}</span>
-        <span v-if="fieldCount" class="properties-count">{{ fieldCount }}</span>
+        <CountBadge v-if="fieldCount" :value="fieldCount" />
         <span :class="['properties-chevron', { collapsed }]">▾</span>
       </button>
       <HelpTip :label="t('properties.helpLabel')" align="right">
@@ -239,14 +240,6 @@ async function saveMulti(definition: PropertyDefinition, value: string[]) {
   text-align: left;
 }
 .properties-title { margin: 0; font-size: 1rem; font-weight: 600; }
-.properties-count {
-  margin-left: .15rem;
-  padding: .05rem .4rem;
-  border-radius: 999px;
-  background: var(--color-bg-secondary, #f3f3f3);
-  color: var(--color-text-muted, #666);
-  font-size: .75rem;
-}
 .properties-chevron { margin-left: auto; transition: transform .15s ease; }
 .properties-chevron.collapsed { transform: rotate(-90deg); }
 .properties-unknown-heading {

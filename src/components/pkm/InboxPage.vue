@@ -2,109 +2,217 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { useFolderStore } from '@/stores/folders'
-import * as captures from '@/api/captures'
 import type { CaptureResponse } from '@/types'
-import { getApiErrorMessage } from '@/utils/apiError'
+import InboxTextCapture from './InboxTextCapture.vue'
+import InboxUrlCapture from './InboxUrlCapture.vue'
+import InboxImageCapture from './InboxImageCapture.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
-const folders = useFolderStore()
 const tab = ref<'text' | 'url' | 'image'>('text')
-const title = ref('')
-const text = ref('')
-const url = ref('')
-const note = ref('')
-const caption = ref('')
-const file = ref<File | null>(null)
-const busy = ref(false)
-const error = ref('')
 const result = ref<CaptureResponse | null>(null)
+
+const kinds = ['text', 'url', 'image'] as const
 
 function choose(next: typeof tab.value) {
   tab.value = next
-  error.value = ''
 }
 
 function onTabKey(event: KeyboardEvent) {
   if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return
   event.preventDefault()
-  const values = ['text', 'url', 'image'] as const
   const delta = event.key === 'ArrowRight' ? 1 : -1
-  const next = values[(values.indexOf(tab.value) + delta + values.length) % values.length]
+  const next = kinds[(kinds.indexOf(tab.value) + delta + kinds.length) % kinds.length]!
   choose(next)
   const tabs = (event.currentTarget as HTMLElement).parentElement?.querySelectorAll<HTMLElement>('[role="tab"]')
-  tabs?.[values.indexOf(next)]?.focus()
+  tabs?.[kinds.indexOf(next)]?.focus()
 }
 
-function onFile(event: Event) {
-  file.value = (event.target as HTMLInputElement).files?.[0] ?? null
-}
-
-async function submit() {
-  if (!auth.isEditor || busy.value) return
-  busy.value = true
-  error.value = ''
-  try {
-    const response = tab.value === 'text'
-      ? await captures.captureText({ text: text.value, title: title.value || undefined })
-      : tab.value === 'url'
-        ? await captures.captureUrl({ url: url.value, note: note.value || undefined, title: title.value || undefined })
-        : await captures.captureImage(file.value!, caption.value || undefined, title.value || undefined)
-    result.value = response.data
-    title.value = ''
-    if (tab.value === 'text') text.value = ''
-    if (tab.value === 'url') { url.value = ''; note.value = '' }
-    if (tab.value === 'image') { file.value = null; caption.value = '' }
-    await folders.fetchTree(true)
-  } catch (cause) {
-    error.value = getApiErrorMessage(cause, t('pkm.captureFailed'))
-  } finally {
-    busy.value = false
-  }
+function onCaptured(response: CaptureResponse) {
+  result.value = response
 }
 </script>
 
 <template>
-  <main class="pkm-page">
-    <h1>{{ t('pkm.inbox') }}</h1>
-    <p v-if="!auth.isEditor" class="notice">{{ t('pkm.readerCapture') }}</p>
+  <div class="grouped-page">
+    <div class="page-header">
+      <div>
+        <h1>{{ t('pkm.inbox') }}</h1>
+        <p class="page-subtitle">{{ t('pkm.inboxSubtitle') }}</p>
+      </div>
+    </div>
+
+    <p v-if="!auth.isEditor" class="empty-state">{{ t('pkm.readerCapture') }}</p>
     <template v-else>
-      <div class="tabs" role="tablist" :aria-label="t('pkm.captureType')">
-        <button v-for="kind in (['text', 'url', 'image'] as const)" :key="kind" role="tab"
-          :id="`capture-tab-${kind}`" :aria-controls="`capture-panel-${kind}`"
-          :aria-selected="tab === kind" :tabindex="tab === kind ? 0 : -1" @click="choose(kind)" @keydown="onTabKey">
+      <div class="inbox-tabs" role="tablist" :aria-label="t('pkm.captureType')">
+        <button
+          v-for="kind in kinds"
+          :id="`capture-tab-${kind}`"
+          :key="kind"
+          type="button"
+          role="tab"
+          :aria-controls="`capture-panel-${kind}`"
+          :aria-selected="tab === kind"
+          :tabindex="tab === kind ? 0 : -1"
+          @click="choose(kind)"
+          @keydown="onTabKey"
+        >
           {{ t(`pkm.${kind}`) }}
         </button>
       </div>
-      <form v-for="kind in (['text', 'url', 'image'] as const)" :key="`panel-${kind}`"
-        :id="`capture-panel-${kind}`" role="tabpanel" :aria-labelledby="`capture-tab-${kind}`"
-        :hidden="tab !== kind" @submit.prevent="submit">
-        <label>{{ t('pkm.titleOptional') }}<input v-model="title" maxlength="500" /></label>
-        <label v-if="kind === 'text'">{{ t('pkm.text') }}<textarea v-model="text" required rows="10" /></label>
-        <template v-if="kind === 'url'">
-          <label>{{ t('pkm.url') }}<input v-model="url" type="url" required /></label>
-          <label>{{ t('pkm.noteOptional') }}<textarea v-model="note" rows="5" /></label>
-        </template>
-        <template v-if="kind === 'image'">
-          <label>{{ t('pkm.image') }}<input type="file"
-            accept=".png,.jpg,.jpeg,.gif,.webp,image/png,image/jpeg,image/gif,image/webp"
-            required @change="onFile" /></label>
-          <p v-if="file">{{ file.name }} · {{ Math.ceil(file.size / 1024) }} KB</p>
-          <label>{{ t('pkm.captionOptional') }}<input v-model="caption" /></label>
-        </template>
-        <button class="btn-primary" type="submit" :disabled="busy || (kind === 'image' && !file)">
-          {{ busy ? t('common.saving') : t('pkm.capture') }}
-        </button>
-      </form>
+
+      <section class="group-card inbox-card">
+        <InboxTextCapture
+          v-if="tab === 'text'"
+          panel-id="capture-panel-text"
+          labelled-by="capture-tab-text"
+          @captured="onCaptured"
+        />
+        <InboxUrlCapture
+          v-else-if="tab === 'url'"
+          panel-id="capture-panel-url"
+          labelled-by="capture-tab-url"
+          @captured="onCaptured"
+        />
+        <InboxImageCapture
+          v-else
+          panel-id="capture-panel-image"
+          labelled-by="capture-tab-image"
+          @captured="onCaptured"
+        />
+      </section>
     </template>
-    <p class="result" aria-live="polite">
-      <span v-if="error" role="alert">{{ error }}</span>
-      <router-link v-else-if="result" :to="`/page/${result.page.slug}`">{{ t('pkm.captured', { title: result.page.title }) }}</router-link>
-    </p>
-  </main>
+
+    <div
+      v-if="result"
+      class="capture-success"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="capture-success-body">
+        <p class="capture-success-label">{{ t('pkm.captured') }}</p>
+        <router-link class="capture-success-link" :to="`/page/${result.page.slug}`">
+          {{ result.page.title }}
+        </router-link>
+      </div>
+      <div class="capture-success-actions">
+        <router-link class="btn-primary" :to="`/page/${result.page.slug}`">
+          {{ t('pkm.capturedOpen') }}
+        </router-link>
+        <button type="button" class="btn-secondary" @click="result = null">
+          {{ t('pkm.capturedDismiss') }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.pkm-page{max-width:720px;margin:auto;padding:24px;width:100%}h1{margin-top:0}.tabs{display:flex;gap:8px;margin:16px 0}.tabs button{min-height:44px;padding:0 18px}.tabs [aria-selected=true]{color:var(--color-primary);border-color:var(--color-primary)}form{display:grid;gap:16px}label{display:grid;gap:6px}textarea{resize:vertical}.btn-primary{min-height:44px}.notice,.result{color:var(--color-text-muted)}[role=alert]{color:var(--color-danger)}@media(max-width:767px){.pkm-page{padding:16px}.tabs button{flex:1;padding:0 8px}}
+.inbox-tabs {
+  display: inline-flex;
+  gap: 3px;
+  margin: 0 0 1.25rem;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-secondary, color-mix(in srgb, var(--color-border) 18%, transparent));
+}
+
+.inbox-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.inbox-tabs button[aria-selected='true'] {
+  background: var(--color-bg, #fff);
+  color: var(--color-primary);
+  box-shadow: var(--shadow, 0 1px 2px rgba(0, 0, 0, 0.08));
+}
+
+.inbox-card {
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.capture-success {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem 1rem;
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg));
+}
+
+.capture-success-body {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.capture-success-label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.capture-success-link {
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.capture-success-link:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.capture-success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.capture-success-actions .btn-primary,
+.capture-success-actions .btn-secondary {
+  min-height: 38px;
+  text-decoration: none;
+}
+
+@media (max-width: 767px) {
+  .inbox-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .inbox-tabs button {
+    flex: 1;
+    padding: 0 8px;
+  }
+
+  .capture-success-actions {
+    width: 100%;
+  }
+
+  .capture-success-actions .btn-primary,
+  .capture-success-actions .btn-secondary {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+  }
+}
 </style>

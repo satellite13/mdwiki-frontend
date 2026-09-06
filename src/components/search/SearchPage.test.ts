@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick, reactive } from 'vue'
 import SearchPage from './SearchPage.vue'
 import { i18n } from '@/i18n'
+import { getDocumentByTestId } from '@/test/dom'
 
 const route = reactive({ query: { q: 'knowledge' } as Record<string, string> })
 const replace = vi.fn()
@@ -17,9 +18,11 @@ const alert = vi.fn()
 const prompt = vi.fn()
 const confirm = vi.fn()
 
-async function pickSelectOption(field: VueWrapper, value: string) {
+type SelectHost = { get: (selector: string) => { trigger: (event: string) => Promise<void> | void } }
+
+async function pickSelectOption(field: SelectHost, value: string) {
   await field.get('[data-testid="app-select-trigger"]').trigger('click')
-  await field.get(`[data-testid="app-select-option-${value}"]`).trigger('click')
+  await getDocumentByTestId(`app-select-option-${value}`).trigger('click')
 }
 
 vi.mock('vue-router', () => ({
@@ -230,9 +233,9 @@ describe('SearchPage', () => {
     const tip = wrapper.get('.mode-row .help-tip-trigger')
     expect(tip.attributes('aria-label')).toBe(i18n.global.t('search.modeHelpLabel'))
     await tip.trigger('click')
-    expect(wrapper.text()).toContain(i18n.global.t('search.modeHybridHelp'))
-    expect(wrapper.text()).toContain(i18n.global.t('search.modeTextHelp'))
-    expect(wrapper.text()).toContain(i18n.global.t('search.modeSemanticHelp'))
+    expect(document.body.textContent).toContain(i18n.global.t('search.modeHybridHelp'))
+    expect(document.body.textContent).toContain(i18n.global.t('search.modeTextHelp'))
+    expect(document.body.textContent).toContain(i18n.global.t('search.modeSemanticHelp'))
   })
 
   it('only applies score filtering in semantic mode', async () => {

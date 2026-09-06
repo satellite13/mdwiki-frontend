@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
@@ -12,7 +12,44 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n()
 const open = ref(false)
 const rootRef = ref<HTMLElement | null>(null)
+const popupRef = ref<HTMLElement | null>(null)
+const popupStyle = ref<Record<string, string>>({})
 const popupId = `help-tip-${Math.random().toString(36).slice(2, 9)}`
+
+function updatePopupPosition() {
+  const trigger = rootRef.value
+  const popup = popupRef.value
+  if (!trigger || !popup) return
+  const rect = trigger.getBoundingClientRect()
+  const gap = 6
+  const width = Math.min(22 * 16, window.innerWidth - 16)
+  let left = props.align === 'right' ? rect.right - width : rect.left
+  left = Math.max(8, Math.min(left, window.innerWidth - width - 8))
+  let top = rect.bottom + gap
+  const spaceBelow = window.innerHeight - rect.bottom - gap
+  const spaceAbove = rect.top - gap
+  const height = popup.offsetHeight || 160
+  if (spaceBelow < height && spaceAbove > spaceBelow) {
+    top = Math.max(8, rect.top - gap - height)
+  }
+  popupStyle.value = {
+    position: 'fixed',
+    top: `${Math.round(top)}px`,
+    left: `${Math.round(left)}px`,
+    width: `${Math.round(width)}px`,
+    zIndex: '200',
+  }
+}
+
+function bindPositionListeners() {
+  window.addEventListener('scroll', updatePopupPosition, true)
+  window.addEventListener('resize', updatePopupPosition)
+}
+
+function unbindPositionListeners() {
+  window.removeEventListener('scroll', updatePopupPosition, true)
+  window.removeEventListener('resize', updatePopupPosition)
+}
 
 function toggle(event: Event) {
   event.preventDefault()
@@ -25,9 +62,11 @@ function close() {
 }
 
 function onDocumentPointer(event: Event) {
-  if (!open.value || !rootRef.value) return
+  if (!open.value) return
   const target = event.target as Node | null
-  if (target && rootRef.value.contains(target)) return
+  if (!target) return
+  if (rootRef.value?.contains(target)) return
+  if (popupRef.value?.contains(target)) return
   close()
 }
 
@@ -38,6 +77,17 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
+watch(open, async (isOpen) => {
+  if (isOpen) {
+    await nextTick()
+    updatePopupPosition()
+    bindPositionListeners()
+  } else {
+    unbindPositionListeners()
+    popupStyle.value = {}
+  }
+})
+
 onMounted(() => {
   document.addEventListener('pointerdown', onDocumentPointer, true)
   document.addEventListener('keydown', onKeydown, true)
@@ -46,11 +96,12 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocumentPointer, true)
   document.removeEventListener('keydown', onKeydown, true)
+  unbindPositionListeners()
 })
 </script>
 
 <template>
-  <span ref="rootRef" class="help-tip" :class="[`align-${align}`]" @click.stop>
+  <span ref="rootRef" class="help-tip" @click.stop>
     <button
       type="button"
       class="help-tip-trigger"
@@ -62,20 +113,24 @@ onBeforeUnmount(() => {
     >
       <span class="material-symbols-outlined notranslate" translate="no" aria-hidden="true">help</span>
     </button>
-    <div
-      v-if="open"
-      :id="popupId"
-      class="help-tip-popup"
-      role="dialog"
-      :aria-label="label || t('common.help')"
-    >
-      <div class="help-tip-content">
-        <slot />
+    <Teleport to="body">
+      <div
+        v-if="open"
+        :id="popupId"
+        ref="popupRef"
+        class="help-tip-popup"
+        role="dialog"
+        :aria-label="label || t('common.help')"
+        :style="popupStyle"
+      >
+        <div class="help-tip-content">
+          <slot />
+        </div>
+        <button type="button" class="help-tip-close" @click="close">
+          {{ t('common.close') }}
+        </button>
       </div>
-      <button type="button" class="help-tip-close" @click="close">
-        {{ t('common.close') }}
-      </button>
-    </div>
+    </Teleport>
   </span>
 </template>
 
@@ -114,25 +169,16 @@ onBeforeUnmount(() => {
   border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
   background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg));
 }
+</style>
 
+<style>
 .help-tip-popup {
-  position: absolute;
-  top: calc(100% + 6px);
-  z-index: 40;
-  width: min(22rem, calc(100vw - 2rem));
+  box-sizing: border-box;
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-bg);
   box-shadow: var(--shadow, 0 8px 24px rgba(0, 0, 0, 0.12));
-}
-
-.align-left .help-tip-popup {
-  left: 0;
-}
-
-.align-right .help-tip-popup {
-  right: 0;
 }
 
 .help-tip-content {
@@ -143,11 +189,11 @@ onBeforeUnmount(() => {
   line-height: 1.45;
 }
 
-.help-tip-content :deep(p) {
+.help-tip-content p {
   margin: 0;
 }
 
-.help-tip-content :deep(a) {
+.help-tip-content a {
   color: var(--color-primary);
 }
 

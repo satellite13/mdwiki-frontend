@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import PageHistory from './PageHistory.vue'
 import { i18n } from '@/i18n'
+import { getDocumentByTestId } from '@/test/dom'
 import type { RevisionSummary } from '@/types'
 
 const route = reactive({ params: { slug: 'note' }, query: {} as Record<string, string> })
@@ -74,7 +75,7 @@ describe('PageHistory', () => {
     await flushPromises()
     const beforeSelect = wrapper.findAll('.selectors .app-select')[0]!
     await beforeSelect.get('[data-testid="app-select-trigger"]').trigger('click')
-    const list = beforeSelect.get('[data-testid="app-select-list"]')
+    const list = getDocumentByTestId('app-select-list')
     expect(list.text()).toContain('Restored from trash')
     expect(list.text()).toContain('Deleted')
   })
@@ -87,7 +88,7 @@ describe('PageHistory', () => {
     expect(wrapper.find('.restore-hint').exists()).toBe(false)
     expect(wrapper.find('.help-tip-trigger').exists()).toBe(true)
     await wrapper.get('.help-tip-trigger').trigger('click')
-    expect(wrapper.text()).toContain('The button restores the “From” revision content')
+    expect(document.body.textContent).toContain('The button restores the “From” revision content')
   })
 
   it('keeps selection and offers reload on restore conflict', async () => {
@@ -120,7 +121,7 @@ describe('PageHistory', () => {
     expect(getRevision).toHaveBeenCalledWith('fresh-b', 2)
     const beforeSelect = wrapper.findAll('.selectors .app-select')[0]!
     await beforeSelect.get('[data-testid="app-select-trigger"]').trigger('click')
-    expect(beforeSelect.get('[data-testid="app-select-option-3"]').text()).toContain('Restored from trash')
+    expect(getDocumentByTestId('app-select-option-3').text()).toContain('Restored from trash')
     expect(getRevision).not.toHaveBeenCalledWith('note', expect.any(Number))
   })
 })

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IconActionButton from '@/components/ui/IconActionButton.vue'
 import ToolbarDropdown from '@/components/ui/ToolbarDropdown.vue'
+import type { PropertyDefinition } from '@/types'
 import type { ToolbarAction } from './toolbarTypes'
 
 const { t } = useI18n()
@@ -16,34 +17,42 @@ const props = defineProps<{
   historyActions: ToolbarAction[]
   modeSwitchActions: ToolbarAction[]
   emojiItems: string[]
+  propertyDefinitions: PropertyDefinition[]
   onApplyHeading: (level: number) => void
   onApplyTableSize: (cols: number, rows: number) => void
   onApplyEmoji: (emoji: string) => void
+  onInsertProperty: (definition: PropertyDefinition) => void
   readonly?: boolean
 }>()
 
 const headingMenuOpen = ref(false)
 const tableMenuOpen = ref(false)
 const emojiMenuOpen = ref(false)
+const propertyMenuOpen = ref(false)
 const tableHoverCols = ref(1)
 const tableHoverRows = ref(1)
 
+function closeMenusExcept(keep: 'heading' | 'table' | 'emoji' | 'property' | null) {
+  headingMenuOpen.value = keep === 'heading'
+  tableMenuOpen.value = keep === 'table'
+  emojiMenuOpen.value = keep === 'emoji'
+  propertyMenuOpen.value = keep === 'property'
+}
+
 function toggleHeadingMenu() {
-  headingMenuOpen.value = !headingMenuOpen.value
-  tableMenuOpen.value = false
-  emojiMenuOpen.value = false
+  closeMenusExcept(headingMenuOpen.value ? null : 'heading')
 }
 
 function toggleTableMenu() {
-  tableMenuOpen.value = !tableMenuOpen.value
-  headingMenuOpen.value = false
-  emojiMenuOpen.value = false
+  closeMenusExcept(tableMenuOpen.value ? null : 'table')
 }
 
 function toggleEmojiMenu() {
-  emojiMenuOpen.value = !emojiMenuOpen.value
-  headingMenuOpen.value = false
-  tableMenuOpen.value = false
+  closeMenusExcept(emojiMenuOpen.value ? null : 'emoji')
+}
+
+function togglePropertyMenu() {
+  closeMenusExcept(propertyMenuOpen.value ? null : 'property')
 }
 
 function setTableHover(cols: number, rows: number) {
@@ -82,6 +91,11 @@ function onHeadingClick(level: number) {
 function onEmojiClick(emoji: string) {
   emojiMenuOpen.value = false
   props.onApplyEmoji(emoji)
+}
+
+function onPropertyClick(definition: PropertyDefinition) {
+  propertyMenuOpen.value = false
+  props.onInsertProperty(definition)
 }
 </script>
 
@@ -189,6 +203,31 @@ function onEmojiClick(emoji: string) {
       </button>
     </div>
   </ToolbarDropdown>
+  <ToolbarDropdown v-if="!props.readonly" v-model="propertyMenuOpen" class="property-menu">
+    <template #trigger>
+      <IconActionButton
+        :title="t('toolbar.insertProperty')"
+        :ariaLabel="t('toolbar.insertProperty')"
+        icon="tune"
+        @click="togglePropertyMenu"
+      />
+    </template>
+    <div class="property-menu-list">
+      <p v-if="!propertyDefinitions.length" class="property-menu-empty">
+        {{ t('toolbar.noPropertyDefinitions') }}
+      </p>
+      <button
+        v-for="definition in propertyDefinitions"
+        :key="definition.id"
+        type="button"
+        class="property-menu-item"
+        @click="onPropertyClick(definition)"
+      >
+        <span class="property-menu-name">{{ definition.displayName }}</span>
+        <span class="property-menu-meta">{{ definition.key }} · {{ definition.type }}</span>
+      </button>
+    </div>
+  </ToolbarDropdown>
   <span class="sep" />
   <IconActionButton
     v-for="action in historyActions"
@@ -228,7 +267,8 @@ function onEmojiClick(emoji: string) {
 
 .heading-menu-list,
 .table-menu-list,
-.emoji-menu-list {
+.emoji-menu-list,
+.property-menu-list {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -317,5 +357,50 @@ function onEmojiClick(emoji: string) {
 .emoji-item:hover {
   border-color: var(--color-border);
   background: var(--color-bg-hover);
+}
+
+.property-menu-list {
+  min-width: 220px;
+  max-width: min(320px, 80vw);
+  max-height: 260px;
+  overflow: auto;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+}
+
+.property-menu-empty {
+  margin: 0;
+  padding: 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.property-menu-item {
+  display: grid;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.property-menu-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.property-menu-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.property-menu-meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
 }
 </style>

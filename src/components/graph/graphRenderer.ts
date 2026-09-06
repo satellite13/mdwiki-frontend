@@ -1,6 +1,5 @@
 import * as d3 from 'd3'
 import type { GraphNode, GraphEdge } from '@/api/graph'
-import { i18n } from '@/i18n'
 
 export interface SimNode extends d3.SimulationNodeDatum {
   slug: string
@@ -832,12 +831,6 @@ export function renderGraph(options: GraphRenderOptions): GraphRenderHandle {
     .attr('stroke-width', 3)
     .attr('stroke-linejoin', 'round')
     .style('pointer-events', 'none')
-
-  node.append('title').text((d) => {
-    const incoming = i18n.global.t('graph.incoming', { count: d.inDegree })
-    if (!d.tags.length) return `${d.title}\n${incoming}`
-    return `${d.title}\n${incoming}\n${i18n.global.t('search.tagsLabel')} ${d.tags.map((tag) => '#' + tag).join(', ')}`
-  })
 
   const motions = new Map(
     simNodes.map((n) => [n.slug, createNodeMotion(n.slug, { isCurrent: n.isCurrent, clusterId: n.clusterId })])

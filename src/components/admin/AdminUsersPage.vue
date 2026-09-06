@@ -104,44 +104,6 @@ onMounted(fetchUsers)
 </template>
 
 <style scoped>
-.admin-nav {
-  display: flex;
-  gap: 6px;
-  width: fit-content;
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  margin-bottom: 16px;
-}
-
-.admin-nav-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-
-.admin-nav-link:hover {
-  color: var(--color-text);
-  border-color: var(--color-border);
-  background: var(--color-bg-hover);
-}
-
-.admin-nav-link.router-link-exact-active {
-  color: var(--color-primary);
-  font-weight: 600;
-  border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
 .admin-users h1 {
   font-family: var(--font-body);
   margin-bottom: 28px;
@@ -207,18 +169,6 @@ onMounted(fetchUsers)
 }
 
 @media (max-width: 767px) {
-  .admin-nav {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .admin-nav-link {
-    flex: 1 1 auto;
-    justify-content: center;
-    font-size: 12px;
-    padding: 0 8px;
-  }
-
   .admin-users h1 {
     font-size: 1.35rem;
     margin-bottom: 20px;

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import AdminPropertiesPage from './AdminPropertiesPage.vue'
 import { i18n, setLocale } from '@/i18n'
+import { getDocumentByTestId } from '@/test/dom'
 
 const listPropertyDefinitions = vi.fn()
 const createPropertyDefinition = vi.fn()
@@ -36,7 +37,7 @@ describe('AdminPropertiesPage', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="app-select-trigger"]').trigger('click')
-    await wrapper.get('[data-testid="app-select-option-MULTI_SELECT"]').trigger('click')
+    await getDocumentByTestId('app-select-option-MULTI_SELECT').trigger('click')
     expect(wrapper.text()).toContain('Options')
     await wrapper.get('input[placeholder="status"]').setValue('stack')
     await wrapper.get('input[placeholder="Status"]').setValue('Stack')

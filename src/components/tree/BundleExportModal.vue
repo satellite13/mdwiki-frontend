@@ -7,6 +7,7 @@ import * as bundlesApi from '@/api/bundles'
 import { useDialogStore } from '@/stores/dialog'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { bundleExportPayload, toggleBundleSelection } from '@/utils/folderTree'
+import { formatBytes } from '@/utils/formatBytes'
 import type { BundlePreviewResponse, FolderTreeNode } from '@/types'
 
 const props = defineProps<{
@@ -69,11 +70,6 @@ async function download() {
   }
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 </script>
 
 <template>
@@ -139,11 +135,5 @@ h2 {
   padding-left: 1.2rem;
   color: var(--color-warning);
   font-size: 12px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
 }
 </style>

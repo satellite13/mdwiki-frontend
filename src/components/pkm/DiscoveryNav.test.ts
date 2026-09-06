@@ -6,7 +6,7 @@ import DiscoveryNav from './DiscoveryNav.vue'
 vi.mock('vue-router', () => ({ useRoute: () => ({ name: 'unlinked-mentions' }) }))
 
 describe('DiscoveryNav', () => {
-  it('exposes both discovery destinations and current state', () => {
+  it('exposes discovery destinations and current state', () => {
     const wrapper = mount(DiscoveryNav, {
       global: {
         plugins: [i18n],
@@ -14,7 +14,11 @@ describe('DiscoveryNav', () => {
       }
     })
     const links = wrapper.findAll('a')
-    expect(links.map((link) => link.attributes('data-to'))).toEqual(['/links/unlinked', '/links/orphans'])
+    expect(links.map((link) => link.attributes('data-to'))).toEqual([
+      '/links/unlinked',
+      '/links/orphans',
+      '/broken-links',
+    ])
     expect(links[0].attributes('aria-current')).toBe('page')
   })
 })

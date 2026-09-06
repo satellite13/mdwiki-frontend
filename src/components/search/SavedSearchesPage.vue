@@ -99,7 +99,7 @@ onMounted(load)
   <main>
     <header><h1>{{ t('savedSearches.title') }}</h1><button class="btn-primary" @click="openCreate">{{ t('savedSearches.create') }}</button></header>
     <p v-if="loading" role="status">{{ t('common.loading') }}</p>
-    <div v-else-if="error" role="alert">{{ error }} <button @click="load">{{ t('common.retry') }}</button></div>
+    <div v-else-if="error" role="alert">{{ error }} <button type="button" class="btn-secondary" @click="load">{{ t('common.retry') }}</button></div>
     <p v-else-if="!items.length">{{ t('savedSearches.empty') }}</p>
     <ul v-else><li v-for="item in items" :key="item.id">
       <router-link :to="{ name: 'search', query: { saved: item.id, q: item.queryText, mode: item.mode.toLowerCase() } }">{{ item.name }}</router-link>
@@ -116,8 +116,8 @@ onMounted(load)
         >
           <span class="material-symbols-outlined notranslate" translate="no">{{ item.favorited ? 'star' : 'star_outline' }}</span>
         </button>
-        <button :aria-label="t('savedSearches.editName', { name: item.name })" @click="openEdit(item)">{{ t('common.edit') }}</button>
-        <button :aria-label="t('savedSearches.deleteName', { name: item.name })" @click="remove(item)">{{ t('common.delete') }}</button>
+        <button type="button" class="btn-secondary" :aria-label="t('savedSearches.editName', { name: item.name })" @click="openEdit(item)">{{ t('common.edit') }}</button>
+        <button type="button" class="btn-danger" :aria-label="t('savedSearches.deleteName', { name: item.name })" @click="remove(item)">{{ t('common.delete') }}</button>
       </span>
     </li></ul>
     <form v-if="formOpen" class="saved-form" :aria-label="formTitle" @submit.prevent="save">
@@ -128,19 +128,24 @@ onMounted(load)
       <label>{{ t('savedSearches.tags') }}<input v-model="tagsText" /></label>
       <label>{{ t('savedSearches.minScore') }}<input v-model.number="minScore" type="number" min="0" max="1" step="0.01" /></label>
       <label>{{ t('savedSearches.sort') }}<AppSelect v-model="sort" :options="sortOptions" :aria-label="t('savedSearches.sort')" /></label>
-      <div class="actions"><button type="button" @click="formOpen = false">{{ t('common.cancel') }}</button><button class="btn-primary" :disabled="saving" type="submit">{{ t('common.save') }}</button></div>
+      <div class="actions">
+        <button type="button" class="btn-secondary" @click="formOpen = false">{{ t('common.cancel') }}</button>
+        <button class="btn-primary" :disabled="saving" type="submit">{{ t('common.save') }}</button>
+      </div>
     </form>
   </main>
 </template>
 <style scoped>
 main{display:grid;gap:16px}
-header,.actions{display:flex;gap:8px;align-items:center;justify-content:space-between}
-ul{list-style:none;display:grid;gap:8px}
-li{display:flex;justify-content:space-between;padding:12px;border:1px solid var(--color-border);border-radius:8px}
+header{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+ul{list-style:none;display:grid;gap:8px;padding:0;margin:0}
+li{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--color-border);border-radius:8px;background:var(--color-bg)}
 .saved-form{display:grid;gap:12px;max-width:540px;padding:16px;border:1px solid var(--color-border);border-radius:8px}
 .saved-form label{display:grid;gap:4px}
+.saved-form .actions{justify-content:flex-end}
 .favorite-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid var(--color-border);border-radius:6px;background:transparent;color:var(--color-text-muted);cursor:pointer}
 .favorite-btn.active{color:var(--color-primary);border-color:var(--color-primary)}
 .favorite-btn:disabled{opacity:.6}
-@media(max-width:767px){header,li{align-items:stretch;flex-direction:column}.saved-form{max-width:none}}
+@media(max-width:767px){header,li{align-items:stretch;flex-direction:column}.actions{justify-content:flex-start}.saved-form{max-width:none}}
 </style>
