@@ -12,6 +12,16 @@ export function localIsoDate(date = new Date()): string {
   return `${year}-${month}-${day}`
 }
 
+/** Slug shape from API: `daily-{userId}-{YYYY-MM-DD}`. */
+export function isDailyNoteSlugForDate(slug: string, date: string): boolean {
+  if (!validIsoDate(date)) return false
+  const prefix = 'daily-'
+  const suffix = `-${date}`
+  if (!slug.startsWith(prefix) || !slug.endsWith(suffix)) return false
+  const middle = slug.slice(prefix.length, slug.length - suffix.length)
+  return middle.length > 0 && !middle.includes('/')
+}
+
 export function isCaptureShortcut(event: KeyboardEvent): boolean {
   if (event.key.toLowerCase() !== 'n' || !event.shiftKey || (!event.metaKey && !event.ctrlKey)) return false
   const target = event.target

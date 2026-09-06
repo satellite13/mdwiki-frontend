@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { getLocale, toggleLocale } from '@/i18n'
 import ThemeModeIcon from './ThemeModeIcon.vue'
 import MdwikiMark from './MdwikiMark.vue'
-import { isCaptureShortcut } from '@/utils/pkm'
+import { isCaptureShortcut, isDailyNoteSlugForDate, localIsoDate } from '@/utils/pkm'
 
 type HeaderNavLink = {
   key: string
@@ -17,6 +17,7 @@ type HeaderNavLink = {
   label: string
   icon: string
   title?: string
+  isActive?: () => boolean
 }
 
 const { t } = useI18n()
@@ -38,7 +39,15 @@ const graphLinkTo = computed(() => {
 // Группы по смыслу: захват → личная библиотека → работа → структура.
 // Профиль / админ / тема / выход — иконки справа.
 const navLinks = computed<HeaderNavLink[]>(() => [
-  { key: 'daily', to: '/daily', label: t('pkm.today'), icon: 'today' },
+  {
+    key: 'daily',
+    to: '/daily',
+    label: t('pkm.today'),
+    icon: 'today',
+    isActive: () =>
+      typeof route.params.slug === 'string' &&
+      isDailyNoteSlugForDate(route.params.slug, localIsoDate()),
+  },
   { key: 'recent', to: '/recent', label: t('pkm.recent'), icon: 'history' },
   { key: 'favorites', to: '/favorites', label: t('pkm.favorites'), icon: 'star' },
   { key: 'search-library', to: '/saved-searches', label: t('header.searchNav'), icon: 'saved_search' },
@@ -58,6 +67,7 @@ const localeLabel = computed(() => (getLocale() === 'ru' ? 'RU' : 'EN'))
 const localeTitle = computed(() => t('header.languageCurrent', { language: localeLabel.value }))
 
 function isNavLinkActive(link: HeaderNavLink) {
+  if (link.isActive?.()) return true
   if (typeof link.to === 'string') {
     return route.path === link.to || (link.to !== '/' && route.path.startsWith(`${link.to}/`))
   }
