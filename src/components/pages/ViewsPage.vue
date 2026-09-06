@@ -5,20 +5,30 @@ import * as viewsApi from '@/api/views'
 import * as propertiesApi from '@/api/properties'
 import * as libraryApi from '@/api/library'
 import { useI18n } from 'vue-i18n'
-import type { PropertyDefinition, SavedView, ViewRunItem } from '@/types'
+import type {
+  PropertyDefinition,
+  SavedView,
+  SavedViewWritePayload,
+  ViewFilterMode,
+  ViewRunItem,
+} from '@/types'
 import HelpTip from '@/components/ui/HelpTip.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import {
   buildViewFilters,
+  createEmptyViewFilterDraft,
   defaultOperatorForType,
+  draftsFromSavedFilters,
+  formatViewFilterSummary,
   operatorsForPropertyType,
   selectOptionsFromConfig,
   type ViewFilterDraft,
   type ViewFilterOp,
 } from '@/utils/viewFilters'
-import { getApiErrorMessage } from '@/utils/apiError'
+import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
 import { useDialogStore } from '@/stores/dialog'
 
+const MAX_FILTERS = 20
 const { t } = useI18n()
 const route = useRoute()
 const dialog = useDialogStore()
@@ -30,27 +40,19 @@ const sortKey = ref('')
 const groupKey = ref('')
 const type = ref<SavedView['type']>('TABLE')
 const activeType = ref<SavedView['type']>('TABLE')
+const filterDrafts = ref<ViewFilterDraft[]>([createEmptyViewFilterDraft()])
+const filterMode = ref<ViewFilterMode>('ALL')
+const editingViewId = ref<string | null>(null)
+const editingVersion = ref<number | null>(null)
 const error = ref('')
 const loading = ref(false)
 const nextCursor = ref<string | null>(null)
 const activeView = ref<SavedView | null>(null)
-const filterKey = ref('')
-const filterOp = ref<ViewFilterOp>('EQ')
-const filterValue = ref('')
 const favoriteBusyId = ref<string | null>(null)
 
 const typeByKey = computed(() =>
   Object.fromEntries(definitions.value.map((d) => [d.key, d.type])) as Record<string, PropertyDefinition['type']>
 )
-const filterDefinition = computed(() => definitions.value.find((d) => d.key === filterKey.value) ?? null)
-const filterOperators = computed(() =>
-  filterDefinition.value ? operatorsForPropertyType(filterDefinition.value.type) : []
-)
-const filterSelectOptions = computed(() =>
-  filterDefinition.value ? selectOptionsFromConfig(filterDefinition.value.config) : []
-)
-const needsFilterValue = computed(() => filterOp.value !== 'EXISTS')
-
 const layoutOptions = computed(() => [
   { value: 'TABLE', label: t('views.table') },
   { value: 'LIST', label: t('views.list') },
@@ -63,28 +65,61 @@ const definitionOptions = computed(() => [
     label: definition.displayName,
   })),
 ])
-const filterOpOptions = computed(() =>
-  filterOperators.value.map((op) => ({ value: op, label: t(`views.op${op}`) }))
-)
 const booleanValueOptions = computed(() => [
   { value: '', label: t('views.chooseValue') },
   { value: 'true', label: t('views.boolTrue') },
   { value: 'false', label: t('views.boolFalse') },
 ])
-const selectValueOptions = computed(() => [
-  { value: '', label: t('views.chooseValue') },
-  ...filterSelectOptions.value.map((option) => ({ value: option, label: option })),
-])
 
-watch(filterKey, (key) => {
-  const def = definitions.value.find((d) => d.key === key)
-  filterOp.value = def ? defaultOperatorForType(def.type) : 'EQ'
-  filterValue.value = ''
-})
+function definitionFor(draft: ViewFilterDraft) {
+  return definitions.value.find((definition) => definition.key === draft.key) ?? null
+}
 
-watch(filterOp, (op) => {
-  if (op === 'EXISTS') filterValue.value = ''
-})
+function operatorOptionsFor(draft: ViewFilterDraft) {
+  const definition = definitionFor(draft)
+  return definition
+    ? operatorsForPropertyType(definition.type).map((op) => ({ value: op, label: t(`views.op${op}`) }))
+    : []
+}
+
+function selectValueOptionsFor(draft: ViewFilterDraft) {
+  const definition = definitionFor(draft)
+  const values = definition ? selectOptionsFromConfig(definition.config) : []
+  return [
+    { value: '', label: t('views.chooseValue') },
+    ...values.map((value) => ({ value, label: value })),
+  ]
+}
+
+function setFilterKey(index: number, value: string | string[] | null) {
+  const draft = filterDrafts.value[index]
+  if (!draft) return
+  const key = typeof value === 'string' ? value : ''
+  const definition = definitions.value.find((item) => item.key === key)
+  draft.key = key
+  draft.op = definition ? defaultOperatorForType(definition.type) : 'EQ'
+  draft.value = ''
+}
+
+function setFilterOp(index: number, value: string | string[] | null) {
+  const draft = filterDrafts.value[index]
+  if (!draft) return
+  const op = (typeof value === 'string' ? value : 'EQ') as ViewFilterOp
+  draft.op = op
+  if (op === 'EXISTS') draft.value = ''
+}
+
+function addFilter() {
+  if (filterDrafts.value.length < MAX_FILTERS) {
+    filterDrafts.value.push(createEmptyViewFilterDraft())
+  }
+}
+
+function removeFilter(index: number) {
+  if (filterDrafts.value.length <= 1) return
+  filterDrafts.value.splice(index, 1)
+  if (filterDrafts.value.length < 2) filterMode.value = 'ALL'
+}
 
 async function load() {
   try {
@@ -97,40 +132,80 @@ async function load() {
   }
 }
 
-function currentFilterDrafts(): ViewFilterDraft[] {
-  if (!filterKey.value) return []
-  return [{ key: filterKey.value, op: filterOp.value, value: filterValue.value }]
+function resetForm() {
+  name.value = ''
+  type.value = 'TABLE'
+  sortKey.value = ''
+  groupKey.value = ''
+  filterDrafts.value = [createEmptyViewFilterDraft()]
+  filterMode.value = 'ALL'
+  editingViewId.value = null
+  editingVersion.value = null
 }
 
-async function create() {
+function startEditing(view: SavedView) {
+  name.value = view.name
+  type.value = view.type
+  filterDrafts.value = draftsFromSavedFilters(view.filters, typeByKey.value)
+  filterMode.value = view.filterMode ?? 'ALL'
+  sortKey.value = view.sort[0]?.key ?? ''
+  groupKey.value = view.grouping?.key ?? ''
+  editingViewId.value = view.id
+  editingVersion.value = view.version
+  error.value = ''
+}
+
+function buildPayload(): SavedViewWritePayload {
+  return {
+    name: name.value.trim(),
+    type: type.value,
+    filterMode: filterMode.value,
+    filters: buildViewFilters(filterDrafts.value, typeByKey.value),
+    sort: sortKey.value ? [{ key: sortKey.value, direction: 'ASC' }] : [],
+    grouping: groupKey.value ? { key: groupKey.value } : null,
+    layout: {},
+  }
+}
+
+async function submit() {
   if (!name.value.trim()) return
   error.value = ''
   try {
-    const filters = buildViewFilters(currentFilterDrafts(), typeByKey.value)
-    await viewsApi.createView({
-      name: name.value.trim(),
-      type: type.value,
-      filters,
-      sort: sortKey.value ? [{ key: sortKey.value, direction: 'ASC' }] : [],
-      grouping: groupKey.value ? { key: groupKey.value } : null,
-      layout: {},
-    })
-    name.value = ''
-    filterKey.value = ''
-    filterOp.value = 'EQ'
-    filterValue.value = ''
+    const payload = buildPayload()
+    if (editingViewId.value) {
+      await viewsApi.updateView(editingViewId.value, {
+        ...payload,
+        expectedVersion: editingVersion.value ?? undefined,
+      })
+    } else {
+      await viewsApi.createView(payload)
+    }
+    resetForm()
     await load()
   } catch (cause) {
     if (cause instanceof Error && (
       cause.message === 'value-required'
       || cause.message.startsWith('invalid-')
       || cause.message.startsWith('unknown-property')
-      || cause.message.startsWith('invalid-op')
     )) {
       error.value = t('views.filterInvalid')
       return
     }
-    error.value = getApiErrorMessage(cause, t('views.createFailed'))
+    if (editingViewId.value && isApiErrorWithStatus(cause, 409)) {
+      try {
+        const latest = (await viewsApi.getView(editingViewId.value)).data
+        editingVersion.value = latest.version
+        views.value = views.value.map((view) => view.id === latest.id ? latest : view)
+      } catch {
+        // Keep the draft even if refreshing the optimistic-lock version fails.
+      }
+      error.value = t('views.updateConflict')
+      return
+    }
+    error.value = getApiErrorMessage(
+      cause,
+      t(editingViewId.value ? 'views.updateFailed' : 'views.createFailed'),
+    )
   }
 }
 
@@ -169,6 +244,7 @@ async function loadMore() {
 
 async function remove(view: SavedView) {
   await viewsApi.deleteView(view.id)
+  if (editingViewId.value === view.id) resetForm()
   if (activeView.value?.id === view.id) {
     activeView.value = null
     items.value = []
@@ -194,13 +270,13 @@ async function toggleFavorite(view: SavedView) {
 }
 
 function filterSummary(view: SavedView): string {
-  const filters = Array.isArray(view.filters) ? view.filters : []
-  if (!filters.length) return t('views.noFilter')
-  const first = filters[0] as { key?: string; op?: string; value?: unknown }
-  if (!first?.key || !first.op) return t('views.noFilter')
-  const label = definitions.value.find((d) => d.key === first.key)?.displayName ?? first.key
-  if (first.op === 'EXISTS') return `${label} · ${t('views.opEXISTS')}`
-  return `${label} ${t(`views.op${first.op}`)} ${String(first.value ?? '')}`
+  return formatViewFilterSummary(view.filters, view.filterMode ?? 'ALL', {
+    noFilter: t('views.noFilter'),
+    allConnector: t('views.allConnector'),
+    anyConnector: t('views.anyConnector'),
+    property: (key) => definitions.value.find((definition) => definition.key === key)?.displayName ?? key,
+    operator: (op) => t(`views.op${op}`),
+  })
 }
 
 watch(
@@ -238,10 +314,11 @@ onMounted(load)
     <p v-if="error" class="empty-state" role="alert">{{ error }}</p>
 
     <section class="group-card create-card">
-      <form class="create-form" @submit.prevent="create">
+      <h2>{{ editingViewId ? t('views.editTitle') : t('views.createTitle') }}</h2>
+      <form class="create-form" @submit.prevent="submit">
         <label class="field">
           <span class="field-label">{{ t('views.name') }}</span>
-          <input v-model="name" required maxlength="120">
+          <input v-model="name" data-testid="view-name" required maxlength="120">
         </label>
         <label class="field">
           <span class="field-label">{{ t('views.layout') }}</span>
@@ -250,48 +327,85 @@ onMounted(load)
 
         <fieldset class="filter-fieldset">
           <legend class="field-label">{{ t('views.filter') }}</legend>
-          <div class="filter-row">
+          <div
+            v-for="(draft, index) in filterDrafts"
+            :key="index"
+            class="filter-row"
+            :data-testid="`filter-row-${index}`"
+          >
             <label class="field">
               <span class="field-label">{{ t('views.filterProperty') }}</span>
               <AppSelect
-                v-model="filterKey"
+                :model-value="draft.key"
                 :options="definitionOptions"
                 searchable
                 :placeholder="t('views.none')"
+                @update:model-value="setFilterKey(index, $event)"
               />
             </label>
             <label class="field">
               <span class="field-label">{{ t('views.filterOp') }}</span>
               <AppSelect
-                v-model="filterOp"
-                :options="filterOpOptions"
-                :disabled="!filterKey"
+                :model-value="draft.op"
+                :options="operatorOptionsFor(draft)"
+                :disabled="!draft.key"
+                @update:model-value="setFilterOp(index, $event)"
               />
             </label>
-            <label v-if="needsFilterValue" class="field">
+            <label v-if="draft.op !== 'EXISTS'" class="field">
               <span class="field-label">{{ t('views.filterValue') }}</span>
               <AppSelect
-                v-if="filterDefinition?.type === 'BOOLEAN'"
-                v-model="filterValue"
+                v-if="definitionFor(draft)?.type === 'BOOLEAN'"
+                v-model="draft.value"
                 :options="booleanValueOptions"
-                :disabled="!filterKey"
+                :disabled="!draft.key"
                 :placeholder="t('views.chooseValue')"
               />
               <AppSelect
-                v-else-if="filterSelectOptions.length > 0"
-                v-model="filterValue"
-                :options="selectValueOptions"
-                :disabled="!filterKey"
+                v-else-if="selectValueOptionsFor(draft).length > 1"
+                v-model="draft.value"
+                :options="selectValueOptionsFor(draft)"
+                :disabled="!draft.key"
                 :placeholder="t('views.chooseValue')"
               />
               <input
                 v-else
-                v-model="filterValue"
-                :disabled="!filterKey"
-                :type="filterDefinition?.type === 'NUMBER' ? 'number' : filterDefinition?.type === 'DATE' ? 'date' : 'text'"
+                v-model="draft.value"
+                :disabled="!draft.key"
+                :type="definitionFor(draft)?.type === 'NUMBER' ? 'number' : definitionFor(draft)?.type === 'DATE' ? 'date' : 'text'"
                 :placeholder="t('views.filterValueHint')"
               >
             </label>
+            <button
+              v-if="filterDrafts.length > 1"
+              type="button"
+              class="btn-secondary remove-filter"
+              :data-testid="`remove-filter-${index}`"
+              :aria-label="t('views.removeConditionNumber', { number: index + 1 })"
+              @click="removeFilter(index)"
+            >{{ t('views.removeCondition') }}</button>
+          </div>
+          <div class="filter-controls">
+            <button
+              type="button"
+              class="btn-secondary"
+              data-testid="add-filter"
+              :disabled="filterDrafts.length >= MAX_FILTERS"
+              @click="addFilter"
+            >{{ t('views.addCondition') }}</button>
+            <div v-if="filterDrafts.length >= 2" class="filter-mode" role="group" :aria-label="t('views.filterMode')">
+              <label>
+                <input v-model="filterMode" data-testid="filter-mode-all" type="radio" value="ALL">
+                {{ t('views.filterModeAll') }}
+              </label>
+              <label>
+                <input v-model="filterMode" data-testid="filter-mode-any" type="radio" value="ANY">
+                {{ t('views.filterModeAny') }}
+              </label>
+            </div>
+            <span v-if="filterDrafts.length >= MAX_FILTERS" class="filter-limit">
+              {{ t('views.filterLimit', { count: MAX_FILTERS }) }}
+            </span>
           </div>
           <p class="filter-hint">{{ t('views.filterOptionalHint') }}</p>
         </fieldset>
@@ -315,7 +429,16 @@ onMounted(load)
           />
         </label>
         <div class="form-actions">
-          <button type="submit" class="btn-primary">{{ t('views.create') }}</button>
+          <button
+            v-if="editingViewId"
+            type="button"
+            class="btn-secondary"
+            data-testid="cancel-edit"
+            @click="resetForm"
+          >{{ t('views.cancel') }}</button>
+          <button type="submit" class="btn-primary">
+            {{ editingViewId ? t('views.save') : t('views.create') }}
+          </button>
         </div>
       </form>
     </section>
@@ -328,6 +451,12 @@ onMounted(load)
             <small>{{ filterSummary(view) }} · {{ view.type }}</small>
           </div>
           <div class="view-actions">
+            <button
+              type="button"
+              class="btn-secondary"
+              :data-testid="`edit-view-${view.id}`"
+              @click="startEditing(view)"
+            >{{ t('views.edit') }}</button>
             <button
               type="button"
               class="favorite-btn"
@@ -421,6 +550,11 @@ onMounted(load)
   margin-bottom: 1rem;
 }
 
+.create-card h2 {
+  margin: 0 0 0.85rem;
+  font-size: 1rem;
+}
+
 .create-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -465,8 +599,42 @@ onMounted(load)
 
 .filter-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   gap: 0.75rem 1rem;
+  align-items: end;
+}
+
+.filter-row + .filter-row {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border, #d0d7de);
+}
+
+.remove-filter {
+  min-height: 40px;
+}
+
+.filter-controls,
+.filter-mode {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.filter-controls {
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.filter-mode label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.filter-limit {
+  color: var(--color-text-muted, #656d76);
+  font-size: 0.85rem;
 }
 
 .filter-hint {
@@ -479,6 +647,7 @@ onMounted(load)
   grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .muted {

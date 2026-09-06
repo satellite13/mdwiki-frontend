@@ -182,13 +182,40 @@ export interface PageProperties {
   warnings: string[]
 }
 export type SavedViewType = 'TABLE' | 'LIST' | 'CARDS'
+export type ViewFilterMode = 'ALL' | 'ANY'
+export type ViewFilterOperator =
+  | 'EQ' | 'NEQ' | 'CONTAINS' | 'EXISTS'
+  | 'GT' | 'GTE' | 'LT' | 'LTE'
+export interface ViewFilterCondition {
+  key: string
+  op: ViewFilterOperator
+  value?: string | number | boolean
+}
+export interface SavedViewSort {
+  key: string
+  direction: 'ASC' | 'DESC'
+}
+export interface SavedViewGrouping {
+  key: string
+}
+export interface SavedViewWritePayload {
+  name: string
+  type: SavedViewType
+  filterMode: ViewFilterMode
+  filters: ViewFilterCondition[]
+  sort: SavedViewSort[]
+  grouping: SavedViewGrouping | null
+  layout: Record<string, unknown>
+  expectedVersion?: number
+}
 export interface SavedView {
   id: string
   name: string
   type: SavedViewType
-  filters: unknown[]
-  sort: unknown[]
-  grouping: unknown | null
+  filterMode: ViewFilterMode
+  filters: ViewFilterCondition[]
+  sort: SavedViewSort[]
+  grouping: SavedViewGrouping | null
   layout: Record<string, unknown>
   favorited: boolean
   version: number

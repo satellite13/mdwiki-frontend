@@ -1,8 +1,11 @@
-import type { PropertyType } from '@/types'
+import type {
+  PropertyType,
+  ViewFilterCondition,
+  ViewFilterMode,
+  ViewFilterOperator,
+} from '@/types'
 
-export type ViewFilterOp =
-  | 'EQ' | 'NEQ' | 'CONTAINS' | 'EXISTS'
-  | 'GT' | 'GTE' | 'LT' | 'LTE'
+export type ViewFilterOp = ViewFilterOperator
 
 export type ViewFilterDraft = {
   key: string
@@ -10,11 +13,7 @@ export type ViewFilterDraft = {
   value: string
 }
 
-export type ViewFilterAst = {
-  key: string
-  op: ViewFilterOp
-  value?: string | number | boolean
-}
+export type ViewFilterAst = ViewFilterCondition
 
 const OPS_BY_TYPE: Record<PropertyType, ViewFilterOp[]> = {
   TEXT: ['EQ', 'NEQ', 'CONTAINS', 'EXISTS'],
@@ -35,6 +34,10 @@ export function operatorsForPropertyType(type: PropertyType): ViewFilterOp[] {
 export function defaultOperatorForType(type: PropertyType): ViewFilterOp {
   const ops = operatorsForPropertyType(type)
   return ops.includes('EQ') ? 'EQ' : ops[0]!
+}
+
+export function createEmptyViewFilterDraft(): ViewFilterDraft {
+  return { key: '', op: 'EQ', value: '' }
 }
 
 export function coerceFilterValue(
@@ -82,4 +85,50 @@ export function selectOptionsFromConfig(config: Record<string, unknown>): string
   const options = config.options
   if (!Array.isArray(options)) return []
   return options.map((item) => String(item)).filter(Boolean)
+}
+
+export type ViewFilterSummaryLabels = {
+  noFilter: string
+  allConnector: string
+  anyConnector: string
+  property: (key: string) => string
+  operator: (op: string) => string
+}
+
+export function formatViewFilterSummary(
+  filters: ViewFilterCondition[],
+  mode: ViewFilterMode,
+  labels: ViewFilterSummaryLabels,
+): string {
+  if (!filters.length) return labels.noFilter
+  const parts = filters.map((filter) => {
+    const property = labels.property(filter.key)
+    const operator = labels.operator(filter.op)
+    if (filter.op === 'EXISTS') return `${property} · ${operator}`
+    return `${property} ${operator} ${String(filter.value ?? '')}`
+  })
+  return parts.join(` ${mode === 'ANY' ? labels.anyConnector : labels.allConnector} `)
+}
+
+export function draftsFromSavedFilters(
+  filters: unknown[],
+  typeByKey: Record<string, PropertyType>,
+): ViewFilterDraft[] {
+  const drafts: ViewFilterDraft[] = []
+  for (const candidate of filters) {
+    if (!candidate || typeof candidate !== 'object') continue
+    const filter = candidate as Record<string, unknown>
+    if (typeof filter.key !== 'string' || typeof filter.op !== 'string') continue
+    const type = typeByKey[filter.key]
+    if (!type) continue
+    const op = filter.op as ViewFilterOp
+    if (!operatorsForPropertyType(type).includes(op)) continue
+    if (op !== 'EXISTS' && !['string', 'number', 'boolean'].includes(typeof filter.value)) continue
+    drafts.push({
+      key: filter.key,
+      op,
+      value: op === 'EXISTS' ? '' : String(filter.value),
+    })
+  }
+  return drafts.length ? drafts : [createEmptyViewFilterDraft()]
 }
