@@ -26,7 +26,8 @@ describe('AdminPropertiesPage', () => {
     const wrapper = mount(AdminPropertiesPage, { global: { plugins: [i18n] } })
     await flushPromises()
 
-    expect(wrapper.get('h1').text()).toBe('Свойства')
+    expect(wrapper.get('h1').text()).toContain('Свойства')
+    expect(wrapper.get('h1 .help-tip-trigger').attributes('aria-label')).toBe('Свойства')
     expect(wrapper.get('.data-table button[aria-label]').attributes('aria-label')).toBe('Удалить Priority')
     setLocale('en')
   })
