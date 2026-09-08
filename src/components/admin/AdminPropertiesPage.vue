@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import * as api from '@/api/properties'
 import type { PropertyDefinition, PropertyType } from '@/types'
-import { getApiErrorMessage } from '@/utils/apiError'
+import { getApiErrorMessage, isApiErrorWithStatus } from '@/utils/apiError'
 import { useI18n } from 'vue-i18n'
 import AdminNav from '@/components/admin/AdminNav.vue'
 import HelpTip from '@/components/ui/HelpTip.vue'
@@ -10,6 +10,7 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 
 const { t } = useI18n()
 const definitions = ref<PropertyDefinition[]>([])
+const editing = ref<PropertyDefinition | null>(null)
 const key = ref('')
 const displayName = ref('')
 const type = ref<PropertyType>('TEXT')
@@ -31,9 +32,31 @@ function parseOptions(raw: string): string[] {
   )]
 }
 
+function optionsFromConfig(config: Record<string, unknown> | undefined): string {
+  const options = config?.options
+  return Array.isArray(options) ? options.map(String).join(', ') : ''
+}
+
 function optionsLabel(item: PropertyDefinition): string {
   const options = item.config?.options
   return Array.isArray(options) ? options.map(String).join(', ') : '—'
+}
+
+function resetForm() {
+  editing.value = null
+  key.value = ''
+  displayName.value = ''
+  type.value = 'TEXT'
+  optionsText.value = ''
+}
+
+function startEditing(item: PropertyDefinition) {
+  editing.value = item
+  key.value = item.key
+  displayName.value = item.displayName
+  type.value = item.type
+  optionsText.value = optionsFromConfig(item.config)
+  error.value = ''
 }
 
 async function load() {
@@ -45,32 +68,43 @@ async function load() {
   }
 }
 
-async function create() {
+async function submit() {
   try {
     const options = needsOptions.value ? parseOptions(optionsText.value) : []
     if (needsOptions.value && options.length === 0) {
       error.value = t('adminProperties.optionsRequired')
       return
     }
-    await api.createPropertyDefinition({
+    const payload = {
       key: key.value,
       displayName: displayName.value,
       type: type.value,
       config: needsOptions.value ? { options } : {},
-      required: false,
-    })
-    key.value = ''
-    displayName.value = ''
-    optionsText.value = ''
+      required: editing.value?.required ?? false,
+    }
+    if (editing.value) {
+      await api.updatePropertyDefinition(editing.value.id, {
+        ...payload,
+        expectedVersion: editing.value.version,
+      })
+    } else {
+      await api.createPropertyDefinition(payload)
+    }
+    resetForm()
     error.value = ''
     await load()
   } catch (cause) {
+    if (editing.value && isApiErrorWithStatus(cause, 409)) {
+      error.value = t('adminProperties.updateConflict')
+      return
+    }
     error.value = getApiErrorMessage(cause, t('adminProperties.saveFailed'))
   }
 }
 
 async function remove(id: string) {
   await api.deletePropertyDefinition(id)
+  if (editing.value?.id === id) resetForm()
   await load()
 }
 
@@ -90,10 +124,16 @@ onMounted(load)
     </div>
     <p v-if="error" role="alert">{{ error }}</p>
 
-    <form class="create-form" @submit.prevent="create">
+    <form class="create-form" @submit.prevent="submit">
       <label>
         {{ t('adminProperties.key') }}
-        <input v-model="key" required pattern="[A-Za-z][A-Za-z0-9_-]*" placeholder="status" />
+        <input
+          v-model="key"
+          required
+          pattern="[A-Za-z][A-Za-z0-9_-]*"
+          placeholder="status"
+          :disabled="!!editing"
+        />
       </label>
       <label>
         {{ t('adminProperties.name') }}
@@ -101,7 +141,12 @@ onMounted(load)
       </label>
       <label>
         {{ t('adminProperties.type') }}
-        <AppSelect v-model="type" :options="typeOptions" :aria-label="t('adminProperties.type')" />
+        <AppSelect
+          v-model="type"
+          :options="typeOptions"
+          :aria-label="t('adminProperties.type')"
+          :disabled="!!editing"
+        />
       </label>
       <label v-if="needsOptions" class="options-field">
         {{ t('adminProperties.options') }}
@@ -113,7 +158,20 @@ onMounted(load)
         />
         <span class="field-hint">{{ t('adminProperties.optionsHint') }}</span>
       </label>
-      <button type="submit" class="btn-primary">{{ t('adminProperties.create') }}</button>
+      <p v-if="editing" class="field-hint immutable-hint">{{ t('adminProperties.immutableHint') }}</p>
+      <div class="form-actions">
+        <button
+          v-if="editing"
+          type="button"
+          class="btn-secondary"
+          @click="resetForm"
+        >
+          {{ t('adminProperties.cancel') }}
+        </button>
+        <button type="submit" class="btn-primary">
+          {{ editing ? t('adminProperties.save') : t('adminProperties.create') }}
+        </button>
+      </div>
     </form>
 
     <table class="data-table">
@@ -136,7 +194,15 @@ onMounted(load)
           <td><code>{{ item.key }}</code></td>
           <td>{{ item.type }}</td>
           <td class="options-cell">{{ optionsLabel(item) }}</td>
-          <td>
+          <td class="actions-cell">
+            <button
+              type="button"
+              class="btn-secondary"
+              :aria-label="t('adminProperties.editNamed', { name: item.displayName })"
+              @click="startEditing(item)"
+            >
+              {{ t('adminProperties.edit') }}
+            </button>
             <button
               type="button"
               class="btn-secondary"
@@ -200,9 +266,27 @@ onMounted(load)
   color: var(--color-text-muted);
 }
 
-.create-form .btn-primary {
+.create-form .form-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.create-form .btn-primary,
+.create-form .form-actions .btn-secondary {
   min-height: 44px;
   height: 44px;
+}
+
+.immutable-hint {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .data-table {

@@ -31,13 +31,19 @@ export const ru = {
     optionsHint: 'Через запятую или с новой строки. Нужно для SELECT и MULTI_SELECT.',
     optionsRequired: 'Для SELECT и MULTI_SELECT укажите хотя бы один вариант.',
     create: 'Создать',
+    edit: 'Изменить',
+    editNamed: 'Изменить {name}',
+    save: 'Сохранить',
+    cancel: 'Отмена',
+    immutableHint: 'Ключ и тип нельзя изменить после создания.',
     definitions: 'Определения свойств',
     empty: 'Пока нет определений.',
     action: 'Действие',
     delete: 'Удалить',
     deleteNamed: 'Удалить {name}',
     loadFailed: 'Не удалось загрузить определения свойств.',
-    saveFailed: 'Не удалось сохранить определение свойства.'
+    saveFailed: 'Не удалось сохранить определение свойства.',
+    updateConflict: 'Определение уже изменено. Обновите список и повторите.'
   },
   views: {
     title: 'Представления',

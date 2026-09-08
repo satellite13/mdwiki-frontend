@@ -6,9 +6,11 @@ import { getDocumentByTestId } from '@/test/dom'
 
 const listPropertyDefinitions = vi.fn()
 const createPropertyDefinition = vi.fn()
+const updatePropertyDefinition = vi.fn()
 vi.mock('@/api/properties', () => ({
   listPropertyDefinitions: (...args: unknown[]) => listPropertyDefinitions(...args),
   createPropertyDefinition: (...args: unknown[]) => createPropertyDefinition(...args),
+  updatePropertyDefinition: (...args: unknown[]) => updatePropertyDefinition(...args),
   deletePropertyDefinition: vi.fn()
 }))
 
@@ -28,7 +30,8 @@ describe('AdminPropertiesPage', () => {
 
     expect(wrapper.get('h1').text()).toContain('Свойства')
     expect(wrapper.get('h1 .help-tip-trigger').attributes('aria-label')).toBe('Свойства')
-    expect(wrapper.get('.data-table button[aria-label]').attributes('aria-label')).toBe('Удалить Priority')
+    expect(wrapper.get('[aria-label="Изменить Priority"]').attributes('aria-label')).toBe('Изменить Priority')
+    expect(wrapper.get('[aria-label="Удалить Priority"]').attributes('aria-label')).toBe('Удалить Priority')
     setLocale('en')
   })
 
@@ -53,5 +56,43 @@ describe('AdminPropertiesPage', () => {
       config: { options: ['digital-twin', 'repos', 'gitlab'] },
       required: false,
     })
+  })
+
+  it('loads an existing definition into the form and saves via patch', async () => {
+    listPropertyDefinitions.mockResolvedValue({
+      data: [{
+        id: 'def-1',
+        key: 'status',
+        displayName: 'Status',
+        type: 'SELECT',
+        config: { options: ['todo', 'done'] },
+        required: false,
+        version: 3,
+      }]
+    })
+    updatePropertyDefinition.mockResolvedValue({ data: {} })
+    setLocale('en')
+    const wrapper = mount(AdminPropertiesPage, { global: { plugins: [i18n] } })
+    await flushPromises()
+
+    await wrapper.get('[aria-label="Edit Status"]').trigger('click')
+    expect(wrapper.get('input[placeholder="Status"]').element).toHaveProperty('value', 'Status')
+    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toContain('todo')
+    expect(wrapper.get('input[placeholder="status"]').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('input[placeholder="Status"]').setValue('Workflow status')
+    await wrapper.get('textarea').setValue('todo, doing, done')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(updatePropertyDefinition).toHaveBeenCalledWith('def-1', {
+      key: 'status',
+      displayName: 'Workflow status',
+      type: 'SELECT',
+      config: { options: ['todo', 'doing', 'done'] },
+      required: false,
+      expectedVersion: 3,
+    })
+    expect(createPropertyDefinition).not.toHaveBeenCalled()
   })
 })

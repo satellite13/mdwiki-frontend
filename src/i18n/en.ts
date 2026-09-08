@@ -31,13 +31,19 @@ export const en = {
     optionsHint: 'Comma or newline separated. Required for SELECT and MULTI_SELECT.',
     optionsRequired: 'SELECT and MULTI_SELECT need at least one option.',
     create: 'Create',
+    edit: 'Edit',
+    editNamed: 'Edit {name}',
+    save: 'Save',
+    cancel: 'Cancel',
+    immutableHint: 'Key and type cannot be changed after creation.',
     definitions: 'Property definitions',
     empty: 'No definitions yet.',
     action: 'Action',
     delete: 'Delete',
     deleteNamed: 'Delete {name}',
     loadFailed: 'Could not load property definitions.',
-    saveFailed: 'Could not save property definition.'
+    saveFailed: 'Could not save property definition.',
+    updateConflict: 'This definition changed elsewhere. Reload and retry.'
   },
   views: {
     title: 'Views',
