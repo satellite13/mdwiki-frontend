@@ -361,6 +361,8 @@ export const en = {
     headingAnchorLink: 'Link to section',
     copyAnchor: 'Copy section anchor',
     copyCode: 'Copy code',
+    expandMermaid: 'Expand diagram',
+    mermaidFullscreen: 'Diagram',
     anchorCopied: 'Anchor copied',
     codeCopied: 'Code copied',
     copyFailed: 'Copy failed',

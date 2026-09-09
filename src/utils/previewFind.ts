@@ -1,6 +1,6 @@
 import { findMatchIndices } from '@/utils/editorFind'
 
-const SKIP_CLOSEST = 'button, script, style, .heading-copy-btn, .code-copy-btn'
+const SKIP_CLOSEST = 'button, script, style, .heading-copy-btn, .code-copy-btn, .mermaid-expand-btn'
 
 export type PreviewFindPiece = {
   node: Text

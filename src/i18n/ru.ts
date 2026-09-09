@@ -361,6 +361,8 @@ export const ru = {
     headingAnchorLink: 'Ссылка на раздел',
     copyAnchor: 'Скопировать якорь раздела',
     copyCode: 'Скопировать код',
+    expandMermaid: 'Развернуть диаграмму',
+    mermaidFullscreen: 'Диаграмма',
     anchorCopied: 'Якорь скопирован',
     codeCopied: 'Код скопирован',
     copyFailed: 'Не удалось скопировать',

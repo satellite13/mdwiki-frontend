@@ -31,7 +31,7 @@ export function createPdfPrintHost(title: string, contentElement: HTMLElement): 
 
   const body = contentElement.cloneNode(true) as HTMLElement
   body.removeAttribute('style')
-  body.querySelectorAll('.heading-copy-btn, .code-copy-btn').forEach((el) => el.remove())
+  body.querySelectorAll('.heading-copy-btn, .code-copy-btn, .mermaid-expand-btn').forEach((el) => el.remove())
   body.querySelectorAll('img').forEach((img) => {
     img.loading = 'eager'
     img.removeAttribute('loading')

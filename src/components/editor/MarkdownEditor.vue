@@ -36,6 +36,8 @@ import type { PageSectionMapResponse, PropertyDefinition, ReadingTheme } from '@
 import type { TocItem } from './tocTypes'
 import { usePreviewCopyDecorations } from '@/components/editor/usePreviewCopyDecorations'
 import { usePreviewRenderPipeline } from '@/components/editor/usePreviewRenderPipeline'
+import MermaidFullscreenOverlay from '@/components/editor/MermaidFullscreenOverlay.vue'
+import { decorateMermaidExpandButtons, mermaidSvgHtmlFromEvent } from '@/utils/mermaidFullscreen'
 import { useReadingToc } from '@/components/editor/useReadingToc'
 import { useSplitScrollSync } from '@/components/editor/useSplitScrollSync'
 import { scrollToAnnotation, useAnnotations } from '@/components/editor/useAnnotations'
@@ -170,6 +172,7 @@ const previewCopyDecorations = usePreviewCopyDecorations(
   () => getPreviewPaneElement(),
   async (sectionKey, stableId) => copySection(sectionKey, stableId)
 )
+const mermaidFullscreenSvg = ref('')
 const previewRenderPipeline = usePreviewRenderPipeline({
   getRoot: () => getPreviewPaneElement(),
   shouldRender: () => editorMode.value !== 'editor',
@@ -597,6 +600,7 @@ async function renderPreviewDiagrams() {
   }
   previewCopyDecorations.decorateHeadingAnchors()
   previewCopyDecorations.decorateCodeCopyButtons()
+  decorateMermaidExpandButtons(getPreviewPaneElement(), t('editor.expandMermaid'))
   readingToc.buildReadingToc()
   if (editorMode.value === 'reading') {
     applyAnnotationHighlights()
@@ -644,6 +648,11 @@ function tooltipCycle(delta: number) {
 
 async function onPreviewClick(event: MouseEvent) {
   tooltipAnnotation.value = null
+  const expandedSvg = mermaidSvgHtmlFromEvent(event)
+  if (expandedSvg) {
+    mermaidFullscreenSvg.value = expandedSvg
+    return
+  }
   const tagName = previewHashtagName(event.target as Element | null)
   if (tagName) {
     event.preventDefault()
@@ -954,6 +963,13 @@ defineExpose({
         </button>
       </div>
     </div>
+    <Teleport to="body">
+      <MermaidFullscreenOverlay
+        v-if="mermaidFullscreenSvg"
+        :svg-html="mermaidFullscreenSvg"
+        @close="mermaidFullscreenSvg = ''"
+      />
+    </Teleport>
   </div>
 </template>
 
@@ -1271,9 +1287,53 @@ defineExpose({
 }
 
 :deep(.markdown-body .mermaid) {
+  position: relative;
   display: flex;
   justify-content: center;
   overflow-x: auto;
+}
+
+:deep(.markdown-body .mermaid-expand-btn) {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  color: var(--color-text-faint);
+  opacity: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+:deep(.markdown-body .mermaid-expand-btn .material-symbols-outlined) {
+  font-size: 18px;
+  line-height: 1;
+}
+
+:deep(.markdown-body .mermaid:hover .mermaid-expand-btn),
+:deep(.markdown-body .mermaid-expand-btn:focus-visible) {
+  opacity: 1;
+}
+
+:deep(.markdown-body .mermaid-expand-btn:hover) {
+  border-color: var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+@media (hover: none) {
+  :deep(.markdown-body .mermaid-expand-btn) {
+    opacity: 1;
+  }
 }
 
 :deep(.markdown-body .section-deep-link-highlight) {

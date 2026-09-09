@@ -26,7 +26,7 @@ describe('createPdfPrintHost', () => {
     const source = document.createElement('div')
     source.className = 'preview-content markdown-body'
     source.setAttribute('style', 'font-size: 22px')
-    source.innerHTML = '<p>Hello wiki</p><button class="heading-copy-btn">copy</button>'
+    source.innerHTML = '<p>Hello wiki</p><button class="heading-copy-btn">copy</button><button class="mermaid-expand-btn">expand</button>'
     document.body.appendChild(source)
 
     const host = createPdfPrintHost('  Architecture  ', source)
@@ -36,6 +36,7 @@ describe('createPdfPrintHost', () => {
     expect(host.textContent).toContain('Hello wiki')
     expect(host.textContent).toContain('Architecture')
     expect(host.querySelector('.heading-copy-btn')).toBeNull()
+    expect(host.querySelector('.mermaid-expand-btn')).toBeNull()
     expect(host.querySelector('.preview-content')?.getAttribute('style')).toBeNull()
 
     source.remove()
