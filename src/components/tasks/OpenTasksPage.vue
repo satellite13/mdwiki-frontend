@@ -12,11 +12,13 @@ import CountBadge from '@/components/ui/CountBadge.vue'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import { invalidatePageIndex } from '@/services/pageIndex'
 import HelpTip from '@/components/ui/HelpTip.vue'
+import { readTaskAskCommentPref } from '@/components/tasks/taskPreferences'
 
 interface TaskGroup {
   documentId: string
   slug: string
   documentTitle: string
+  locked: boolean
   items: OpenTask[]
 }
 
@@ -30,6 +32,7 @@ const loading = ref(true)
 const completing = ref(false)
 const completingTask = ref<OpenTask | null>(null)
 const summary = ref('')
+const askComment = ref(readTaskAskCommentPref())
 
 const groups = computed<TaskGroup[]>(() => {
   const map = new Map<string, TaskGroup>()
@@ -38,13 +41,17 @@ const groups = computed<TaskGroup[]>(() => {
       documentId: task.documentId,
       slug: task.slug,
       documentTitle: task.documentTitle,
+      locked: task.locked,
       items: []
     }
     group.items.push(task)
+    group.locked = group.locked || task.locked
     map.set(task.documentId, group)
   }
   return [...map.values()].sort((a, b) => a.documentTitle.localeCompare(b.documentTitle, 'ru', { sensitivity: 'base' }))
 })
+
+const showCompleteAll = computed(() => !askComment.value && auth.isEditor)
 
 async function fetchOpenTasks() {
   loading.value = true
@@ -63,12 +70,6 @@ function openDocument(slug: string) {
   void router.push({ name: 'page', params: { slug } })
 }
 
-function openCompleteDialog(task: OpenTask) {
-  if (task.locked || !auth.isEditor || completing.value) return
-  completingTask.value = task
-  summary.value = ''
-}
-
 function resetCompleteDialog() {
   completingTask.value = null
   summary.value = ''
@@ -79,28 +80,34 @@ function closeCompleteDialog() {
   resetCompleteDialog()
 }
 
-async function completeTask() {
-  const task = completingTask.value
-  if (!task || completing.value) return
+async function submitComplete(task: OpenTask, taskSummary?: string) {
+  const trimmedSummary = taskSummary?.trim()
+  await tasksApi.completeTask({
+    documentId: task.documentId,
+    updatedAt: task.updatedAt,
+    sourceOffset: task.sourceOffset,
+    sourceLine: task.sourceLine,
+    ...(trimmedSummary ? { summary: taskSummary } : {})
+  })
+  invalidatePageIndex()
+}
+
+async function handleCompleteConflict() {
+  resetCompleteDialog()
+  const reload = await dialog.confirm(t('tasks.conflict'), { confirmLabel: t('tasks.reload') })
+  if (reload) await fetchOpenTasks()
+}
+
+async function completeTaskDirect(task: OpenTask) {
+  if (task.locked || !auth.isEditor || completing.value) return
 
   completing.value = true
   try {
-    const trimmedSummary = summary.value.trim()
-    await tasksApi.completeTask({
-      documentId: task.documentId,
-      updatedAt: task.updatedAt,
-      sourceOffset: task.sourceOffset,
-      sourceLine: task.sourceLine,
-      ...(trimmedSummary ? { summary: summary.value } : {})
-    })
-    invalidatePageIndex()
-    resetCompleteDialog()
+    await submitComplete(task)
     await fetchOpenTasks()
   } catch (error) {
     if (isApiErrorWithStatus(error, 409)) {
-      resetCompleteDialog()
-      const reload = await dialog.confirm(t('tasks.conflict'), { confirmLabel: t('tasks.reload') })
-      if (reload) await fetchOpenTasks()
+      await handleCompleteConflict()
     } else {
       await dialog.alert(getApiErrorMessage(error, t('tasks.completeFailed')))
     }
@@ -109,7 +116,81 @@ async function completeTask() {
   }
 }
 
-onMounted(fetchOpenTasks)
+function onTaskCheckbox(task: OpenTask, event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.checked) return
+
+  if (askComment.value) {
+    if (task.locked || !auth.isEditor || completing.value) {
+      input.checked = false
+      return
+    }
+    completingTask.value = task
+    summary.value = ''
+    return
+  }
+
+  input.checked = false
+  void completeTaskDirect(task)
+}
+
+async function completeTask() {
+  const task = completingTask.value
+  if (!task || completing.value) return
+
+  completing.value = true
+  try {
+    await submitComplete(task, summary.value)
+    resetCompleteDialog()
+    await fetchOpenTasks()
+  } catch (error) {
+    if (isApiErrorWithStatus(error, 409)) {
+      await handleCompleteConflict()
+    } else {
+      await dialog.alert(getApiErrorMessage(error, t('tasks.completeFailed')))
+    }
+  } finally {
+    completing.value = false
+  }
+}
+
+async function completeAllInGroup(group: TaskGroup, event: Event) {
+  const input = event.target as HTMLInputElement
+  input.checked = false
+  if (!showCompleteAll.value || group.locked || completing.value) return
+
+  const ok = await dialog.confirm(t('tasks.confirmCompleteAll', { title: group.documentTitle }), {
+    confirmLabel: t('tasks.complete')
+  })
+  if (!ok) return
+
+  completing.value = true
+  try {
+    let remaining = tasks.value.filter((task) => task.documentId === group.documentId && !task.locked)
+    while (remaining.length > 0) {
+      const task = remaining[0]
+      await submitComplete(task)
+      const { data } = await tasksApi.listOpenTasks()
+      tasks.value = data
+      remaining = data.filter((item) => item.documentId === group.documentId && !item.locked)
+    }
+    invalidatePageIndex()
+  } catch (error) {
+    if (isApiErrorWithStatus(error, 409)) {
+      await handleCompleteConflict()
+    } else {
+      await dialog.alert(getApiErrorMessage(error, t('tasks.completeAllFailed')))
+      await fetchOpenTasks()
+    }
+  } finally {
+    completing.value = false
+  }
+}
+
+onMounted(() => {
+  askComment.value = readTaskAskCommentPref()
+  void fetchOpenTasks()
+})
 </script>
 
 <template>
@@ -139,6 +220,14 @@ onMounted(fetchOpenTasks)
     <div v-else class="groups">
       <section v-for="group in groups" :key="group.documentId" class="group-card">
         <div class="group-header">
+          <input
+            v-if="showCompleteAll"
+            :data-testid="`complete-all-${group.slug}`"
+            type="checkbox"
+            :aria-label="t('tasks.completeAll')"
+            :disabled="group.locked || completing"
+            @change="completeAllInGroup(group, $event)"
+          />
           <h2 class="group-title">
             <button
               type="button"
@@ -159,7 +248,7 @@ onMounted(fetchOpenTasks)
               type="checkbox"
               :aria-label="t('tasks.complete')"
               :disabled="task.locked || !auth.isEditor || completing"
-              @change="openCompleteDialog(task)"
+              @change="onTaskCheckbox(task, $event)"
             />
             <span class="task-text">{{ task.text }}</span>
           </li>
@@ -199,6 +288,25 @@ onMounted(fetchOpenTasks)
 </template>
 
 <style scoped>
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.7rem;
+}
+
+.group-header > input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--color-primary);
+  flex: 0 0 auto;
+}
+
+.group-header > input:not(:disabled) {
+  cursor: pointer;
+}
+
 .group-header .link-btn {
   font: inherit;
   font-weight: 700;
@@ -229,7 +337,7 @@ onMounted(fetchOpenTasks)
 .task-item input {
   width: 1rem;
   height: 1rem;
-  margin: 0.2rem 0 0;
+  margin: 0.2rem 0;
   accent-color: var(--color-primary);
   flex: 0 0 auto;
 }

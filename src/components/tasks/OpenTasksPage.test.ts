@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import OpenTasksPage from './OpenTasksPage.vue'
 import { i18n } from '@/i18n'
+import { writeTaskAskCommentPref } from './taskPreferences'
 
 const mockListOpenTasks = vi.fn()
 const mockCompleteTask = vi.fn()
@@ -82,9 +83,12 @@ function mountPage() {
 describe('OpenTasksPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
+    writeTaskAskCommentPref(true)
     auth.isEditor = true
     mockListOpenTasks.mockResolvedValue({ data: tasks })
     mockCompleteTask.mockResolvedValue({ data: undefined })
+    mockConfirm.mockResolvedValue(true)
   })
 
   it('groups tasks by document and opens its page', async () => {
@@ -110,6 +114,13 @@ describe('OpenTasksPage', () => {
     const readerWrapper = mountPage()
     await flushPromises()
     expect((readerWrapper.get('[data-testid="complete-14"]').element as HTMLInputElement).disabled).toBe(true)
+  })
+
+  it('hides complete-all when asking for comments', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="complete-all-release-notes"]').exists()).toBe(false)
   })
 
   it('submits a non-empty summary and reloads all tasks', async () => {
@@ -149,6 +160,69 @@ describe('OpenTasksPage', () => {
       sourceOffset: 14,
       sourceLine: '- [ ] Ship task page'
     })
+  })
+
+  it('completes immediately without a dialog when comments are disabled', async () => {
+    writeTaskAskCommentPref(false)
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="complete-14"]').setValue(true)
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(mockCompleteTask).toHaveBeenCalledWith({
+      documentId: 'doc-1',
+      updatedAt: '2026-07-10T10:00:00Z',
+      sourceOffset: 14,
+      sourceLine: '- [ ] Ship task page'
+    })
+    expect(mockListOpenTasks).toHaveBeenCalledTimes(2)
+  })
+
+  it('completes every task in a document from the header checkbox', async () => {
+    writeTaskAskCommentPref(false)
+    mockListOpenTasks
+      .mockResolvedValueOnce({ data: tasks })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            ...tasks[1],
+            updatedAt: '2026-07-10T10:01:00Z'
+          },
+          tasks[2]
+        ]
+      })
+      .mockResolvedValueOnce({ data: [tasks[2]] })
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="complete-all-release-notes"]').setValue(true)
+    await flushPromises()
+
+    expect(mockConfirm).toHaveBeenCalled()
+    expect(mockCompleteTask).toHaveBeenNthCalledWith(1, {
+      documentId: 'doc-1',
+      updatedAt: '2026-07-10T10:00:00Z',
+      sourceOffset: 14,
+      sourceLine: '- [ ] Ship task page'
+    })
+    expect(mockCompleteTask).toHaveBeenNthCalledWith(2, {
+      documentId: 'doc-1',
+      updatedAt: '2026-07-10T10:01:00Z',
+      sourceOffset: 42,
+      sourceLine: '- [ ] Add screenshot'
+    })
+    expect(wrapper.find('[data-testid="complete-all-release-notes"]').exists()).toBe(false)
+  })
+
+  it('disables complete-all for locked documents', async () => {
+    writeTaskAskCommentPref(false)
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect((wrapper.get('[data-testid="complete-all-roadmap"]').element as HTMLInputElement).disabled).toBe(true)
   })
 
   it('offers to reload after a completion conflict', async () => {

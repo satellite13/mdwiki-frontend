@@ -10,6 +10,7 @@ import { copyTextToClipboard } from '@/utils/clipboard'
 import { useI18n } from 'vue-i18n'
 import SkeletonPage from '@/components/ui/SkeletonPage.vue'
 import HelpTip from '@/components/ui/HelpTip.vue'
+import { readTaskAskCommentPref, writeTaskAskCommentPref } from '@/components/tasks/taskPreferences'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -28,6 +29,13 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const passwordLoading = ref(false)
 const showPassword = ref(false)
+const askTaskComment = ref(readTaskAskCommentPref())
+
+function onAskTaskCommentChange(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked
+  askTaskComment.value = checked
+  writeTaskAskCommentPref(checked)
+}
 
 async function fetchKeys() {
   loading.value = true
@@ -130,6 +138,24 @@ onBeforeUnmount(() => {
       <p><strong>{{ t('profile.usernameLabel') }}</strong> {{ auth.username }}</p>
       <p><strong>{{ t('profile.roleLabel') }}</strong> <span class="role-badge">{{ auth.role }}</span></p>
     </div>
+
+    <div class="title-row">
+      <h2>
+        {{ t('profile.tasksSettingsTitle') }}
+        <HelpTip :label="t('profile.tasksSettingsTitle')">
+          <p>{{ t('profile.tasksSettingsHint') }}</p>
+        </HelpTip>
+      </h2>
+    </div>
+    <label class="pref-row">
+      <input
+        type="checkbox"
+        data-testid="ask-task-comment"
+        :checked="askTaskComment"
+        @change="onAskTaskCommentChange"
+      />
+      <span>{{ t('profile.askTaskComment') }}</span>
+    </label>
 
     <div class="title-row">
       <h2>
@@ -241,6 +267,23 @@ onBeforeUnmount(() => {
 .profile-card p {
   margin-bottom: 6px;
   font-size: 15px;
+}
+
+.pref-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 0.75rem 0 0;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.pref-row input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0.2rem 0 0;
+  accent-color: var(--color-primary);
+  flex: 0 0 auto;
 }
 
 .profile-card p:last-child {
